@@ -98,12 +98,12 @@ struct gdt_table {
 typedef struct gdt_table gdt_table_t;
 
 typedef enum {
-    NULL_SELEKTOR,          // Reserved segment (Offset 0x00)
-    KERNEL_CODE_SELEKTOR,   // Kernel Code Segment (Offset 0x08)
-    KERNEL_DATA_SELEKTOR,   // Kernel Data Segment Offset 0x10
-    USER_CODE_SELEKTOR,     // User Code Segment (Offset 0x18)
-    USER_DATA_SELEKTOR,     // User Data Segment (Offset 0x20)
-    TASK_STATE_SELEKTOR     // Task State Segment (Offset 0x28)
+    GDT_NULL_SELEKTOR,          // Reserved segment (Offset 0x00)
+    GDT_KERNEL_CODE_SELEKTOR,   // Kernel Code Segment (Offset 0x08)
+    GDT_KERNEL_DATA_SELEKTOR,   // Kernel Data Segment Offset 0x10
+    GDT_USER_CODE_SELEKTOR,     // User Code Segment (Offset 0x18)
+    GDT_USER_DATA_SELEKTOR,     // User Data Segment (Offset 0x20)
+    GDT_TASK_STATE_SELEKTOR     // Task State Segment (Offset 0x28)
 } gdt_selector_t;
 
 /**
