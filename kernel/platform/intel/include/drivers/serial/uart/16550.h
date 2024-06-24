@@ -1,5 +1,5 @@
-#ifndef _KERNEL_PLATFORM_INTEL_DRIVERS_UART_16550_H
-#define _KERNEL_PLATFORM_INTEL_DRIVERS_UART_16550_H
+#ifndef _KERNEL_PLATFORM_INTEL_DRIVERS_SERIAL_UART_16550_H
+#define _KERNEL_PLATFORM_INTEL_DRIVERS_SERIAL_UART_16550_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -57,4 +57,4 @@ void uart_16550_write(uint16_t port, const void* data, size_t size);
  */
 void uart_16550_read(uint16_t port, void* buffer, size_t size);
 
-#endif // _KERNEL_PLATFORM_INTEL_DRIVERS_UART_16550_H
+#endif // _KERNEL_PLATFORM_INTEL_DRIVERS_SERIAL_UART_16550_H

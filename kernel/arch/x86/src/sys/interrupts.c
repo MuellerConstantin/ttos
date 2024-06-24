@@ -1,7 +1,6 @@
 #include <sys/interrupts.h>
 #include <io/ports.h>
 #include <drivers/pic/8259.h>
-#include <drivers/uart/16550.h>
 
 interrupt_listener_t listeners[MAX_INTERRUPT_LISTENERS];
 

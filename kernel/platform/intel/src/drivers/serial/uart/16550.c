@@ -1,4 +1,4 @@
-#include <drivers/uart/16550.h>
+#include <drivers/serial/uart/16550.h>
 #include <io/ports.h>
 
 static int8_t uart_16550_flushable(uint16_t port);

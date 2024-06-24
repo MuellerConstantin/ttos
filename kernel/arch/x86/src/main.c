@@ -3,7 +3,7 @@
 #include <sys/idt.h>
 #include <sys/interrupts.h>
 #include <drivers/pic/8259.h>
-#include <drivers/uart/16550.h>
+#include <drivers/serial/uart/16550.h>
 
 void kmain(multiboot_header_t* multiboot_header) {
     uart_16550_init(UART_16550_COM1, 115200);
