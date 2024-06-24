@@ -1,4 +1,7 @@
 #include <sys/interrupts.h>
+#include <io/ports.h>
+#include <drivers/pic/8259.h>
+#include <drivers/uart/16550.h>
 
 interrupt_listener_t listeners[MAX_INTERRUPT_LISTENERS];
 
@@ -8,6 +11,11 @@ void interrupt_handler(processor_state_t *state) {
 		interrupt_listener_t listener = listeners[state->interrupt_code];
 		listener(state);
 	}
+
+    // Send EOI to PIC in case of IRQ
+    if(32 <= state->interrupt_code) {
+        pic_8259_send_eoi(state->interrupt_code - 32);
+    }
 }
 
 uint32_t interrupt_register_listener(interrupt_t selector, interrupt_listener_t listener) {

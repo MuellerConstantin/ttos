@@ -34,4 +34,21 @@ extern void exc29();
 extern void exc30();
 extern void exc31();
 
+extern void irq32();
+extern void irq33();
+extern void irq34();
+extern void irq35();
+extern void irq36();
+extern void irq37();
+extern void irq38();
+extern void irq39();
+extern void irq40();
+extern void irq41();
+extern void irq42();
+extern void irq43();
+extern void irq44();
+extern void irq45();
+extern void irq46();
+extern void irq47();
+
 #endif // _KERNEL_ARCH_X86_SYS_ISR_H

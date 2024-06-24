@@ -52,6 +52,25 @@ typedef enum {
     ALIGNMENT_CHECK_EXCEPTION = 17,
     MACHINE_CHECK_EXCEPTION = 18,
     SIMD_FLOATING_POINT_EXCEPTION = 19,
+
+    // Interrupt Request (IRQ)/Hardware interrupts
+
+    PROGRAMMABLE_INTERRUPT_TIMER_INTERRUPT = 32,
+    KEYBOARD_INTERRUPT = 33,
+    CASCADE_INTERRUPT = 34,
+    COM2_INTERRUPT = 35,
+    COM1_INTERRUPT = 36,
+    LPT2_INTERRUPT = 37,
+    FLOPPY_DISK_INTERRUPT = 38,
+    LPT1_INTERRUPT = 39,
+    CMOS_REAL_TIME_CLOCK_INTERRUPT = 40,
+    PERIPHERAL1_INTERRUPT = 41,
+    PERIPHERAL2_INTERRUPT = 42,
+    PERIPHERAL3_INTERRUPT = 43,
+    PS2_INTERRUPT = 44,
+    COPROCESSOR_INTERRUPT = 45,
+    PRIMARY_ATA_HARD_DISK_INTERRUPT = 46,
+    SECONDARY_ATA_HARD_DISK_INTERRUPT = 47
 } interrupt_t;
 
 typedef void (*interrupt_listener_t)(processor_state_t *state);
@@ -72,5 +91,15 @@ uint32_t interrupt_register_listener(interrupt_t selector, interrupt_listener_t 
  * @return 0 if the listener was successfully uninstalled, -1 otherwise.
  */
 uint32_t interrupt_unregister_listener(interrupt_t selector);
+
+/**
+ * Enables maskable interrupts.
+ */
+void interrupt_enable();
+
+/**
+ * Disables maskable interrupts.
+ */
+void interrupt_disable();
 
 #endif // _KERNEL_ARCH_X86_SYS_INTERRUPTS_H

@@ -42,6 +42,23 @@ void idt_init() {
     idt_init_descriptor(MACHINE_CHECK_EXCEPTION, (uint32_t) exc18, 0x08, 0x8E);
     idt_init_descriptor(SIMD_FLOATING_POINT_EXCEPTION, (uint32_t) exc19, 0x08, 0x8E);
 
+    idt_init_descriptor(PROGRAMMABLE_INTERRUPT_TIMER_INTERRUPT, (uint32_t) irq32, 0x08, 0x8E);
+    idt_init_descriptor(KEYBOARD_INTERRUPT, (uint32_t) irq33, 0x08, 0x8E);
+    idt_init_descriptor(CASCADE_INTERRUPT, (uint32_t) irq34, 0x08, 0x8E);
+    idt_init_descriptor(COM2_INTERRUPT, (uint32_t) irq35, 0x08, 0x8E);
+    idt_init_descriptor(COM1_INTERRUPT, (uint32_t) irq36, 0x08, 0x8E);
+    idt_init_descriptor(LPT2_INTERRUPT, (uint32_t) irq37, 0x08, 0x8E);
+    idt_init_descriptor(FLOPPY_DISK_INTERRUPT, (uint32_t) irq38, 0x08, 0x8E);
+    idt_init_descriptor(LPT1_INTERRUPT, (uint32_t) irq39, 0x08, 0x8E);
+    idt_init_descriptor(CMOS_REAL_TIME_CLOCK_INTERRUPT, (uint32_t) irq40, 0x08, 0x8E);
+    idt_init_descriptor(PERIPHERAL1_INTERRUPT, (uint32_t) irq41, 0x08, 0x8E);
+    idt_init_descriptor(PERIPHERAL2_INTERRUPT, (uint32_t) irq42, 0x08, 0x8E);
+    idt_init_descriptor(PERIPHERAL3_INTERRUPT, (uint32_t) irq43, 0x08, 0x8E);
+    idt_init_descriptor(PS2_INTERRUPT, (uint32_t) irq44, 0x08, 0x8E);
+    idt_init_descriptor(COPROCESSOR_INTERRUPT, (uint32_t) irq45, 0x08, 0x8E);
+    idt_init_descriptor(PRIMARY_ATA_HARD_DISK_INTERRUPT, (uint32_t) irq46, 0x08, 0x8E);
+    idt_init_descriptor(SECONDARY_ATA_HARD_DISK_INTERRUPT, (uint32_t) irq47, 0x08, 0x8E);
+
     idt.base = (uint32_t) &descriptors;
     idt.limit = sizeof(descriptors) - 1;
 
