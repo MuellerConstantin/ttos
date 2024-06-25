@@ -2,33 +2,42 @@
 
 .PHONY: all clean
 
-FORMAT := elf_i386
+CC := gcc
+AS := nasm
 
+SRCDIR := src
+OBJDIR := obj
+
+FORMAT := elf_i386
 TARGET := kernel.elf
 
-LDFLAGS := -m $(FORMAT) -T kernel.ld
+INCLUDE := -I '$(ROOTDIR)/kernel/include'
 
-LIBS := \
-	core/core.a \
-	arch/$(ARCH)/arch.a \
-	platform/$(PLATFORM)/platform.a
+CFLAGS := -std=c99 -ffreestanding -m32 -Wall -O -fno-stack-protector
+ASFLAGS := -f elf
+
+SRCS := $(shell find $(SRCDIR) -name '*.asm') $(shell find $(SRCDIR) -name '*.c')
+OBJS := $(subst $(SRCDIR), $(OBJDIR), $(patsubst %.c, %.o, $(patsubst %.asm, %.o, $(SRCS))))
+
+LDFLAGS := -m $(FORMAT) -T kernel.ld
 
 all: $(TARGET)
 
 clean:
 
-	$(MAKE) -C core clean
-	$(MAKE) -C arch/$(ARCH) clean
-	$(MAKE) -C platform/$(PLATFORM) clean
-
+	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
 
-$(TARGET): $(LIBS)
+$(TARGET): $(OBJS)
 
 	$(LD) $(LDFLAGS) --start-group $^ --end-group -o $@
 
-$(LIBS):
+$(OBJDIR)/%.o: $(SRCDIR)/%.asm
 
-	$(MAKE) -C core all
-	$(MAKE) -C arch/$(ARCH) all
-	$(MAKE) -C platform/$(PLATFORM) all
+	mkdir -p $(@D)
+	$(AS) $(ASFLAGS) -o $@ $<
+	
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
