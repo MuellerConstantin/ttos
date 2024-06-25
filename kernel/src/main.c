@@ -4,13 +4,12 @@
 #include <descriptors/idt.h>
 #include <sys/isr.h>
 #include <drivers/pic/8259.h>
-#include <drivers/serial/uart/16550.h>
+#include <drivers/video/vga/textmode.h>
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
+    vga_init(VGA_80x25_16_TEXT);
 
-    uart_16550_init(UART_16550_COM1, 115200);
-
-    uart_16550_write(UART_16550_COM1, "Kernel loading...\n", 18);
+    vga_tm_strwrite(0, "Kernel loading...", VGA_TM_WHITE, VGA_TM_BLACK);
 
     isr_cli();
 
@@ -20,7 +19,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_sti();
 
-    uart_16550_write(UART_16550_COM1, "Kernel loaded!\n", 15);
+    vga_tm_strwrite(80, "Kernel loaded!", VGA_TM_WHITE, VGA_TM_BLACK);
 
     while(1);
 }

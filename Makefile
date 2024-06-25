@@ -18,7 +18,7 @@ ISODIR := iso
 TARGET := kernel/kernel.elf
 IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
-QEMUFLAGS := -cdrom $(IMAGE)
+QEMUFLAGS := -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G
 
 all: boot/grub/grub.cfg $(TARGET)
 
