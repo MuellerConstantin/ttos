@@ -8,11 +8,9 @@
 isr_sti:
 
     sti
-
     ret
 
 isr_cli:
 
     cli
-
     ret
