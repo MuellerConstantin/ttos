@@ -203,13 +203,11 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
     const size_t ecx_name_length = kpanic_strlen(ecx_name);
     const size_t ecx_value_length = kpanic_strlen(ecx_value);
     const size_t edx_name_length = kpanic_strlen(edx_name);
-    const size_t edx_value_length = kpanic_strlen(edx_value);
 
     const size_t ecx_screen_offset = SCREEN_NEXT_LINE(80, ebx_screen_limit);
     const size_t ecx_screen_limit = ecx_screen_offset + ecx_name_length + ecx_value_length + ecx_edx_spacer;
 
     const size_t edx_screen_offset = ecx_screen_limit + 1;
-    const size_t edx_screen_limit = edx_screen_offset + edx_name_length + edx_value_length;
 
     vga_tm_strwrite(ecx_screen_offset, ecx_name, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(ecx_screen_offset + ecx_name_length, ecx_value, VGA_TM_WHITE, VGA_TM_BLUE);

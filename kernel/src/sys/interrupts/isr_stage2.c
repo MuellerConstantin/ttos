@@ -43,20 +43,20 @@ const char *exception_messages[] = {
 void isr_stage2(isr_cpu_state_t *state) {
     isr_interrupt_listener_t listener = listeners[state->interrupt_code];
 
-    // If interrupt is handled or is a hardware interrupt
-    if(0 != listener || 32 <= state->interrupt_code) {
+    // Call the listener
+    if(0 != listener) {
         listener(state);
-
-        // Send EOI to PIC
-        if(32 <= state->interrupt_code) {
-            pic_8259_send_eoi(state->interrupt_code - 32);
-        }
-
-        return;
     }
 
+	// Send EOI to PIC for hardware interrupts
+	if(32 <= state->interrupt_code) {
+		pic_8259_send_eoi(state->interrupt_code - 32);
+	}
+
     // In case of an unhandled exception
-    kpanic(exception_messages[state->interrupt_code], state);
+    if(0 == listener && 32 > state->interrupt_code) {
+		kpanic(exception_messages[state->interrupt_code], state);
+	}
 }
 
 uint32_t isr_register_listener(isr_interrupt_t selector, isr_interrupt_listener_t listener) {
