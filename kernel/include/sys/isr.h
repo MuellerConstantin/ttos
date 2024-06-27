@@ -56,8 +56,8 @@ extern void irq47();
 #define ISR_MAX_INTERRUPT_LISTENERS 48
 
 struct isr_cpu_state {
-    uint32_t ds; 
-    
+    uint32_t ds;
+
     uint32_t edi;
     uint32_t esi;
     uint32_t ebp;
@@ -66,7 +66,7 @@ struct isr_cpu_state {
     uint32_t edx;
     uint32_t ecx;
     uint32_t eax;
-    
+
     uint32_t interrupt_code;
     uint32_t error_code;
 

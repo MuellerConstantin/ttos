@@ -129,35 +129,6 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
     vga_tm_strwrite(eflags_screen_offset, eflags_name, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(eflags_screen_offset + eflags_name_length, eflags_value, VGA_TM_WHITE, VGA_TM_BLUE);
 
-    // Print technical details: CS + SS
-
-    const char* cs_name = "CS:     0x";
-    char cs_value[9];
-
-    const char* ss_name = "SS:     0x";
-    char ss_value[9];
-
-    kpanic_itoa(state->cs, cs_value, 16);
-    kpanic_itoa(state->ss, ss_value, 16);
-
-    const size_t cs_ss_spacer = 8 - kpanic_strlen(cs_value);
-
-    const size_t cs_name_length = kpanic_strlen(cs_name);
-    const size_t cs_value_length = kpanic_strlen(cs_value);
-    const size_t ss_name_length = kpanic_strlen(ss_name);
-    const size_t ss_value_length = kpanic_strlen(ss_value);
-
-    const size_t cs_screen_offset = SCREEN_NEXT_LINE(80, eflags_screen_limit);
-    const size_t cs_screen_limit = cs_screen_offset + cs_name_length + cs_value_length + cs_ss_spacer;
-
-    const size_t ss_screen_offset = cs_screen_limit + 1;
-    const size_t ss_screen_limit = ss_screen_offset + ss_name_length + ss_value_length;
-
-    vga_tm_strwrite(cs_screen_offset, cs_name, VGA_TM_WHITE, VGA_TM_BLUE);
-    vga_tm_strwrite(cs_screen_offset + cs_name_length, cs_value, VGA_TM_WHITE, VGA_TM_BLUE);
-    vga_tm_strwrite(ss_screen_offset, ss_name, VGA_TM_WHITE, VGA_TM_BLUE);
-    vga_tm_strwrite(ss_screen_offset + ss_name_length, ss_value, VGA_TM_WHITE, VGA_TM_BLUE);
-
     // Print technical details: EAX + EBX
 
     const char* eax_name = "EAX:    0x";
@@ -176,7 +147,7 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
     const size_t ebx_name_length = kpanic_strlen(ebx_name);
     const size_t ebx_value_length = kpanic_strlen(ebx_value);
 
-    const size_t eax_screen_offset = SCREEN_NEXT_LINE(80, ss_screen_limit);
+    const size_t eax_screen_offset = SCREEN_NEXT_LINE(80, eflags_screen_limit);
     const size_t eax_screen_limit = eax_screen_offset + eax_name_length + eax_value_length + eax_ebx_spacer;
 
     const size_t ebx_screen_offset = eax_screen_limit + 1;
@@ -203,16 +174,90 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
     const size_t ecx_name_length = kpanic_strlen(ecx_name);
     const size_t ecx_value_length = kpanic_strlen(ecx_value);
     const size_t edx_name_length = kpanic_strlen(edx_name);
+    const size_t edx_value_length = kpanic_strlen(edx_value);
 
     const size_t ecx_screen_offset = SCREEN_NEXT_LINE(80, ebx_screen_limit);
     const size_t ecx_screen_limit = ecx_screen_offset + ecx_name_length + ecx_value_length + ecx_edx_spacer;
 
     const size_t edx_screen_offset = ecx_screen_limit + 1;
+    const size_t edx_screen_limit = edx_screen_offset + edx_name_length + edx_value_length;
 
     vga_tm_strwrite(ecx_screen_offset, ecx_name, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(ecx_screen_offset + ecx_name_length, ecx_value, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(edx_screen_offset, edx_name, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(edx_screen_offset + edx_name_length, edx_value, VGA_TM_WHITE, VGA_TM_BLUE);
+
+    // Print technical details: ESI + EDI
+
+    const char* esi_name = "ESI:    0x";
+    char esi_value[9];
+
+    const char* edi_name = "EDI:    0x";
+    char edi_value[9];
+
+    kpanic_itoa(state->esi, esi_value, 16);
+    kpanic_itoa(state->edi, edi_value, 16);
+
+    const size_t esi_edi_spacer = 8 - kpanic_strlen(esi_value);
+
+    const size_t esi_name_length = kpanic_strlen(esi_name);
+    const size_t esi_value_length = kpanic_strlen(esi_value);
+    const size_t edi_name_length = kpanic_strlen(edi_name);
+    const size_t edi_value_length = kpanic_strlen(edi_value);
+
+    const size_t esi_screen_offset = SCREEN_NEXT_LINE(80, edx_screen_limit);
+    const size_t esi_screen_limit = esi_screen_offset + esi_name_length + esi_value_length + esi_edi_spacer;
+
+    const size_t edi_screen_offset = esi_screen_limit + 1;
+    const size_t edi_screen_limit = edi_screen_offset + edi_name_length + edi_value_length;
+
+    vga_tm_strwrite(esi_screen_offset, esi_name, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(esi_screen_offset + esi_name_length, esi_value, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(edi_screen_offset, edi_name, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(edi_screen_offset + edi_name_length, edi_value, VGA_TM_WHITE, VGA_TM_BLUE);
+
+    // Print technical details: CS + SS
+
+    const char* cs_name = "CS:     0x";
+    char cs_value[9];
+
+    const char* ss_name = "SS:     0x";
+    char ss_value[9];
+
+    kpanic_itoa(state->cs, cs_value, 16);
+    kpanic_itoa(state->ss, ss_value, 16);
+
+    const size_t cs_ss_spacer = 8 - kpanic_strlen(cs_value);
+
+    const size_t cs_name_length = kpanic_strlen(cs_name);
+    const size_t cs_value_length = kpanic_strlen(cs_value);
+    const size_t ss_name_length = kpanic_strlen(ss_name);
+    const size_t ss_value_length = kpanic_strlen(ss_value);
+
+    const size_t cs_screen_offset = SCREEN_NEXT_LINE(80, edi_screen_limit);
+    const size_t cs_screen_limit = cs_screen_offset + cs_name_length + cs_value_length + cs_ss_spacer;
+
+    const size_t ss_screen_offset = cs_screen_limit + 1;
+    const size_t ss_screen_limit = ss_screen_offset + ss_name_length + ss_value_length;
+
+    vga_tm_strwrite(cs_screen_offset, cs_name, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(cs_screen_offset + cs_name_length, cs_value, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(ss_screen_offset, ss_name, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(ss_screen_offset + ss_name_length, ss_value, VGA_TM_WHITE, VGA_TM_BLUE);
+
+    // Print technical details: DS
+
+    const char* ds_name = "DS:     0x";
+    char ds_value[9];
+
+    kpanic_itoa(state->ds, ds_value, 16);
+
+    const size_t ds_name_length = kpanic_strlen(ds_name);
+
+    const size_t ds_screen_offset = SCREEN_NEXT_LINE(80, ss_screen_limit);
+
+    vga_tm_strwrite(ds_screen_offset, ds_name, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(ds_screen_offset + ds_name_length, ds_value, VGA_TM_WHITE, VGA_TM_BLUE);
 
     // Halt the system
     while(1);
