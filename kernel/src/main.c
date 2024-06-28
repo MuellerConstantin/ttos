@@ -4,6 +4,7 @@
 #include <descriptors/idt.h>
 #include <sys/isr.h>
 #include <drivers/pic/8259.h>
+#include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
@@ -16,6 +17,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     gdt_init();
     idt_init();
     pic_8259_init();
+    pit_8253_init(PIT_8253_COUNTER_0, 1000);
 
     isr_sti();
 
