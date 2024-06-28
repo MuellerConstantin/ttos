@@ -2,6 +2,8 @@
 
 .PHONY: all clean
 
+ROOTDIR ?= $(realpath ..)
+
 CC := gcc
 AS := nasm
 
@@ -10,10 +12,11 @@ OBJDIR := obj
 
 FORMAT := elf_i386
 TARGET := kernel.elf
+LIBK := $(ROOTDIR)/libc/libk.a
 
-INCLUDE := -I '$(ROOTDIR)/kernel/include'
+INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/libc/include'
 
-CFLAGS := -std=c99 -ffreestanding -m32 -Wall -O -fno-stack-protector
+CFLAGS := -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector
 ASFLAGS := -f elf
 
 SRCS := $(shell find $(SRCDIR) -name '*.asm') $(shell find $(SRCDIR) -name '*.c')
@@ -25,12 +28,18 @@ all: $(TARGET)
 
 clean:
 
+	$(MAKE) -C $(ROOTDIR)/libc clean
+
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(LIBK)
 
-	$(LD) $(LDFLAGS) --start-group $^ --end-group -o $@
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBK)
+
+$(LIBK):
+
+	$(MAKE) -C $(ROOTDIR)/libc all
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.asm
 
