@@ -2,12 +2,21 @@
 #include <multiboot.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
+#include <sys/panic.h>
 #include <sys/isr.h>
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
+    if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
+        kpanic("IVALID MULTIBOOT MAGIC NUMBER", NULL);
+    }
+
+    if(!(multiboot_info->flags & MULTIBOOT_INFO_MEM_MAP)) {
+        kpanic("NO MEMORY MAP PROVIDED BY MULTIBOOT", NULL);
+    }
+
     vga_init(VGA_80x25_16_TEXT);
 
     vga_tm_strwrite(0, "Kernel loading...", VGA_TM_WHITE, VGA_TM_BLACK);
