@@ -9,7 +9,7 @@
  * Get the total memory size from the multiboot info structure.
  * 
  * @param multiboot_info The multiboot info structure.
- * @return The total memory size.
+ * @return The total memory size in bytes.
  */
 size_t multiboot_get_memory_size(multiboot_info_t *multiboot_info);
 

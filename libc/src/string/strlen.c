@@ -1,5 +1,3 @@
-// __is_libk
-
 #include <string.h>
 
 size_t strlen(const char *str) {
