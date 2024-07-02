@@ -5,6 +5,7 @@
 #include <kernel.h>
 #include <memory/btalloc.h>
 #include <memory/pmm.h>
+#include <memory/paging.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
 #include <sys/kpanic.h>
@@ -12,6 +13,7 @@
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
+#include <drivers/serial/uart/16550.h>
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
@@ -46,7 +48,6 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 static void init_cpu() {
     gdt_init();
     idt_init();
-    pic_8259_init();
 }
 
 static void init_memory(multiboot_info_t *multiboot_info) {
@@ -76,8 +77,13 @@ static void init_memory(multiboot_info_t *multiboot_info) {
 
     // Reserve memory for the VGA video memory and BIOS data area
     pmm_mark_region_reserved(0x000A0000, 0x60000);
+
+    // Enable paging
+    paging_init();
 }
 
 static void init_drivers() {
+    pic_8259_init();
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
+    uart_16550_init(UART_16550_COM1, 115200);
 }

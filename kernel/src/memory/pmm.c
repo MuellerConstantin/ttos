@@ -63,6 +63,10 @@ uint32_t pmm_address_to_index(void* address) {
     return (uint32_t) address / PMM_FRAME_SIZE;
 }
 
+void* pmm_index_to_address(uint32_t index) {
+    return (void *) (index * PMM_FRAME_SIZE);
+}
+
 static bool pmm_test_frame(uint32_t frame) {
     return pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] & 1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE);
 }
@@ -130,7 +134,7 @@ void* pmm_alloc_frame() {
     pmm_set_frame(frame);
     pmm_num_memory_frames_used++;
 
-    return (void *) (frame * PMM_FRAME_SIZE);
+    return pmm_index_to_address(frame);
 }
 
 void* pmm_alloc_frames(size_t n) {
@@ -150,7 +154,7 @@ void* pmm_alloc_frames(size_t n) {
 
     pmm_num_memory_frames_used += n;
 
-    return (void *) (frame * PMM_FRAME_SIZE);
+    return pmm_index_to_address(frame);
 }
 
 void pmm_free_frame(void *frame_addr) {

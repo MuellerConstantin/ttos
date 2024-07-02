@@ -44,6 +44,14 @@ void pmm_mark_region_reserved(uint32_t base, size_t size);
 uint32_t pmm_address_to_index(void* address);
 
 /**
+ * Convert a frame index to a physical address.
+ * 
+ * @param index The frame index.
+ * @return The physical address.
+ */
+void* pmm_index_to_address(uint32_t index);
+
+/**
  * Allocate a block of memory.
  * 
  * @return The address of the allocated frame or NULL if failed.
