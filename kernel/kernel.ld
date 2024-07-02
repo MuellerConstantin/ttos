@@ -2,36 +2,32 @@ ENTRY(kstart)
 OUTPUT_FORMAT(elf32-i386)
 OUTPUT_ARCH(i386:i386)
 
-kernel_physical_address = 0x100000;
+kernel_physical_address = 0x00100000;
+kernel_virtual_address = 0xC0100000;
 
 SECTIONS {
-	kernel_start = kernel_physical_address;
+	. = kernel_virtual_address;
 
-	.text kernel_physical_address : AT(kernel_physical_address) {
-		code = .;
+	kernel_virtual_start = .;
+	kernel_physical_start = kernel_physical_address;
+
+	.text ALIGN(4096) : AT(ADDR(.text) - 0xC0000000) {
 		*(.multiboot)
 		*(.text)
-		. = ALIGN(4096);
 	}
 
-	.data : AT(kernel_physical_address + (data - code)) {
-		data = .;
+	.data ALIGN(4096) : AT(ADDR(.data) - 0xC0000000) {
 		*(.data)
-		*(.rodata)
-		. = ALIGN(4096);
 	}
 
-    .rodata : AT(kernel_physical_address + (rodata - code)) {
-        rodata = .;
+    .rodata ALIGN(4096) : AT(ADDR(.rodata) - 0xC0000000){
         *(.rodata)
-        . = ALIGN(4096);
     }
 
-	.bss : AT(kernel_physical_address + (bss - code)) {
-		bss = .;
+	.bss ALIGN(4096) : AT(ADDR(.bss) - 0xC0000000) {
 		*(.bss)
-		. = ALIGN(4096);
 	}
 
-	kernel_end = .;
+	kernel_virtual_end = .;
+	kernel_physical_end = kernel_physical_address + (kernel_virtual_end - kernel_virtual_start);
 }

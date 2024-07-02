@@ -11,8 +11,9 @@
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 
-extern uint32_t kernel_start;
-extern uint32_t kernel_end;
+extern uint32_t kernel_physical_start;
+extern uint32_t kernel_physical_end;
+extern uint32_t kernel_virtual_end;
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
@@ -52,7 +53,7 @@ static void init_cpu() {
 
 static void init_memory(multiboot_info_t *multiboot_info) {
     const size_t total_memory = multiboot_get_memory_size(multiboot_info);
-    pmm_init(total_memory, (uint32_t) &kernel_end);
+    pmm_init(total_memory, (uint32_t) &kernel_virtual_end);
 
     // Reserve used memory regions based on the multiboot memory map
     for(uint32_t offset = 0;
@@ -66,7 +67,7 @@ static void init_memory(multiboot_info_t *multiboot_info) {
     }
 
     // Reserve the kernel memory
-    pmm_mark_region_reserved((uint32_t) &kernel_start, (uint32_t) &kernel_end - (uint32_t) &kernel_start);
+    pmm_mark_region_reserved((uint32_t) &kernel_physical_start, (uint32_t) &kernel_physical_end - (uint32_t) &kernel_physical_start);
 
     // Reserve memory for the VGA video memory and BIOS data area
     pmm_mark_region_reserved(0x000A0000, 0x60000);
