@@ -6,18 +6,18 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <memory/btalloc.h>
 
-#define PMM_BLOCK_SIZE 4096
-#define PMM_BLOCK_ALIGN 4096
-#define PMM_BLOCKS_PER_BITMAP_BYTE 8
+#define PMM_FRAME_SIZE 4096
+#define PMM_FRAME_ALIGN 4096
+#define PMM_FRAMES_PER_BITMAP_BYTE 8
 
 /**
  * Initialize the Physical Memory Manager.
  * 
  * @param mem_size The total memory size in bytes.
- * @param bitmap_addr The address of the bitmap.
  */
-void pmm_init(size_t mem_size, uint32_t bitmap_addr);
+void pmm_init(size_t mem_size);
 
 /**
  * Unreserve a region of memory, hence marking it as available.
@@ -34,6 +34,14 @@ void pmm_mark_region_available(uint32_t base, size_t size);
  * @param size The size of the region.
  */
 void pmm_mark_region_reserved(uint32_t base, size_t size);
+
+/**
+ * Convert a physical address to a frame index.
+ * 
+ * @param address The physical address.
+ * @return The frame index.
+ */
+uint32_t pmm_address_to_index(void* address);
 
 /**
  * Allocate a block of memory.

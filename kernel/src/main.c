@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <multiboot.h>
 #include <multiboot_util.h>
+#include <kernel.h>
+#include <memory/btalloc.h>
 #include <memory/pmm.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
@@ -10,10 +12,6 @@
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
-
-extern uint32_t kernel_physical_start;
-extern uint32_t kernel_physical_end;
-extern uint32_t kernel_virtual_end;
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
@@ -52,8 +50,12 @@ static void init_cpu() {
 }
 
 static void init_memory(multiboot_info_t *multiboot_info) {
+    // Initialize the boot-time memory allocator
+    btalloc_init((uint32_t) &kernel_virtual_end, 0x100000);
+
+    // Initialize the physical memory manager
     const size_t total_memory = multiboot_get_memory_size(multiboot_info);
-    pmm_init(total_memory, (uint32_t) &kernel_virtual_end);
+    pmm_init(total_memory);
 
     // Reserve used memory regions based on the multiboot memory map
     for(uint32_t offset = 0;
@@ -66,8 +68,11 @@ static void init_memory(multiboot_info_t *multiboot_info) {
         }
     }
 
-    // Reserve the kernel memory
+    // Reserve memory of the kernel
     pmm_mark_region_reserved((uint32_t) &kernel_physical_start, (uint32_t) &kernel_physical_end - (uint32_t) &kernel_physical_start);
+
+    // Reserve memory of the boot-time memory allocator
+    pmm_mark_region_reserved((uint32_t) &kernel_physical_end, 0x100000);
 
     // Reserve memory for the VGA video memory and BIOS data area
     pmm_mark_region_reserved(0x000A0000, 0x60000);
