@@ -1,7 +1,7 @@
 #include <sys/isr.h>
 #include <io/ports.h>
 #include <drivers/pic/8259.h>
-#include <sys/panic.h>
+#include <sys/kpanic.h>
 
 isr_interrupt_listener_t listeners[ISR_MAX_INTERRUPT_LISTENERS];
 

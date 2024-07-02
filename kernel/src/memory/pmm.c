@@ -3,19 +3,29 @@
 static size_t pmm_memory_size = 0;
 static size_t pmm_num_memory_frames = 0;
 static size_t pmm_num_memory_frames_used = 0;
+static size_t pmm_bitmap_size = 0;
 static uint8_t *pmm_bitmap = 0;
 
-static bool pmm_test_frame(int frame);
-static void pmm_set_frame(int frame);
-static void pmm_unset_frame(int frame);
+static bool pmm_test_frame(uint32_t frame);
+static void pmm_set_frame(uint32_t frame);
+static void pmm_unset_frame(uint32_t frame);
+static bool pmm_test_reserved_frame(uint32_t frame);
+static int pmm_find_free_frame();
+static int pmm_find_free_contiguous_frames(size_t n);
 
 void pmm_init(size_t memory_size, uint32_t bitmap_addr) {
     pmm_memory_size = memory_size;
     pmm_num_memory_frames = memory_size / PMM_BLOCK_SIZE;
     pmm_num_memory_frames_used = pmm_num_memory_frames;
+    pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_BLOCKS_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) bitmap_addr;
 
-    memset(pmm_bitmap, 0xFF, pmm_num_memory_frames / PMM_BLOCKS_PER_BITMAP_BYTE);
+    memset(pmm_bitmap, 0xFF, pmm_bitmap_size);
+}
+
+static bool pmm_test_reserved_frame(uint32_t frame) {
+    // Mark frames used by the PMM as reserved to store the bitmap
+    return frame >= (uint32_t) pmm_bitmap && frame < (uint32_t) pmm_bitmap + pmm_bitmap_size;
 }
 
 size_t pmm_get_free_memory_size() {
@@ -28,37 +38,36 @@ size_t pmm_get_total_memory_size() {
 
 void pmm_mark_region_available(uint32_t base, size_t size) {
     int align = base / PMM_BLOCK_SIZE;
-    int blocks = ceil((double) size / (double) PMM_BLOCK_SIZE);
+    int frames = ceil((double) size / (double) PMM_BLOCK_SIZE);
 
-    for (; blocks > 0; blocks--) {
-        pmm_unset_frame(align++);
-        pmm_num_memory_frames_used--;
+    for (; frames > 0; frames--) {
+        // Ensure the frames are not reserved internally by the PMM
+        if(!pmm_test_reserved_frame(align)) {
+            pmm_unset_frame(align++);
+            pmm_num_memory_frames_used--;
+        }
     }
-
-    pmm_set_frame(0);
 }
 
 void pmm_mark_region_reserved(uint32_t base, size_t size) {
     int align = base / PMM_BLOCK_SIZE;
-    int blocks = ceil((double) size / (double) PMM_BLOCK_SIZE);
+    int frames = ceil((double) size / (double) PMM_BLOCK_SIZE);
 
-    for (; blocks > 0; blocks--) {
+    for (; frames > 0; frames--) {
         pmm_set_frame(align++);
         pmm_num_memory_frames_used++;
     }
-
-    pmm_set_frame(0);
 }
 
-static bool pmm_test_frame(int frame) {
+static bool pmm_test_frame(uint32_t frame) {
     return pmm_bitmap[frame / PMM_BLOCKS_PER_BITMAP_BYTE] & 1 << (frame % PMM_BLOCKS_PER_BITMAP_BYTE);
 }
 
-static void pmm_set_frame(int frame) {
+static void pmm_set_frame(uint32_t frame) {
     pmm_bitmap[frame / PMM_BLOCKS_PER_BITMAP_BYTE] |= ~(1 << (frame % PMM_BLOCKS_PER_BITMAP_BYTE));
 }
 
-static void pmm_unset_frame(int frame) {
+static void pmm_unset_frame(uint32_t frame) {
     pmm_bitmap[frame / PMM_BLOCKS_PER_BITMAP_BYTE] &= ~(1 << (frame % PMM_BLOCKS_PER_BITMAP_BYTE));
 }
 
@@ -68,6 +77,33 @@ static int pmm_find_free_frame() {
             for (int bit_index = 0; bit_index < PMM_BLOCKS_PER_BITMAP_BYTE; bit_index++) {
                 if (!(pmm_bitmap[bit_index] & (1 << bit_index))) {
                     return index * PMM_BLOCKS_PER_BITMAP_BYTE + bit_index;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
+static int pmm_find_free_contiguous_frames(size_t n) {
+    size_t free_frames = 0;
+    size_t start_frame = 0;
+
+    for (size_t index = 0; index < pmm_num_memory_frames / PMM_BLOCKS_PER_BITMAP_BYTE; index++) {
+        if (pmm_bitmap[index] != 0xFF) {
+            for (int bit_index = 0; bit_index < PMM_BLOCKS_PER_BITMAP_BYTE; bit_index++) {
+                if (!(pmm_bitmap[bit_index] & (1 << bit_index))) {
+                    if (free_frames == 0) {
+                        start_frame = index * PMM_BLOCKS_PER_BITMAP_BYTE + bit_index;
+                    }
+
+                    free_frames++;
+
+                    if (free_frames == n) {
+                        return start_frame;
+                    }
+                } else {
+                    free_frames = 0;
                 }
             }
         }
@@ -93,9 +129,39 @@ void* pmm_alloc_frame() {
     return (void *) (frame * PMM_BLOCK_SIZE);
 }
 
+void* pmm_alloc_frames(size_t n) {
+    if(pmm_num_memory_frames_used + n >= pmm_num_memory_frames) {
+        return NULL;
+    }
+
+    int frame = pmm_find_free_contiguous_frames(n);
+
+    if(frame == -1) {
+        return NULL;
+    }
+
+    for(size_t i = 0; i < n; i++) {
+        pmm_set_frame(frame + i);
+    }
+
+    pmm_num_memory_frames_used += n;
+
+    return (void *) (frame * PMM_BLOCK_SIZE);
+}
+
 void pmm_free_frame(void *frame_addr) {
     int frame = (int) frame_addr / PMM_BLOCK_SIZE;
 
     pmm_unset_frame(frame);
     pmm_num_memory_frames_used--;
+}
+
+void pmm_free_frames(void *frame_addr, size_t n) {
+    int frame = (int) frame_addr / PMM_BLOCK_SIZE;
+
+    for(size_t i = 0; i < n; i++) {
+        pmm_unset_frame(frame + i);
+    }
+
+    pmm_num_memory_frames_used -= n;
 }

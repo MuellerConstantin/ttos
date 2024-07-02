@@ -5,7 +5,7 @@
 #include <memory/pmm.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
-#include <sys/panic.h>
+#include <sys/kpanic.h>
 #include <sys/isr.h>
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
@@ -65,14 +65,8 @@ static void init_memory(multiboot_info_t *multiboot_info) {
         }
     }
 
-    // Reserve the first 1MB of memory
-    pmm_mark_region_reserved(0, 0x100000);
-
     // Reserve the kernel memory
     pmm_mark_region_reserved((uint32_t) &kernel_start, (uint32_t) &kernel_end - (uint32_t) &kernel_start);
-
-    // Reserve memory for memory management structures
-    pmm_mark_region_reserved((uint32_t) &kernel_end, 0x1000);
 
     // Reserve memory for the VGA video memory and BIOS data area
     pmm_mark_region_reserved(0x000A0000, 0x60000);

@@ -1,5 +1,5 @@
-#ifndef _KERNEL_SYS_PANIC_H
-#define _KERNEL_SYS_PANIC_H
+#ifndef _KERNEL_SYS_KPANIC_H
+#define _KERNEL_SYS_KPANIC_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -15,4 +15,4 @@
  */
 void kpanic(const char* msg, isr_cpu_state_t *state);
 
-#endif // _KERNEL_SYS_PANIC_H
+#endif // _KERNEL_SYS_KPANIC_H

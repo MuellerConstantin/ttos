@@ -38,9 +38,17 @@ void pmm_mark_region_reserved(uint32_t base, size_t size);
 /**
  * Allocate a block of memory.
  * 
- * @return The address of the allocated frame.
+ * @return The address of the allocated frame or NULL if failed.
  */
 void* pmm_alloc_frame();
+
+/**
+ * Allocate a number of contiguous frames.
+ * 
+ * @param n The number of frames to allocate.
+ * @return The address of the allocated frames or NULL if failed.
+ */
+void* pmm_alloc_frames(size_t n);
 
 /**
  * Free a block of memory.
@@ -48,6 +56,14 @@ void* pmm_alloc_frame();
  * @param frame_addr The address of the block to free.
  */
 void pmm_free_frame(void *frame_addr);
+
+/**
+ * Free a number of contiguous frames.
+ * 
+ * @param frame_addr The address of the first frame to free.
+ * @param n The number of frames to free.
+ */
+void pmm_free_frames(void *frame_addr, size_t n);
 
 /**
  * Get the size of the free memory.
