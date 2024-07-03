@@ -16,7 +16,7 @@
 #include <drivers/serial/uart/16550.h>
 
 static void init_cpu();
-static void init_memory(multiboot_info_t *multiboot_info);
+static void init_memory(size_t total_memory);
 static void init_drivers();
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
@@ -28,6 +28,8 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
         kpanic("NO MEMORY MAP PROVIDED BY MULTIBOOT", NULL);
     }
 
+    const size_t total_memory = multiboot_get_memory_size(multiboot_info);
+
     isr_cli();
 
     vga_init(VGA_80x25_16_TEXT);
@@ -35,7 +37,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     vga_tm_strwrite(0, "Kernel loading...", VGA_TM_WHITE, VGA_TM_BLACK);
 
     init_cpu();
-    init_memory(multiboot_info);
+    init_memory(total_memory);
     init_drivers();
 
     vga_tm_strwrite(80, "Kernel loaded!", VGA_TM_WHITE, VGA_TM_BLACK);
@@ -50,33 +52,21 @@ static void init_cpu() {
     idt_init();
 }
 
-static void init_memory(multiboot_info_t *multiboot_info) {
+static void init_memory(size_t total_memory) {
     // Initialize the boot-time memory allocator
     btalloc_init((uint32_t) &kernel_virtual_end, 0x100000);
 
     // Initialize the physical memory manager
-    const size_t total_memory = multiboot_get_memory_size(multiboot_info);
     pmm_init(total_memory);
 
-    // Reserve used memory regions based on the multiboot memory map
-    for(uint32_t offset = 0;
-        offset < multiboot_info->mmap_length;
-        offset += sizeof(multiboot_memory_map_t)) {
-        multiboot_memory_map_t *mmap = (multiboot_memory_map_t *) (multiboot_info->mmap_addr + offset);
-
-        if(mmap->type == MULTIBOOT_MEMORY_AVAILABLE) {
-            pmm_mark_region_available(mmap->addr, mmap->len);
-        }
-    }
+    // Reserve memory for the VGA video memory and BIOS data area
+    pmm_mark_region_reserved((void*) 0x000A0000, 0x60000);
 
     // Reserve memory of the kernel
-    pmm_mark_region_reserved((uint32_t) &kernel_physical_start, (uint32_t) &kernel_physical_end - (uint32_t) &kernel_physical_start);
+    pmm_mark_region_reserved(&kernel_physical_start, (uint32_t) &kernel_physical_end - (uint32_t) &kernel_physical_start);
 
     // Reserve memory of the boot-time memory allocator
-    pmm_mark_region_reserved((uint32_t) &kernel_physical_end, 0x100000);
-
-    // Reserve memory for the VGA video memory and BIOS data area
-    pmm_mark_region_reserved(0x000A0000, 0x60000);
+    pmm_mark_region_reserved(&kernel_physical_end, 0x100000);
 
     // Enable paging
     paging_init();

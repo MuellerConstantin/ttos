@@ -9,26 +9,20 @@ static uint8_t *pmm_bitmap = NULL;
 static bool pmm_test_frame(uint32_t frame);
 static void pmm_set_frame(uint32_t frame);
 static void pmm_unset_frame(uint32_t frame);
-static bool pmm_test_reserved_frame(uint32_t frame);
 static int pmm_find_free_frame();
 static int pmm_find_free_contiguous_frames(size_t n);
 
 void pmm_init(size_t memory_size) {
     pmm_memory_size = memory_size;
     pmm_num_memory_frames = memory_size / PMM_FRAME_SIZE;
-    pmm_num_memory_frames_used = pmm_num_memory_frames;
+    pmm_num_memory_frames_used = 0;
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) btalloc_malloc(pmm_bitmap_size, true);
 
-    memset(pmm_bitmap, 0xFF, pmm_bitmap_size);
+    memset(pmm_bitmap, 0x00, pmm_bitmap_size);
 }
 
-static bool pmm_test_reserved_frame(uint32_t frame) {
-    // Mark frames used by the PMM as reserved to store the bitmap
-    return frame >= (uint32_t) pmm_bitmap && frame < (uint32_t) pmm_bitmap + pmm_bitmap_size;
-}
-
-size_t pmm_get_free_memory_size() {
+size_t pmm_get_available_memory_size() {
     return (pmm_num_memory_frames - pmm_num_memory_frames_used) * PMM_FRAME_SIZE;
 }
 
@@ -36,21 +30,18 @@ size_t pmm_get_total_memory_size() {
     return pmm_memory_size;
 }
 
-void pmm_mark_region_available(uint32_t base, size_t size) {
-    int align = base / PMM_FRAME_SIZE;
+void pmm_mark_region_available(void* base, size_t size) {
+    int align = (uint32_t) base / PMM_FRAME_SIZE;
     int frames = ceil((double) size / (double) PMM_FRAME_SIZE);
 
     for (; frames > 0; frames--) {
-        // Ensure the frames are not reserved internally by the PMM
-        if(!pmm_test_reserved_frame(align)) {
-            pmm_unset_frame(align++);
-            pmm_num_memory_frames_used--;
-        }
+        pmm_unset_frame(align++);
+        pmm_num_memory_frames_used--;
     }
 }
 
-void pmm_mark_region_reserved(uint32_t base, size_t size) {
-    int align = base / PMM_FRAME_SIZE;
+void pmm_mark_region_reserved(void* base, size_t size) {
+    int align = (uint32_t) base / PMM_FRAME_SIZE;
     int frames = ceil((double) size / (double) PMM_FRAME_SIZE);
 
     for (; frames > 0; frames--) {

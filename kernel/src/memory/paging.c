@@ -21,13 +21,6 @@ void paging_init() {
         paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_VIRTUAL_BASE), true, true);
     }
 
-    // Identity mapping the first 1MB of virtual address space to the first 1MB of physical address space
-    for(uint32_t page_address = 0;
-        page_address < 0x100000;
-        page_address += PAGE_SIZE) {
-        paging_allocate_page(page_directory, (void*) page_address, (void*) page_address, true, true);
-    }
-
     uint32_t page_directory_physical_address = (uint32_t) paging_virtual_to_physical_address(prepaging_page_directory, page_directory);
 
     paging_switch_page_directory((page_directory_t*) page_directory_physical_address);
@@ -85,6 +78,8 @@ static void paging_allocate_page(page_directory_t *const page_directory, void *c
         // If no frame address is provided, allocate a new frame
         if(!frame_address) {
             frame_address = pmm_alloc_frame();
+        } else {
+            pmm_mark_region_reserved(frame_address, PAGE_SIZE);
         }
 
         uint32_t frame_index = pmm_address_to_index(frame_address);
