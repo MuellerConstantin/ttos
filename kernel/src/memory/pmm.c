@@ -1,4 +1,5 @@
 #include <memory/pmm.h>
+#include <memory/kheap.h>
 
 static size_t pmm_memory_size = 0;
 static size_t pmm_num_memory_frames = 0;
@@ -17,7 +18,7 @@ void pmm_init(size_t memory_size) {
     pmm_num_memory_frames = memory_size / PMM_FRAME_SIZE;
     pmm_num_memory_frames_used = 0;
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
-    pmm_bitmap = (uint8_t *) btalloc_malloc(pmm_bitmap_size, true);
+    pmm_bitmap = (uint8_t *) kmalloc_a(pmm_bitmap_size);
 
     memset(pmm_bitmap, 0x00, pmm_bitmap_size);
 }

@@ -3,7 +3,6 @@
 #include <multiboot.h>
 #include <multiboot_util.h>
 #include <kernel.h>
-#include <memory/btalloc.h>
 #include <memory/pmm.h>
 #include <memory/paging.h>
 #include <descriptors/gdt.h>
@@ -53,20 +52,14 @@ static void init_cpu() {
 }
 
 static void init_memory(size_t total_memory) {
-    // Initialize the boot-time memory allocator
-    btalloc_init((uint32_t) &kernel_virtual_end, 0x100000);
-
     // Initialize the physical memory manager
     pmm_init(total_memory);
 
-    // Reserve memory for the VGA video memory and BIOS data area
+    // Mark the VGA video memory as reserved
     pmm_mark_region_reserved((void*) 0x000A0000, 0x60000);
 
-    // Reserve memory of the kernel
-    pmm_mark_region_reserved(&kernel_physical_start, (uint32_t) &kernel_physical_end - (uint32_t) &kernel_physical_start);
-
-    // Reserve memory of the boot-time memory allocator
-    pmm_mark_region_reserved(&kernel_physical_end, 0x100000);
+    // Mark the 4MB of kernel space and kernel heap placement memory as reserved
+    pmm_mark_region_reserved((void*) &kernel_physical_start, 0x400000);
 
     // Enable paging
     paging_init();

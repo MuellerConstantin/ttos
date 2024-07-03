@@ -1,5 +1,5 @@
 #include <memory/paging.h>
-#include <memory/btalloc.h>
+#include <memory/kheap.h>
 #include <memory/pmm.h>
 
 static bool paging_enabled = false;
@@ -11,7 +11,7 @@ static void paging_switch_page_directory(page_directory_t* page_directory);
 static void paging_enable();
 
 void paging_init() {
-    page_directory_t *page_directory = (page_directory_t*) btalloc_malloc(sizeof(page_directory_t), true);
+    page_directory_t *page_directory = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
     memset(page_directory, 0, sizeof(page_directory_t));
 
     // Mapping the first 4MB of kernel's virtual address space to the first 4MB of physical address space
@@ -57,7 +57,7 @@ static void paging_allocate_page(page_directory_t *const page_directory, void *c
 
     // Allocate a new page table if it does not exist
     if(page_directory->tables[page_directory_index] == NULL) {
-        table = (page_table_t*) btalloc_malloc(sizeof(page_table_t), true);
+        table = (page_table_t*) kmalloc_a(sizeof(page_table_t));
         memset(table, 0, sizeof(page_table_t));
 
         uint32_t table_physical_address = (uint32_t) paging_virtual_to_physical_address(page_directory, table);
