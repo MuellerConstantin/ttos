@@ -9,9 +9,6 @@
 
 #define PAGE_SIZE 4096
 
-#define PAGING_HEAP_IS_ALIGN(addr) ((((uint32_t) (addr)) | 0xFFFFF000) == 0)
-#define PAGING_HEAP_ALIGN(addr) ((((uint32_t) (addr)) & 0xFFFFF000) + 0x1000)
-
 #define PAGE_DIRECTORY_INDEX(virtual_address) (((uint32_t)(virtual_address)) >> 22)
 #define PAGE_TABLE_INDEX(virtual_address) ((((uint32_t)(virtual_address)) >> 12) & 0x3FF)
 #define PAGE_OFFSET(virtual_address) ((uint32_t)(virtual_address) & 0xFFF)

@@ -5,6 +5,7 @@
 #include <kernel.h>
 #include <memory/pmm.h>
 #include <memory/paging.h>
+#include <memory/kheap.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
 #include <sys/kpanic.h>
@@ -55,14 +56,11 @@ static void init_memory(size_t total_memory) {
     // Initialize the physical memory manager
     pmm_init(total_memory);
 
-    // Mark the VGA video memory as reserved
-    pmm_mark_region_reserved((void*) 0x000A0000, 0x60000);
-
-    // Mark the 4MB of kernel space and kernel heap placement memory as reserved
-    pmm_mark_region_reserved((void*) &kernel_physical_start, 0x400000);
-
     // Enable paging
     paging_init();
+
+    // Initialize the kernel heap
+    kheap_init();
 }
 
 static void init_drivers() {

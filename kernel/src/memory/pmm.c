@@ -1,5 +1,6 @@
 #include <memory/pmm.h>
 #include <memory/kheap.h>
+#include <drivers/serial/uart/16550.h>
 
 static size_t pmm_memory_size = 0;
 static size_t pmm_num_memory_frames = 0;
@@ -75,7 +76,7 @@ static int pmm_find_free_frame() {
     for (size_t index = 0; index < pmm_num_memory_frames / PMM_FRAMES_PER_BITMAP_BYTE; index++) {
         if (pmm_bitmap[index] != 0xFF) {
             for (int bit_index = 0; bit_index < PMM_FRAMES_PER_BITMAP_BYTE; bit_index++) {
-                if (!(pmm_bitmap[bit_index] & (1 << bit_index))) {
+                if (!(pmm_bitmap[index] & (1 << bit_index))) {
                     return index * PMM_FRAMES_PER_BITMAP_BYTE + bit_index;
                 }
             }

@@ -1,7 +1,11 @@
 #ifndef _KERNEL_H
 #define _KERNEL_H
 
-#define KERNEL_VIRTUAL_BASE 0xC0000000
+/** Virtual base address of the kernel space. */
+#define KERNEL_SPACE_BASE 0xC0000000
+
+/** Size of the kernel space. */
+#define KERNEL_SPACE_SIZE 0x300000
 
 extern const uint32_t kernel_physical_start;
 extern const uint32_t kernel_physical_end;

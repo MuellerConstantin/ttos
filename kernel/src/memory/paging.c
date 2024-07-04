@@ -14,11 +14,25 @@ void paging_init() {
     page_directory_t *page_directory = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
     memset(page_directory, 0, sizeof(page_directory_t));
 
-    // Mapping the first 4MB of kernel's virtual address space to the first 4MB of physical address space
-    for(uint32_t page_address = KERNEL_VIRTUAL_BASE;
-        page_address < KERNEL_VIRTUAL_BASE + 0x400000;
+    // Mapping the kernel's virtual address space
+    for(uint32_t page_address = KERNEL_SPACE_BASE;
+        page_address < KERNEL_SPACE_BASE + KERNEL_SPACE_SIZE;
         page_address += PAGE_SIZE) {
-        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_VIRTUAL_BASE), true, true);
+        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
+    }
+
+    // Mapping the kernel placement memory's virtual address space
+    for(uint32_t page_address = KHEAP_PLACEMENT_BASE;
+        page_address < KHEAP_PLACEMENT_BASE + KHEAP_PLACEMENT_SIZE;
+        page_address += PAGE_SIZE) {
+        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
+    }
+
+    // Mapping the kernel heap's virtual address space
+    for(uint32_t page_address = KHEAP_HEAP_BASE;
+        page_address < KHEAP_HEAP_BASE + KHEAP_HEAP_SIZE;
+        page_address += PAGE_SIZE) {
+        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
     }
 
     uint32_t page_directory_physical_address = (uint32_t) paging_virtual_to_physical_address(prepaging_page_directory, page_directory);
@@ -118,7 +132,7 @@ static void* paging_virtual_to_physical_address(const page_directory_t *const pa
     uint32_t page_offset = PAGE_OFFSET(virtual_address);
 
     if(!paging_enabled) {
-        return (void*) (virtual_address - KERNEL_VIRTUAL_BASE);
+        return (void*) (virtual_address - KERNEL_SPACE_BASE);
     }
 
     if (!page_directory->tables[page_directory_index]) {
