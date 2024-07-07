@@ -14,6 +14,7 @@
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 #include <drivers/serial/uart/16550.h>
+#include <drivers/ps2/keyboard.h>
 
 static void init_cpu();
 static void init_memory(size_t total_memory);
@@ -67,4 +68,5 @@ static void init_drivers() {
     pic_8259_init();
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);
+    ps2_keyboard_init();
 }
