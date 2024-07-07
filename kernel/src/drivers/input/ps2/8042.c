@@ -1,4 +1,4 @@
-#include <drivers/ps2/8042.h>
+#include <drivers/input/ps2/8042.h>
 #include <io/ports.h>
 
 void ps2_8042_init_first_port(bool enable_translation) {

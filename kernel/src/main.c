@@ -14,7 +14,7 @@
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 #include <drivers/serial/uart/16550.h>
-#include <drivers/ps2/keyboard.h>
+#include <drivers/input/ps2/keyboard.h>
 
 static void init_cpu();
 static void init_memory(size_t total_memory);

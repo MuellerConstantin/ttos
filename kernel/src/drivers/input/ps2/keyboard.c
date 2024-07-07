@@ -1,4 +1,4 @@
-#include <drivers/ps2/keyboard.h>
+#include <drivers/input/ps2/keyboard.h>
 #include <io/ports.h>
 #include <sys/isr.h>
 

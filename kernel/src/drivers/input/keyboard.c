@@ -1,4 +1,4 @@
-#include <io/keyboard.h>
+#include <drivers/input/keyboard.h>
 
 static keyboard_event_t keyboard_buffer[KEYBOARD_BUFFER_SIZE];
 static size_t keyboard_buffer_head = 0;
