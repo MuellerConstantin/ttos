@@ -29,6 +29,10 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
         kpanic("NO MEMORY MAP PROVIDED BY MULTIBOOT", NULL);
     }
 
+    if(!(multiboot_info->flags & MULTIBOOT_INFO_MODS || multiboot_info->mods_count == 0)) {
+        kpanic("NO MODULES PROVIDED BY MULTIBOOT", NULL);
+    }
+
     isr_cli();
 
     vga_init(VGA_80x25_16_TEXT);
@@ -59,6 +63,14 @@ static void init_memory(multiboot_info_t *multiboot_info) {
 
     // Enable paging
     paging_init();
+
+    // Map the initrd's virtual address space
+    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + KERNEL_SPACE_BASE);
+    multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_SPACE_BASE;
+    uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_SPACE_BASE;
+    size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
+
+    paging_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - KERNEL_SPACE_BASE, true, true);
 
     // Initialize the kernel heap
     kheap_init();

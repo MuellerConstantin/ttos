@@ -35,6 +35,17 @@ char *strrev(char *str);
  */
 void *memset(void *dest, uint8_t ch, size_t n);
 
+/**
+ * Copies n characters from the object pointed to by src into
+ * the object pointed to by dest.
+ * 
+ * @param dest The destination to copy the characters to.
+ * @param src The source to copy the characters from.
+ * @param n The number of characters to copy.
+ * @return A pointer to the destination.
+ */
+void *memcpy(void *dest, const void *src, size_t n);
+
 #ifdef __cplusplus
 }
 #endif

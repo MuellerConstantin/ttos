@@ -10,7 +10,7 @@
 #define KHEAP_PLACEMENT_SIZE 0x100000
 
 /** Virtual base address of the kernel heap. */
-#define KHEAP_HEAP_BASE 0xC0400000
+#define KHEAP_HEAP_BASE 0xE0000000
 
 /** Size of the kernel heap. */
 #define KHEAP_HEAP_SIZE 0x2000000
