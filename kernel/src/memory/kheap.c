@@ -34,6 +34,9 @@ static void* kheap_find_best_fit(size_t size, bool align);
 static inline bool kheap_is_valid_heap_address(void* ptr);
 
 void kheap_init() {
+    // Mapping the kernel heap's virtual address space
+    paging_map_memory((void*) KHEAP_HEAP_BASE, KHEAP_HEAP_SIZE, NULL, true, true);
+
     kheap_head = (kheap_block_t*) KHEAP_HEAP_BASE;
     kheap_head->prev = NULL;
     kheap_head->next = NULL;

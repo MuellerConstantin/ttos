@@ -2,6 +2,8 @@
 #include <memory/kheap.h>
 #include <memory/pmm.h>
 
+static page_directory_t *kernel_page_directory = NULL;
+
 static bool paging_enabled = false;
 
 static void* paging_virtual_to_physical_address(const page_directory_t *const page_directory, void *const virtual_address);
@@ -11,31 +13,24 @@ static void paging_switch_page_directory(page_directory_t* page_directory);
 static void paging_enable();
 
 void paging_init() {
-    page_directory_t *page_directory = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
-    memset(page_directory, 0, sizeof(page_directory_t));
+    kernel_page_directory = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
+    memset(kernel_page_directory, 0, sizeof(page_directory_t));
 
     // Mapping the kernel's virtual address space
     for(uint32_t page_address = KERNEL_SPACE_BASE;
         page_address < KERNEL_SPACE_BASE + KERNEL_SPACE_SIZE;
         page_address += PAGE_SIZE) {
-        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
+        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
     }
 
     // Mapping the kernel placement memory's virtual address space
     for(uint32_t page_address = KHEAP_PLACEMENT_BASE;
         page_address < KHEAP_PLACEMENT_BASE + KHEAP_PLACEMENT_SIZE;
         page_address += PAGE_SIZE) {
-        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
+        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
     }
 
-    // Mapping the kernel heap's virtual address space
-    for(uint32_t page_address = KHEAP_HEAP_BASE;
-        page_address < KHEAP_HEAP_BASE + KHEAP_HEAP_SIZE;
-        page_address += PAGE_SIZE) {
-        paging_allocate_page(page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
-    }
-
-    uint32_t page_directory_physical_address = (uint32_t) paging_virtual_to_physical_address(prepaging_page_directory, page_directory);
+    uint32_t page_directory_physical_address = (uint32_t) paging_virtual_to_physical_address(prepaging_page_directory, kernel_page_directory);
 
     paging_switch_page_directory((page_directory_t*) page_directory_physical_address);
 
@@ -61,6 +56,29 @@ static void paging_enable() {
 static void paging_switch_page_directory(page_directory_t* page_directory) {
     uint32_t physical_address = (uint32_t) page_directory;
     __asm__ volatile("mov %0, %%cr3" : : "r" (physical_address));
+}
+
+void paging_map_memory(void *const virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable) {
+    for(uint32_t page_address = (uint32_t) virtual_address;
+        page_address < (uint32_t) virtual_address + size;
+        page_address += PAGE_SIZE) {
+        
+        if(physical_address) {
+            paging_allocate_page(kernel_page_directory, (void*) page_address, physical_address, is_kernel, is_writeable);
+            physical_address += PAGE_SIZE;
+        } else {
+            paging_allocate_page(kernel_page_directory, (void*) page_address, NULL, is_kernel, is_writeable);
+        }
+    }
+}
+
+void paging_unmap_memory(void *const virtual_address, size_t size) {
+    for(uint32_t page_address = (uint32_t) virtual_address;
+        page_address < (uint32_t) virtual_address + size;
+        page_address += PAGE_SIZE) {
+        
+        paging_free_page(kernel_page_directory, (void*) page_address);
+    }
 }
 
 static void paging_allocate_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {

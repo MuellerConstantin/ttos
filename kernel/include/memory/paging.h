@@ -69,6 +69,28 @@ typedef struct page_directory page_directory_t;
  */
 extern const page_directory_t *const prepaging_page_directory;
 
+/**
+ * Initialize the paging system.
+ */
 void paging_init();
+
+/**
+ * Map given virtual memory to some physical memory.
+ * 
+ * @param virtual_address The virtual address to map.
+ * @param size The size of the memory to map.
+ * @param physical_address Optional physical address to map to.
+ * @param is_kernel Whether the memory is kernel memory.
+ * @param is_writeable Whether the memory is writeable.
+ */
+void paging_map_memory(void *const virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable);
+
+/**
+ * Unmap given virtual memory.
+ * 
+ * @param virtual_address The virtual address to unmap.
+ * @param size The size of the memory to unmap.
+ */
+void paging_unmap_memory(void *const virtual_address, size_t size);
 
 #endif // _KERNEL_MEMORY_PAGING_H
