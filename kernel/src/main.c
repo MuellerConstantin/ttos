@@ -17,8 +17,8 @@
 #include <drivers/input/ps2/keyboard.h>
 
 static void init_cpu();
-static void init_memory(size_t total_memory);
-static void init_drivers();
+static void init_memory(multiboot_info_t *multiboot_info);
+static void init_drivers(multiboot_info_t *multiboot_info);
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
@@ -29,8 +29,6 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
         kpanic("NO MEMORY MAP PROVIDED BY MULTIBOOT", NULL);
     }
 
-    const size_t total_memory = multiboot_get_memory_size(multiboot_info);
-
     isr_cli();
 
     vga_init(VGA_80x25_16_TEXT);
@@ -38,8 +36,8 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     vga_tm_strwrite(0, "Kernel loading...", VGA_TM_WHITE, VGA_TM_BLACK);
 
     init_cpu();
-    init_memory(total_memory);
-    init_drivers();
+    init_memory(multiboot_info);
+    init_drivers(multiboot_info);
 
     vga_tm_strwrite(80, "Kernel loaded!", VGA_TM_WHITE, VGA_TM_BLACK);
 
@@ -53,7 +51,9 @@ static void init_cpu() {
     idt_init();
 }
 
-static void init_memory(size_t total_memory) {
+static void init_memory(multiboot_info_t *multiboot_info) {
+    const size_t total_memory = multiboot_get_memory_size(multiboot_info);
+
     // Initialize the physical memory manager
     pmm_init(total_memory);
 
@@ -64,7 +64,7 @@ static void init_memory(size_t total_memory) {
     kheap_init();
 }
 
-static void init_drivers() {
+static void init_drivers(multiboot_info_t *multiboot_info) {
     pic_8259_init();
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);

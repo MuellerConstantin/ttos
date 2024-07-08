@@ -6,9 +6,6 @@
 #include <stdbool.h>
 #include <kernel.h>
 
-/** Virtual base address of the placement memory. */
-#define KHEAP_PLACEMENT_BASE 0xC0300000
-
 /** Size of the placement memory. */
 #define KHEAP_PLACEMENT_SIZE 0x100000
 

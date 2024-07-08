@@ -23,13 +23,6 @@ void paging_init() {
         paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
     }
 
-    // Mapping the kernel placement memory's virtual address space
-    for(uint32_t page_address = KHEAP_PLACEMENT_BASE;
-        page_address < KHEAP_PLACEMENT_BASE + KHEAP_PLACEMENT_SIZE;
-        page_address += PAGE_SIZE) {
-        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
-    }
-
     uint32_t page_directory_physical_address = (uint32_t) paging_virtual_to_physical_address(prepaging_page_directory, kernel_page_directory);
 
     paging_switch_page_directory((page_directory_t*) page_directory_physical_address);
