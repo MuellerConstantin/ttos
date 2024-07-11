@@ -196,9 +196,9 @@ void kfree(void* ptr) {
             kheap_tail = block->prev;
         }
 
-        memset(block + sizeof(kheap_block_t), 0, block->size);
-
         block = block->prev;
+
+        memset((void*) ((uintptr_t) block + sizeof(kheap_block_t)), 0, block->size);
     }
 
     // Merge with next block if it is free
@@ -212,7 +212,7 @@ void kfree(void* ptr) {
             kheap_tail = block;
         }
 
-        memset(block + sizeof(kheap_block_t), 0, block->size);
+        memset((void*) ((uintptr_t) block + sizeof(kheap_block_t)), 0, block->size);
     }
 }
 
