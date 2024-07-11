@@ -25,15 +25,15 @@ static void init_filesystem(multiboot_info_t *multiboot_info);
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-        kpanic("IVALID MULTIBOOT MAGIC NUMBER", NULL);
+        KPANIC(KPANIC_INVALID_MULTIBOOT_SIGNATURE_CODE, KPANIC_INVALID_MULTIBOOT_SIGNATURE_MESSAGE, NULL);
     }
 
     if(!(multiboot_info->flags & MULTIBOOT_INFO_MEM_MAP)) {
-        kpanic("NO MEMORY MAP PROVIDED BY MULTIBOOT", NULL);
+        KPANIC(KPANIC_NO_MEMORY_MAP_CODE, KPANIC_NO_MEMORY_MAP_MESSAGE, NULL);
     }
 
     if(!(multiboot_info->flags & MULTIBOOT_INFO_MODS || multiboot_info->mods_count == 0)) {
-        kpanic("NO MODULES PROVIDED BY MULTIBOOT", NULL);
+        KPANIC(KPANIC_NO_MODULES_PROVIDED_CODE, KPANIC_NO_MODULES_PROVIDED_MESSAGE, NULL);
     }
 
     isr_cli();
@@ -61,6 +61,10 @@ static void init_cpu() {
 
 static void init_memory(multiboot_info_t *multiboot_info) {
     const size_t total_memory = multiboot_get_memory_size(multiboot_info);
+
+    if(total_memory < KERNEL_MINIMAL_RAM_SIZE) {
+        KPANIC(KPANIC_RAM_MINIMAL_SIZE_CODE, KPANIC_RAM_MINIMAL_SIZE_MESSAGE, NULL);
+    }
 
     // Initialize the physical memory manager
     pmm_init(total_memory);
@@ -95,7 +99,7 @@ static void init_filesystem(multiboot_info_t *multiboot_info) {
     vfs_node_t* initrd_root = initrd_init((void*) initrd_start);
 
     if(initrd_root == NULL) {
-        kpanic("INITRD INITIALIZATION FAILED", NULL);
+        KPANIC(KPANIC_INITRD_INIT_FAILED_CODE, KPANIC_INITRD_INIT_FAILED_MESSAGE, NULL);
     }
 
     vfs_root_mount(initrd_root);

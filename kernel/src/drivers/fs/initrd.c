@@ -1,4 +1,5 @@
 #include <drivers/fs/initrd.h>
+#include <sys/kpanic.h>
 #include <string.h>
 
 static initrd_header_t* initrd_header;
@@ -21,6 +22,10 @@ vfs_node_t* initrd_init(void* memory_base) {
 
     initrd_root = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
 
+    if(!initrd_root) {
+        return NULL;
+    }
+
     strcpy(initrd_root->name, "initrd");
     initrd_root->flags = VFS_DIRECTORY;
     initrd_root->permissions = 0;
@@ -38,6 +43,11 @@ vfs_node_t* initrd_init(void* memory_base) {
     initrd_root->finddir = &initrd_finddir;
 
     initrd_dev = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
+
+    if(!initrd_dev) {
+        kfree(initrd_root);
+        return NULL;
+    }
 
     strcpy(initrd_dev->name, "dev");
     initrd_dev->flags = VFS_DIRECTORY;
@@ -60,6 +70,12 @@ vfs_node_t* initrd_init(void* memory_base) {
     
     if(initrd_num_root_nodes > 0) {
         initrd_root_nodes = (vfs_node_t*) kmalloc(sizeof(vfs_node_t) * initrd_num_root_nodes);
+
+        if(!initrd_root_nodes) {
+            kfree(initrd_root);
+            kfree(initrd_dev);
+            return NULL;
+        }
 
         for(size_t index = 0; index < initrd_num_root_nodes; index++) {
             if(initrd_file_headers[index].magic != INITRD_FILE_HEADER_MAGIC) {
@@ -112,6 +128,11 @@ static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void*
 static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index) {
     if(node == initrd_root && index == 0) {
         vfs_dirent_t* dirent = (vfs_dirent_t*) kmalloc(sizeof(vfs_dirent_t));
+
+        if(!dirent) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
         strcpy(dirent->name, "dev");
         dirent->inode = 0;
 
@@ -123,6 +144,11 @@ static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index) {
     }
 
     vfs_dirent_t* dirent = (vfs_dirent_t*) kmalloc(sizeof(vfs_dirent_t));
+
+    if(!dirent) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
     strcpy(dirent->name, initrd_root_nodes[index - 1].name);
     dirent->inode = initrd_root_nodes[index - 1].inode;
 

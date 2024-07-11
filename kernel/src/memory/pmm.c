@@ -1,6 +1,6 @@
 #include <memory/pmm.h>
+#include <sys/kpanic.h>
 #include <memory/kheap.h>
-#include <drivers/serial/uart/16550.h>
 
 static size_t pmm_memory_size = 0;
 static size_t pmm_num_memory_frames = 0;
@@ -21,7 +21,19 @@ void pmm_init(size_t memory_size) {
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) kmalloc_a(pmm_bitmap_size);
 
+    if(!pmm_bitmap) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
     memset(pmm_bitmap, 0x00, pmm_bitmap_size);
+
+    /*
+     * Mark the first frame as used. This is because to be able to
+     * distinguish between a NULL pointer and a valid pointer, we need
+     * to reserve the first frame.
+     */
+    
+    pmm_set_frame(0);
 }
 
 size_t pmm_get_available_memory_size() {
@@ -65,7 +77,7 @@ static bool pmm_test_frame(uint32_t frame) {
 }
 
 static void pmm_set_frame(uint32_t frame) {
-    pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] |= ~(1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE));
+    pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] |= (1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE));
 }
 
 static void pmm_unset_frame(uint32_t frame) {

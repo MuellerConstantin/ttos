@@ -1,8 +1,10 @@
 #include <memory/paging.h>
+#include <sys/kpanic.h>
 #include <memory/kheap.h>
 #include <memory/pmm.h>
 
 static page_directory_t *kernel_page_directory = NULL;
+static page_directory_t *current_page_directory = NULL;
 
 static bool paging_enabled = false;
 
@@ -14,6 +16,11 @@ static void paging_enable();
 
 void paging_init() {
     kernel_page_directory = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
+
+    if(!kernel_page_directory) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
     memset(kernel_page_directory, 0, sizeof(page_directory_t));
 
     // Mapping the kernel's virtual address space
@@ -83,6 +90,11 @@ static void paging_allocate_page(page_directory_t *const page_directory, void *c
     // Allocate a new page table if it does not exist
     if(page_directory->tables[page_directory_index] == NULL) {
         table = (page_table_t*) kmalloc_a(sizeof(page_table_t));
+
+        if(!table) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
         memset(table, 0, sizeof(page_table_t));
 
         uint32_t table_physical_address = (uint32_t) paging_virtual_to_physical_address(page_directory, table);
@@ -103,6 +115,10 @@ static void paging_allocate_page(page_directory_t *const page_directory, void *c
         // If no frame address is provided, allocate a new frame
         if(!frame_address) {
             frame_address = pmm_alloc_frame();
+
+            if(!frame_address) {
+                KPANIC(KPANIC_PMM_OUT_OF_MEMORY_CODE, KPANIC_PMM_OUT_OF_MEMORY_MESSAGE, NULL);
+            }
         } else {
             pmm_mark_region_reserved(frame_address, PAGE_SIZE);
         }

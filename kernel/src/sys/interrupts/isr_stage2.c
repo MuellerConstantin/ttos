@@ -6,38 +6,38 @@
 isr_interrupt_listener_t listeners[ISR_MAX_INTERRUPT_LISTENERS];
 
 const char *exception_messages[] = {
-	"DIVISION BY ZERO",
-	"DEBUG",
-	"NON-MASKABLE INTERUPT",
-	"BREAKPOINT",
-	"DETECTED OVERFLOW",
-	"OUT-OF-BOUNDS",
-	"INVALID OPCODE",
-	"NO COPROCESSOR",
-	"DOUBLE FAULT",
-	"COPROCESSOR SEGMENT OVERRUN",
-	"BAD TSS",
-	"SEGMENT NOT PRESENT",
-	"STACK FAULT",
-	"GENERAL PROTECTION FAULT",
-	"PAGE FAULT",
-	"UNKNOWN INTERRUPT",
-	"COPROCESSOR FAULT",
-	"ALIGNMENT CHECK",
-	"MACHINE CHECK",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED",
-	"RESERVED"
+	"Division By Zero",
+	"Debug",
+	"Non Maskable Interrupt",
+	"Breakpoint",
+	"Detected Overflow",
+	"Out Of Bounds",
+	"Invalid Opcode",
+	"No Coprocessor",
+	"Double Fault",
+	"Coprocessor Segment Overrun",
+	"Bad TSS",
+	"Segment Not Present",
+	"Stack Fault",
+	"General Protection Fault",
+	"Page Fault",
+	"Unknown Interrupt",
+	"Coprocessor Fault",
+	"Alignment Check",
+	"Machine Check",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved"
 };
 
 void isr_stage2(isr_cpu_state_t *state) {
@@ -55,7 +55,7 @@ void isr_stage2(isr_cpu_state_t *state) {
 
     // In case of an unhandled exception
     if(0 == listener && 32 > state->interrupt_code) {
-		kpanic(exception_messages[state->interrupt_code], state);
+		KPANIC(KPANIC_CPU_EXCEPTION_TYPE(state->interrupt_code), exception_messages[state->interrupt_code], state);
 	}
 }
 

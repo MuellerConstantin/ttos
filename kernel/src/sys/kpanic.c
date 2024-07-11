@@ -12,10 +12,11 @@ const char* USER_INTRODUCTION = "An error occurred and the kernel has stopped wo
     "If the error persists, please contact the system administrator.";
 const char* EXCEPTION_TITLE = "EXCEPTION DETAILS:";
 const char* EXCEPTION_TITLE_UNDERLINE = "------------------";
+const char* FILE_LABEL = "File:";
 const char* TECHNICAL_TITLE = "TECHNICAL DETAILS:";
 const char* TECHNICAL_TITLE_UNDERLINE = "------------------";
 
-void kpanic(const char *msg, isr_cpu_state_t *state) {
+void kpanic(uint32_t code, const char *message, const char* file, uint32_t line, isr_cpu_state_t *state) {
     vga_init(VGA_80x25_16_TEXT);
 
     vga_tm_fill(VGA_TM_BLUE);
@@ -41,9 +42,17 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
     const size_t exception_title_underline_screen_offset = SCREEN_NEXT_LINE(80, exception_title_screen_limit);
     const size_t exception_title_underline_screen_limit = exception_title_underline_screen_offset + exception_title_length;
 
-    const size_t message_screen_length = strlen(msg) + 2;
+    const size_t message_screen_length = strlen(message) + 2;
     const size_t message_screen_offset = SCREEN_NEXT_PARAGRAPH(80, exception_title_underline_screen_limit);
     const size_t message_screen_limit = message_screen_offset + message_screen_length;
+
+    char code_text[10];
+
+    itoa(code, code_text, 16);
+
+    const size_t code_text_length = strlen(code_text) + 4;
+    const size_t code_text_screen_offset = message_screen_limit + 1;
+    const size_t code_text_screen_limit = code_text_screen_offset + code_text_length;
 
     vga_tm_strwrite(panic_title_screen_offset, PANIC_TITLE, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(panic_title_underline_screen_offset, PANIC_TITLE_UNDERLINE, VGA_TM_WHITE, VGA_TM_BLUE);
@@ -54,21 +63,49 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
     vga_tm_strwrite(exception_title_underline_screen_offset, EXCEPTION_TITLE_UNDERLINE, VGA_TM_WHITE, VGA_TM_BLUE);
 
     vga_tm_strwrite(message_screen_offset, "\"", VGA_TM_WHITE, VGA_TM_BLUE);
-    vga_tm_strwrite(message_screen_offset + 1, msg, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(message_screen_offset + 1, message, VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_strwrite(message_screen_limit - 1, "\"", VGA_TM_WHITE, VGA_TM_BLUE);
+
+    vga_tm_strwrite(code_text_screen_offset, "(0x", VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(code_text_screen_offset + 3, code_text, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(code_text_screen_limit - 1, ")", VGA_TM_WHITE, VGA_TM_BLUE);
 
     // Print technical details
 
+    const size_t technical_title_length = strlen(TECHNICAL_TITLE);
+    const size_t technical_title_screen_offset = SCREEN_NEXT_PARAGRAPH(80, code_text_screen_limit);
+    const size_t technical_title_screen_limit = technical_title_screen_offset + technical_title_length;
+
+    const size_t technical_title_underline_screen_offset = SCREEN_NEXT_LINE(80, technical_title_screen_limit);
+    const size_t technical_title_underline_screen_limit = technical_title_underline_screen_offset + technical_title_length;
+
+    vga_tm_strwrite(technical_title_screen_offset, TECHNICAL_TITLE, VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(technical_title_underline_screen_offset, TECHNICAL_TITLE_UNDERLINE, VGA_TM_WHITE, VGA_TM_BLUE);
+
+    const size_t file_label_length = strlen(FILE_LABEL);
+    const size_t file_label_screen_offset = SCREEN_NEXT_PARAGRAPH(80, technical_title_underline_screen_limit);
+    const size_t file_label_screen_limit = file_label_screen_offset + file_label_length;
+
+    const size_t file_length = strlen(file);
+    const size_t file_screen_offset = file_label_screen_limit + 1;
+    const size_t file_screen_limit = file_screen_offset + file_length;
+
+    char line_text[10];
+
+    itoa(line, line_text, 10);
+
+    const size_t line_text_length = strlen(line_text) + 1;
+    const size_t line_text_screen_offset = file_screen_limit;
+    const size_t line_text_screen_limit = line_text_screen_offset + line_text_length;
+
+    vga_tm_strwrite(file_label_screen_offset, FILE_LABEL, VGA_TM_WHITE, VGA_TM_BLUE);
+
+    vga_tm_strwrite(file_screen_offset, file, VGA_TM_WHITE, VGA_TM_BLUE);
+
+    vga_tm_strwrite(line_text_screen_offset, ":", VGA_TM_WHITE, VGA_TM_BLUE);
+    vga_tm_strwrite(line_text_screen_offset + 1, line_text, VGA_TM_WHITE, VGA_TM_BLUE);
+
     if(NULL != state) {
-        const size_t technical_title_length = strlen(TECHNICAL_TITLE);
-        const size_t technical_title_screen_offset = SCREEN_NEXT_PARAGRAPH(80, message_screen_limit);
-        const size_t technical_title_screen_limit = technical_title_screen_offset + technical_title_length;
-
-        const size_t technical_title_underline_screen_offset = SCREEN_NEXT_LINE(80, technical_title_screen_limit);
-        const size_t technical_title_underline_screen_limit = technical_title_underline_screen_offset + technical_title_length;
-
-        vga_tm_strwrite(technical_title_screen_offset, TECHNICAL_TITLE, VGA_TM_WHITE, VGA_TM_BLUE);
-        vga_tm_strwrite(technical_title_underline_screen_offset, TECHNICAL_TITLE_UNDERLINE, VGA_TM_WHITE, VGA_TM_BLUE);
 
         // Print technical details: ESP + EBP
 
@@ -88,7 +125,7 @@ void kpanic(const char *msg, isr_cpu_state_t *state) {
         const size_t ebp_name_length = strlen(ebp_name);
         const size_t ebp_value_length = strlen(ebp_value);
 
-        const size_t esp_screen_offset = SCREEN_NEXT_PARAGRAPH(80, technical_title_underline_screen_limit);
+        const size_t esp_screen_offset = SCREEN_NEXT_PARAGRAPH(80, line_text_screen_limit);
         const size_t esp_screen_limit = esp_screen_offset + esp_name_length + esp_value_length + esp_ebp_spacer;
 
         const size_t ebp_screen_offset = esp_screen_limit + 1;
