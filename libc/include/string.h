@@ -25,6 +25,26 @@ size_t strlen(const char*);
 char *strrev(char *str);
 
 /**
+ * Copies the string pointed to by src, including the null-terminator,
+ * to the buffer pointed to by dest.
+ * 
+ * @param dest The destination to copy the string to.
+ * @param src The source to copy the string from.
+ * @return A pointer to the destination.
+ */
+char* strcpy(char* dest, const char* src);
+
+/**
+ * Compares two strings.
+ * 
+ * @param str1 The first string to compare.
+ * @param str2 The second string to compare.
+ * @return An integer less than, equal to, or greater than zero if str1 is found,
+ *        respectively, to be less than, to match, or be greater than str2.
+ */
+int strcmp(const char* str1, const char* str2);
+
+/**
  * Copies the given value into each of the first n characters
  * of the object pointed to by dest.
  * 

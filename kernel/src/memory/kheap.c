@@ -12,7 +12,7 @@
  * @note This memory is used only while the kernel heap is not
  * yet initialized.
  */
-static const uint8_t kheap_placement_memory[KHEAP_PLACEMENT_SIZE];
+static uint8_t kheap_placement_memory[KHEAP_PLACEMENT_SIZE];
 static uint8_t* kheap_placement_memory_head = kheap_placement_memory;
 
 static bool kheap_enabled = false;
