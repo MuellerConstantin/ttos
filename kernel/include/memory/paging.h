@@ -8,6 +8,8 @@
 #include <kernel.h>
 
 #define PAGE_SIZE 4096
+#define PAGE_TABLE_SIZE 1024
+#define PAGE_DIRECTORY_SIZE 1024
 
 #define PAGE_DIRECTORY_INDEX(virtual_address) (((uint32_t)(virtual_address)) >> 22)
 #define PAGE_TABLE_INDEX(virtual_address) ((((uint32_t)(virtual_address)) >> 12) & 0x3FF)
@@ -75,6 +77,13 @@ extern const page_directory_t *const prepaging_page_directory;
 void paging_init();
 
 /**
+ * Get the current page directory.
+ * 
+ * @return The current page directory.
+ */
+page_directory_t* paging_get_current_page_directory();
+
+/**
  * Map given virtual memory to some physical memory.
  * 
  * @param virtual_address The virtual address to map.
@@ -92,5 +101,20 @@ void paging_map_memory(void *const virtual_address, size_t size, void* physical_
  * @param size The size of the memory to unmap.
  */
 void paging_unmap_memory(void *const virtual_address, size_t size);
+
+/**
+ * Switch to the given page directory.
+ * 
+ * @param page_directory The page directory to switch to.
+ */
+void paging_switch_page_directory(page_directory_t* page_directory);
+
+/**
+ * Copy the given page directory.
+ * 
+ * @param src_page_directory The page directory to copy.
+ * @return The copied page directory.
+ */
+page_directory_t* paging_copy_page_directory(page_directory_t* src_page_directory);
 
 #endif // _KERNEL_MEMORY_PAGING_H
