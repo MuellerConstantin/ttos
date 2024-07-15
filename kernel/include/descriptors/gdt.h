@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define GDT_SIZE 10
+#define GDT_SIZE 6
 
 // Masks
 

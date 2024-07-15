@@ -57,4 +57,12 @@ typedef struct tss_segment_descriptor tss_segment_descriptor_t;
  */
 void tss_init(uint16_t ss0, uintptr_t esp0);
 
+/**
+ * Updates the stack segment and stack pointer for ring 0 (kernel mode).
+ * 
+ * @param ss0 The stack segment for ring 0 (kernel mode).
+ * @param esp0 The stack pointer for ring 0 (kernel mode).
+ */
+void tss_update_stack(uint16_t ss0, uintptr_t esp0);
+
 #endif // _KERNEL_DESCRIPTORS_TSS_H
