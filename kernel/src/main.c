@@ -8,6 +8,7 @@
 #include <memory/kheap.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
+#include <descriptors/tss.h>
 #include <sys/kpanic.h>
 #include <sys/isr.h>
 #include <io/vfs.h>
@@ -57,6 +58,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 static void init_cpu() {
     gdt_init();
     idt_init();
+    tss_init(0x10, 0x0);
 }
 
 static void init_memory(multiboot_info_t *multiboot_info) {

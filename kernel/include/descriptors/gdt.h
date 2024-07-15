@@ -111,4 +111,15 @@ typedef enum {
  */
 void gdt_init();
 
+/**
+ * Initializes a descriptor in the GDT.
+ * 
+ * @param selector The selector of the descriptor.
+ * @param base The base address of the segment.
+ * @param limit The limit of the segment.
+ * @param access The access byte of the segment.
+ * @param flags The flags byte of the segment.
+ */
+void gdt_init_descriptor(gdt_selector_t selector, uint32_t base, uint32_t limit, uint8_t access, uint8_t flags);
+
 #endif // _KERNEL_DESCRIPTORS_GDT_H
