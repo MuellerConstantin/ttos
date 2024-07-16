@@ -66,6 +66,36 @@ void *memset(void *dest, uint8_t ch, size_t n);
  */
 void *memcpy(void *dest, const void *src, size_t n);
 
+/**
+ * Separates the string into tokens.
+ * 
+ * @param stringp The string to separate.
+ * @param delim The delimiter to separate the string by.
+ * @return The next token from the string.
+ */
+char *strsep(char **stringp, const char *delim);
+
+/**
+ * Locates the first occurrence in the string s of any character in the string accept.
+ * 
+ * @param s The string to search.
+ * @param accept The characters to search for.
+ * @return A pointer to the character in s that matches one of the characters in accept,
+ *         or NULL if no such character is found.
+ */
+char *strpbrk(const char *s, const char *accept);
+
+/**
+ * Compares the first n bytes of str1 and str2.
+ * 
+ * @param str1 The first string to compare.
+ * @param str2 The second string to compare.
+ * @param n The number of bytes to compare.
+ * @return An integer less than, equal to, or greater than zero if the first n bytes of str1 is found,
+ *        respectively, to be less than, to match, or be greater than the first n bytes of str2.
+ */
+int strncmp(const char *str1, const char *str2, size_t n);
+
 #ifdef __cplusplus
 }
 #endif

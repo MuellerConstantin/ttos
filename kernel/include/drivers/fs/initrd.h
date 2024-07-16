@@ -28,8 +28,8 @@ typedef struct initrd_file_header initrd_file_header_t;
  * Initialize the initial ramdisk.
  * 
  * @param memory_base The base address of the memory.
- * @return The root node of the initial ramdisk.
+ * @return 0 if the initial ramdisk was successfully initialized, -1 otherwise.
  */
-vfs_node_t* initrd_init(void* memory_base);
+int32_t initrd_init(void* memory_base);
 
 #endif // _KERNEL_DRIVERS_FS_INITRD_H

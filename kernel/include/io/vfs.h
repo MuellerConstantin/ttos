@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 
 #define VFS_FILE        0x01
 #define VFS_DIRECTORY   0x02
@@ -14,6 +15,7 @@
 
 typedef struct vfs_node vfs_node_t;
 typedef struct vfs_dirent vfs_dirent_t;
+typedef struct vfs_mountpoint vfs_mountpoint_t;
 
 typedef int32_t (*vfs_read_t)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
 typedef int32_t (*vfs_write_t)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
@@ -47,19 +49,48 @@ struct vfs_dirent {
     uint32_t inode;
 } __attribute__((packed));
 
-/**
- * Mount the root filesystem.
- * 
- * @param node The root filesystem node.
- */
-void vfs_root_mount(vfs_node_t* node);
+struct vfs_mountpoint {
+    vfs_node_t* node;
+    char* path;
+} __attribute__((packed));
 
 /**
- * Get the root filesystem node.
- * 
- * @return The root filesystem node.
+ * Initialize the virtual file system.
  */
-vfs_node_t* vfs_get_root();
+void vfs_init();
+
+/**
+ * Mount a file system.
+ * 
+ * @param path The path to mount the file system at.
+ * @param node The root node of the file system.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_mount(char* path, vfs_node_t* node);
+
+/**
+ * Unmount a file system.
+ * 
+ * @param path The path to unmount.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_unmount(char* path);
+
+/**
+ * Get the mount point for a given path.
+ * 
+ * @param path The path to get the mount point for.
+ * @return The mount point or NULL if not found.
+ */
+vfs_mountpoint_t* vfs_get_mountpoint(char* path);
+
+/**
+ * Get the path relative to the mount point.
+ * 
+ * @param path The path to get the relative path for.
+ * @return The relative path.
+ */
+char* vfs_get_relative_path(char* path);
 
 /**
  * Read data from a file.
@@ -116,5 +147,13 @@ vfs_dirent_t* vfs_readdir(vfs_node_t* node, uint32_t index);
  * @return The file or NULL if not found.
  */
 vfs_node_t* vfs_finddir(vfs_node_t* node, char* name);
+
+/**
+ * Find a file node by an absolute path.
+ * 
+ * @param path The path to the file.
+ * @return The file or NULL if not found.
+ */
+vfs_node_t* vfs_findpath(char* path);
 
 #endif // _KERNEL_IO_VFS_H

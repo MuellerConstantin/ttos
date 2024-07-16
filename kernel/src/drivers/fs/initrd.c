@@ -5,7 +5,6 @@
 static initrd_header_t* initrd_header;
 static initrd_file_header_t* initrd_file_headers;
 static vfs_node_t* initrd_root;
-static vfs_node_t* initrd_dev;
 static vfs_node_t* initrd_root_nodes;
 static size_t initrd_num_root_nodes;
 
@@ -13,21 +12,21 @@ static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void*
 static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index);
 static vfs_node_t* initrd_finddir(vfs_node_t* node, char* name);
 
-vfs_node_t* initrd_init(void* memory_base) {
+int32_t initrd_init(void* memory_base) {
     initrd_header = (initrd_header_t*) memory_base;
 
     if(initrd_header->magic != INITRD_HEADER_MAGIC) {
-        return NULL;
+        return -1;
     }
 
     initrd_root = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
 
     if(!initrd_root) {
-        return NULL;
+        return -1;
     }
 
     strcpy(initrd_root->name, "initrd");
-    initrd_root->flags = VFS_DIRECTORY;
+    initrd_root->flags = VFS_DIRECTORY | VFS_MOUNTPOINT;
     initrd_root->permissions = 0;
     initrd_root->uid = 0;
     initrd_root->gid = 0;
@@ -42,29 +41,6 @@ vfs_node_t* initrd_init(void* memory_base) {
     initrd_root->readdir = &initrd_readdir;
     initrd_root->finddir = &initrd_finddir;
 
-    initrd_dev = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
-
-    if(!initrd_dev) {
-        kfree(initrd_root);
-        return NULL;
-    }
-
-    strcpy(initrd_dev->name, "dev");
-    initrd_dev->flags = VFS_DIRECTORY;
-    initrd_dev->permissions = 0;
-    initrd_dev->uid = 0;
-    initrd_dev->gid = 0;
-    initrd_dev->inode = 0;
-    initrd_dev->length = 0;
-    initrd_dev->impl = 0;
-    initrd_dev->ptr = NULL;
-    initrd_dev->read = NULL;
-    initrd_dev->write = NULL;
-    initrd_dev->open = NULL;
-    initrd_dev->close = NULL;
-    initrd_dev->readdir = &initrd_readdir;
-    initrd_dev->finddir = &initrd_finddir;
-
     initrd_file_headers = (initrd_file_header_t*) ((uintptr_t) memory_base + sizeof(initrd_header_t));
     initrd_num_root_nodes = initrd_header->n_files;
     
@@ -73,13 +49,12 @@ vfs_node_t* initrd_init(void* memory_base) {
 
         if(!initrd_root_nodes) {
             kfree(initrd_root);
-            kfree(initrd_dev);
-            return NULL;
+            return -1;
         }
 
         for(size_t index = 0; index < initrd_num_root_nodes; index++) {
             if(initrd_file_headers[index].magic != INITRD_FILE_HEADER_MAGIC) {
-                return NULL;
+                return -1;
             }
 
             initrd_file_headers[index].offset += (uint32_t) memory_base;
@@ -102,7 +77,9 @@ vfs_node_t* initrd_init(void* memory_base) {
         }
     }
 
-    return initrd_root;
+    vfs_mount("/mnt/initrd", initrd_root);
+
+    return 0;
 }
 
 static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
@@ -126,20 +103,7 @@ static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void*
 }
 
 static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index) {
-    if(node == initrd_root && index == 0) {
-        vfs_dirent_t* dirent = (vfs_dirent_t*) kmalloc(sizeof(vfs_dirent_t));
-
-        if(!dirent) {
-            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-        }
-
-        strcpy(dirent->name, "dev");
-        dirent->inode = 0;
-
-        return dirent;
-    }
-
-    if(index - 1 >= initrd_num_root_nodes) {
+    if(index >= initrd_num_root_nodes) {
         return NULL;
     }
 
@@ -149,17 +113,13 @@ static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    strcpy(dirent->name, initrd_root_nodes[index - 1].name);
-    dirent->inode = initrd_root_nodes[index - 1].inode;
+    strcpy(dirent->name, initrd_root_nodes[index].name);
+    dirent->inode = initrd_root_nodes[index].inode;
 
     return dirent;
 }
 
 static vfs_node_t* initrd_finddir(vfs_node_t* node, char* name) {
-    if(node == initrd_root && !strcmp(name, "dev")) {
-        return initrd_dev;
-    }
-
     for(size_t index = 0; index < initrd_num_root_nodes; index++) {
         if(!strcmp(name, initrd_root_nodes[index].name)) {
             return &initrd_root_nodes[index];

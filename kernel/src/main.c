@@ -52,6 +52,18 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_sti();
 
+    vfs_node_t* file = vfs_findpath("/mnt/initrd");
+
+    uart_16550_write(UART_16550_COM1, "File: ", 6);
+
+    if(file == NULL) {
+        uart_16550_write(UART_16550_COM1, "NULL", 4);
+    } else {
+        uart_16550_write(UART_16550_COM1, file->name, strlen(file->name));
+    }
+
+    uart_16550_write(UART_16550_COM1, "\r\n", 2);
+
     while(1);
 }
 
@@ -94,15 +106,15 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
 }
 
 static void init_filesystem(multiboot_info_t *multiboot_info) {
+    vfs_init();
+
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + KERNEL_SPACE_BASE);
     multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_SPACE_BASE;
     uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_SPACE_BASE;
 
-    vfs_node_t* initrd_root = initrd_init((void*) initrd_start);
+    int32_t initrd_status = initrd_init((void*) initrd_start);
 
-    if(initrd_root == NULL) {
+    if(initrd_status != 0) {
         KPANIC(KPANIC_INITRD_INIT_FAILED_CODE, KPANIC_INITRD_INIT_FAILED_MESSAGE, NULL);
     }
-
-    vfs_root_mount(initrd_root);
 }
