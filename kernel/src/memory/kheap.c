@@ -49,12 +49,55 @@ void kheap_init() {
     kheap_enabled = true;
 }
 
-void* kmalloc_a(uint32_t size) {
+void* kmalloc_a(size_t size) {
     return kmalloc_int(size, true);
 }
 
-void* kmalloc(uint32_t size) {
+void* kmalloc(size_t size) {
     return kmalloc_int(size, false);
+}
+
+void* kcalloc(size_t num, size_t size) {
+    void* ptr = kmalloc(num * size);
+
+    if(ptr != NULL) {
+        memset(ptr, 0, num * size);
+    }
+
+    return ptr;
+}
+
+void* krealloc(void* ptr, size_t size) {
+    if(ptr == NULL) {
+        return kmalloc(size);
+    }
+
+    if(size == 0) {
+        kfree(ptr);
+        return NULL;
+    }
+
+    if(!kheap_is_valid_heap_address(ptr)) {
+        return NULL;
+    }
+
+    kheap_block_t* block = (kheap_block_t*) ((uintptr_t) ptr - sizeof(kheap_block_t));
+
+    if(block->size >= size) {
+        return ptr;
+    }
+
+    void* new_ptr = kmalloc(size);
+
+    if(new_ptr == NULL) {
+        return NULL;
+    }
+
+    memcpy(new_ptr, ptr, block->size);
+
+    kfree(ptr);
+
+    return new_ptr;
 }
 
 static void* kmalloc_int(size_t size, bool align) {

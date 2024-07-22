@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#define linked_list_foreach(list, node) for(linked_list_node_t* node = list->head; node != NULL; node = node->next)
+
 struct linked_list_node {
     struct linked_list_node* next;
     struct linked_list_node* prev;
@@ -33,16 +35,18 @@ linked_list_t* linked_list_init();
  * 
  * @param list The list to append to.
  * @param data The data to store in the new node.
+ * @return 0 if the node was appended successfully, -1 if the list is NULL.
  */
-void linked_list_append(linked_list_t* list, void* data);
+int32_t linked_list_append(linked_list_t* list, void* data);
 
 /**
  * Prepend a new node to the beginning of the list.
  * 
  * @param list The list to prepend to.
  * @param data The data to store in the new node.
+ * @return 0 if the node was prepended successfully, -1 if the list is NULL.
  */
-void linked_list_prepend(linked_list_t* list, void* data);
+int32_t linked_list_prepend(linked_list_t* list, void* data);
 
 /**
  * Insert a new node at the given index in the list.
@@ -50,15 +54,16 @@ void linked_list_prepend(linked_list_t* list, void* data);
  * @param list The list to insert into.
  * @param data The data to store in the new node.
  * @param index The index to insert the new node at.
+ * @return 0 if the node was inserted successfully, -1 if the list is NULL.
  */
-void linked_list_insert(linked_list_t* list, void* data, size_t index);
+int32_t linked_list_insert(linked_list_t* list, void* data, size_t index);
 
 /**
  * Remove the node at the given index from the list.
  * 
  * @param list The list to remove from.
  * @param index The index of the node to remove.
- * @return The data stored in the removed node.
+ * @return The data stored in the removed node or NULL if the list is NULL.
  */
 void* linked_list_remove(linked_list_t* list, size_t index);
 
@@ -84,8 +89,9 @@ size_t linked_list_size(linked_list_t* list);
  * 
  * @param list The list to clear.
  * @param free_data Whether to free the data stored in the nodes.
+ * @return The number of nodes cleared or -1 if the list is NULL.
  */
-void linked_list_clear(linked_list_t* list, bool free_data);
+int32_t linked_list_clear(linked_list_t* list, bool free_data);
 
 /**
  * Find the node in the list that contains the given data.

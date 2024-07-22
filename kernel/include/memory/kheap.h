@@ -40,7 +40,7 @@ void kheap_init();
  * @param size The size of the block.
  * @return The address of the allocated block.
  */
-void* kmalloc_a(uint32_t size);
+void* kmalloc_a(size_t size);
 
 /**
  * Allocate a block of memory with a specified size.
@@ -52,7 +52,31 @@ void* kmalloc_a(uint32_t size);
  * @param size The size of the block.
  * @return The address of the allocated block.
  */
-void* kmalloc(uint32_t size);
+void* kmalloc(size_t size);
+
+/**
+ * Allocate memory for an array of elements and set the memory to zero.
+ * If the kernel heap is not initialized yet, the memory is allocated
+ * from the placement memory. Otherwise, the memory is allocated
+ * from the kernel heap.
+ * 
+ * @param num The number of elements.
+ * @param size The size of each element.
+ * @return The address of the allocated block.
+ */
+void* kcalloc(size_t num, size_t size);
+
+/**
+ * Reallocate a block of memory with a new size.
+ * 
+ * If the kernel heap is not initialized yet, this operation will
+ * fail and the function will return NULL.
+ * 
+ * @param ptr The address of the block to reallocate.
+ * @param size The new size of the block.
+ * @return The address of the reallocated block.
+ */
+void* krealloc(void* ptr, size_t size);
 
 /**
  * Free a block of memory allocated by kmalloc.

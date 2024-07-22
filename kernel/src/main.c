@@ -52,18 +52,6 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_sti();
 
-    vfs_node_t* file = vfs_findpath("/mnt/initrd");
-
-    uart_16550_write(UART_16550_COM1, "File: ", 6);
-
-    if(file == NULL) {
-        uart_16550_write(UART_16550_COM1, "NULL", 4);
-    } else {
-        uart_16550_write(UART_16550_COM1, file->name, strlen(file->name));
-    }
-
-    uart_16550_write(UART_16550_COM1, "\r\n", 2);
-
     while(1);
 }
 

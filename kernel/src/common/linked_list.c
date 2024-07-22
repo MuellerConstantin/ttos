@@ -11,7 +11,11 @@ linked_list_t* linked_list_init() {
     return list;
 }
 
-void linked_list_append(linked_list_t* list, void* data) {
+int32_t linked_list_append(linked_list_t* list, void* data) {
+    if(!list) {
+        return -1;
+    }
+
     linked_list_node_t* node = (linked_list_node_t*) kmalloc(sizeof(linked_list_node_t));
 
     node->data = data;
@@ -28,9 +32,15 @@ void linked_list_append(linked_list_t* list, void* data) {
     }
 
     list->size++;
+
+    return 0;
 }
 
-void linked_list_prepend(linked_list_t* list, void* data) {
+int32_t linked_list_prepend(linked_list_t* list, void* data) {
+    if(!list) {
+        return -1;
+    }
+
     linked_list_node_t* node = (linked_list_node_t*) kmalloc(sizeof(linked_list_node_t));
 
     node->data = data;
@@ -47,9 +57,15 @@ void linked_list_prepend(linked_list_t* list, void* data) {
     }
 
     list->size++;
+
+    return 0;
 }
 
-void linked_list_insert(linked_list_t* list, void* data, size_t index) {
+int32_t linked_list_insert(linked_list_t* list, void* data, size_t index) {
+    if(!list) {
+        return -1;
+    }
+
     if (index >= list->size) {
         linked_list_append(list, data);
     }
@@ -77,11 +93,13 @@ void linked_list_insert(linked_list_t* list, void* data, size_t index) {
     current_node->prev = node;
 
     list->size++;
+
+    return 0;
 }
 
 void* linked_list_remove(linked_list_t* list, size_t index) {
-    if (index >= list->size) {
-        return;
+    if (!list || index >= list->size) {
+        return NULL;
     }
 
     linked_list_node_t* current_node = list->head;
@@ -113,7 +131,7 @@ void* linked_list_remove(linked_list_t* list, size_t index) {
 }
 
 void* linked_list_get(linked_list_t* list, size_t index) {
-    if (index >= list->size) {
+    if (!list || index >= list->size) {
         return NULL;
     }
 
@@ -132,7 +150,11 @@ size_t linked_list_size(linked_list_t* list) {
     return list->size;
 }
 
-void linked_list_clear(linked_list_t* list, bool free_data) {
+int32_t linked_list_clear(linked_list_t* list, bool free_data) {
+    if(!list) {
+        return -1;
+    }
+
     linked_list_node_t* current_node = list->head;
 
     while (current_node) {
@@ -146,13 +168,21 @@ void linked_list_clear(linked_list_t* list, bool free_data) {
 
         current_node = next_node;
     }
+    
+    size_t num_cleared = list->size;
 
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
+
+    return num_cleared;
 }
 
 int32_t linked_list_find(linked_list_t* list, void* data, bool (*comparator)(void*, void*)) {
+    if(!list) {
+        return -1;
+    }
+
     linked_list_node_t* current_node = list->head;
     size_t index = 0;
 
