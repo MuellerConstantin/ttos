@@ -178,7 +178,7 @@ int32_t linked_list_clear(linked_list_t* list, bool free_data) {
     return num_cleared;
 }
 
-int32_t linked_list_find(linked_list_t* list, void* data, bool (*comparator)(void*, void*)) {
+int32_t linked_list_index_of(linked_list_t* list, void* data) {
     if(!list) {
         return -1;
     }
@@ -187,11 +187,7 @@ int32_t linked_list_find(linked_list_t* list, void* data, bool (*comparator)(voi
     size_t index = 0;
 
     while (current_node) {
-        if (comparator != NULL) {
-            if (comparator(data, current_node->data)) {
-                return index;
-            }
-        } else if (current_node->data == data) {
+        if (current_node->data == data) {
             return index;
         }
 

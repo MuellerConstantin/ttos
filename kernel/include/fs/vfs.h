@@ -4,44 +4,69 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <ctype.h>
+
+#define VFS_MAX_MOUNTPOINTS 26
+#define VFS_MAX_PATH_LENGTH 4096
+
+#define DRIVE_A 'A'
+#define DRIVE_B 'B'
+#define DRIVE_C 'C'
+#define DRIVE_D 'D'
+#define DRIVE_E 'E'
+#define DRIVE_F 'F'
+#define DRIVE_G 'G'
+#define DRIVE_H 'H'
+#define DRIVE_I 'I'
+#define DRIVE_J 'J'
+#define DRIVE_K 'K'
+#define DRIVE_L 'L'
+#define DRIVE_M 'M'
+#define DRIVE_N 'N'
+#define DRIVE_O 'O'
+#define DRIVE_P 'P'
+#define DRIVE_Q 'Q'
+#define DRIVE_R 'R'
+#define DRIVE_S 'S'
+#define DRIVE_T 'T'
+#define DRIVE_U 'U'
+#define DRIVE_V 'V'
+#define DRIVE_W 'W'
+#define DRIVE_X 'X'
+#define DRIVE_Y 'Y'
+#define DRIVE_Z 'Z'
 
 #define VFS_FILE        0x01
 #define VFS_DIRECTORY   0x02
-#define VFS_CHARDEVICE  0x03
-#define VFS_BLOCKDEVICE 0x04
-#define VFS_PIPE        0x05
-#define VFS_SYMLINK     0x06
-#define VFS_MOUNTPOINT  0x08
+#define VFS_SYMLINK     0x03
 
 typedef struct vfs_node vfs_node_t;
+typedef struct vfs_mount vfs_mount_t;
 typedef struct vfs_dirent vfs_dirent_t;
-typedef struct vfs_mountpoint vfs_mountpoint_t;
-
-typedef int32_t (*vfs_read_t)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-typedef int32_t (*vfs_write_t)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-typedef int32_t (*vfs_open_t)(vfs_node_t* node);
-typedef int32_t (*vfs_close_t)(vfs_node_t* node);
-typedef vfs_dirent_t* (*vfs_readdir_t)(vfs_node_t* node, uint32_t index);
-typedef vfs_node_t* (*vfs_finddir_t)(vfs_node_t* node, char* name);
 
 struct vfs_node {
     char name[128];
     uint32_t permissions;
-    uint32_t flags;
+    uint32_t type;
     uint32_t uid;
     uint32_t gid;
     uint32_t inode;
     uint32_t length;
-    uint32_t impl;
+    struct vfs_node *link;
 
-    vfs_read_t read;
-    vfs_write_t write;
-    vfs_open_t open;
-    vfs_close_t close;
-    vfs_readdir_t readdir;
-    vfs_finddir_t finddir;
+    int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+    int32_t (*write)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+    int32_t (*open)(vfs_node_t* node);
+    int32_t (*close)(vfs_node_t* node);
+    vfs_dirent_t* (*readdir)(vfs_node_t* node, uint32_t index);
+    vfs_node_t* (*finddir)(vfs_node_t* node, char* name);
+} __attribute__((packed));
 
-    struct vfs_node *ptr;
+struct vfs_mount {
+    vfs_node_t* root;
+
+    int32_t (*mount)(struct vfs_mount* mount);
+    int32_t (*unmount)(struct vfs_mount* mount);
 } __attribute__((packed));
 
 struct vfs_dirent {
@@ -49,48 +74,22 @@ struct vfs_dirent {
     uint32_t inode;
 } __attribute__((packed));
 
-struct vfs_mountpoint {
-    vfs_node_t* node;
-    char* path;
-} __attribute__((packed));
-
-/**
- * Initialize the virtual file system.
- */
-void vfs_init();
-
 /**
  * Mount a file system.
  * 
- * @param path The path to mount the file system at.
- * @param node The root node of the file system.
+ * @param drive The drive letter to mount the file system to.
+ * @param mountpoint The mount point to mount.
  * @return 0 on success or -1 on error.
  */
-int32_t vfs_mount(char* path, vfs_node_t* node);
+int32_t vfs_mount(char drive, vfs_mount_t* mountpoint);
 
 /**
  * Unmount a file system.
  * 
- * @param path The path to unmount.
+ * @param drive The drive letter to unmount.
  * @return 0 on success or -1 on error.
  */
-int32_t vfs_unmount(char* path);
-
-/**
- * Get the mount point for a given path.
- * 
- * @param path The path to get the mount point for.
- * @return The mount point or NULL if not found.
- */
-vfs_mountpoint_t* vfs_get_mountpoint(char* path);
-
-/**
- * Get the path relative to the mount point.
- * 
- * @param path The path to get the relative path for.
- * @return The relative path.
- */
-char* vfs_get_relative_path(char* path);
+int32_t vfs_unmount(char drive);
 
 /**
  * Read data from a file.

@@ -2,7 +2,7 @@
 #define _KERNEL_DRIVERS_FS_INITRD_H
 
 #include <stdint.h>
-#include <io/vfs.h>
+#include <fs/vfs.h>
 #include <memory/kheap.h>
 
 #define INITRD_HEADER_MAGIC 0xCAFE

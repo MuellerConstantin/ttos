@@ -11,13 +11,12 @@
 #include <descriptors/tss.h>
 #include <sys/kpanic.h>
 #include <sys/isr.h>
-#include <io/vfs.h>
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 #include <drivers/serial/uart/16550.h>
 #include <drivers/input/ps2/keyboard.h>
-#include <drivers/fs/initrd.h>
+#include <fs/initrd.h>
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
@@ -94,8 +93,6 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
 }
 
 static void init_filesystem(multiboot_info_t *multiboot_info) {
-    vfs_init();
-
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + KERNEL_SPACE_BASE);
     multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_SPACE_BASE;
     uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_SPACE_BASE;

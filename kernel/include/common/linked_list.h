@@ -98,10 +98,8 @@ int32_t linked_list_clear(linked_list_t* list, bool free_data);
  * 
  * @param list The list to search.
  * @param data The data to search for.
- * @param comparator The comparator function that receives the value to search for and the value in the node
- *                  and returns true if they are equal.
  * @return The index of the node containing the data, or -1 if the data was not found.
  */
-int32_t linked_list_find(linked_list_t* list, void* data, bool (*comparator)(void*, void*));
+int32_t linked_list_index_of(linked_list_t* list, void* data);
 
 #endif // _KERNEL_COMMON_LINKED_LIST_H
