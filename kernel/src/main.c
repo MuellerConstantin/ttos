@@ -11,6 +11,7 @@
 #include <descriptors/tss.h>
 #include <sys/kpanic.h>
 #include <sys/isr.h>
+#include <drivers/pci/pci.h>
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
@@ -86,6 +87,7 @@ static void init_memory(multiboot_info_t *multiboot_info) {
 }
 
 static void init_drivers(multiboot_info_t *multiboot_info) {
+    pci_init();
     pic_8259_init();
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);

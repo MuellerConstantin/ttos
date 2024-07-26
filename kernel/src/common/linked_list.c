@@ -1,8 +1,13 @@
 #include <common/linked_list.h>
+#include <sys/kpanic.h>
 #include <memory/kheap.h>
 
 linked_list_t* linked_list_init() {
     linked_list_t* list = (linked_list_t*) kmalloc(sizeof(linked_list_t));
+
+    if(!list) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
 
     list->head = NULL;
     list->tail = NULL;
@@ -17,6 +22,10 @@ int32_t linked_list_append(linked_list_t* list, void* data) {
     }
 
     linked_list_node_t* node = (linked_list_node_t*) kmalloc(sizeof(linked_list_node_t));
+
+    if(!node) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
 
     node->data = data;
     node->next = NULL;
@@ -42,6 +51,10 @@ int32_t linked_list_prepend(linked_list_t* list, void* data) {
     }
 
     linked_list_node_t* node = (linked_list_node_t*) kmalloc(sizeof(linked_list_node_t));
+
+    if(!node) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
 
     node->data = data;
     node->prev = NULL;
@@ -71,6 +84,11 @@ int32_t linked_list_insert(linked_list_t* list, void* data, size_t index) {
     }
 
     linked_list_node_t* node = (linked_list_node_t*) kmalloc(sizeof(linked_list_node_t));
+
+    if(!node) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
     node->data = data;
 
     linked_list_node_t* current_node = list->head;

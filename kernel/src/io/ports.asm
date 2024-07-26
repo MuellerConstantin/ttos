@@ -4,6 +4,10 @@
 
 [GLOBAL inb]
 [GLOBAL outb]
+[GLOBAL inw]
+[GLOBAL outw]
+[GLOBAL inl]
+[GLOBAL outl]
 
 inb:
 
@@ -53,6 +57,33 @@ outw:
     mov ax, [esp + 12]  ; Move data to be sent to I/O port
     mov dx, [esp + 8]   ; Set I/O port address
     out dx, ax          ; Send data to port
+
+    mov esp, ebp
+    pop ebp
+
+    ret
+
+inl:
+
+    push ebp
+    mov ebp, esp
+
+    mov dx, [esp + 8]   ; Set I/O port address
+    in eax, dx          ; Read data from port
+
+    mov esp, ebp
+    pop ebp
+
+    ret
+
+outl:
+    
+    push ebp
+    mov ebp, esp
+
+    mov eax, [esp + 12] ; Move data to be sent to I/O port
+    mov dx, [esp + 8]   ; Set I/O port address
+    out dx, eax         ; Send data to port
 
     mov esp, ebp
     pop ebp
