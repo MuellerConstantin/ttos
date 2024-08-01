@@ -1,5 +1,5 @@
-#ifndef _KERNEL_DRIVERS_FS_INITRD_H
-#define _KERNEL_DRIVERS_FS_INITRD_H
+#ifndef _KERNEL_FS_INITRD_H
+#define _KERNEL_FS_INITRD_H
 
 #include <stdint.h>
 #include <fs/vfs.h>
@@ -32,4 +32,4 @@ typedef struct initrd_file_header initrd_file_header_t;
  */
 int32_t initrd_init(void* memory_base);
 
-#endif // _KERNEL_DRIVERS_FS_INITRD_H
+#endif // _KERNEL_FS_INITRD_H

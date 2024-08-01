@@ -44,6 +44,28 @@ typedef struct vfs_node vfs_node_t;
 typedef struct vfs_mount vfs_mount_t;
 typedef struct vfs_dirent vfs_dirent_t;
 
+typedef struct vfs_node_operations vfs_node_operations_t;
+typedef struct vfs_mount_operations vfs_mount_operations_t;
+
+struct vfs_node_operations {
+    int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+    int32_t (*write)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+    int32_t (*open)(vfs_node_t* node);
+    int32_t (*close)(vfs_node_t* node);
+    vfs_node_t* (*create)(vfs_node_t* node, char* name, uint32_t permissions);
+    int32_t (*unlink)(vfs_node_t* node, char* name);
+    int32_t (*mkdir)(vfs_node_t* node, char* name, uint32_t permissions);
+    int32_t (*rmdir)(vfs_node_t* node, char* name);
+    int32_t (*rename)(vfs_node_t* node, char* old_name, char* new_name);
+    vfs_dirent_t* (*readdir)(vfs_node_t* node, uint32_t index);
+    vfs_node_t* (*finddir)(vfs_node_t* node, char* name);
+} __attribute__((packed));
+
+struct vfs_mount_operations {
+    int32_t (*mount)(vfs_mount_t* mount);
+    int32_t (*unmount)(vfs_mount_t* mount);
+} __attribute__((packed));
+
 struct vfs_node {
     char name[128];
     uint32_t permissions;
@@ -53,20 +75,12 @@ struct vfs_node {
     uint32_t inode;
     uint32_t length;
     struct vfs_node *link;
-
-    int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-    int32_t (*write)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-    int32_t (*open)(vfs_node_t* node);
-    int32_t (*close)(vfs_node_t* node);
-    vfs_dirent_t* (*readdir)(vfs_node_t* node, uint32_t index);
-    vfs_node_t* (*finddir)(vfs_node_t* node, char* name);
+    vfs_node_operations_t* operations;
 } __attribute__((packed));
 
 struct vfs_mount {
     vfs_node_t* root;
-
-    int32_t (*mount)(struct vfs_mount* mount);
-    int32_t (*unmount)(struct vfs_mount* mount);
+    vfs_mount_operations_t* operations;
 } __attribute__((packed));
 
 struct vfs_dirent {

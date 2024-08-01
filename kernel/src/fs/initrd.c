@@ -11,6 +11,39 @@ static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void*
 static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index);
 static vfs_node_t* initrd_finddir(vfs_node_t* node, char* name);
 
+static vfs_mount_operations_t initrd_mount_operations = {
+    .mount = &initrd_mount,
+    .unmount = &initrd_unmount
+};
+
+static vfs_node_operations_t initrd_directory_operations = {
+    .read = NULL,
+    .write = NULL,
+    .open = NULL,
+    .close = NULL,
+    .create = NULL,
+    .unlink = NULL,
+    .mkdir = NULL,
+    .rmdir = NULL,
+    .rename = NULL,
+    .readdir = &initrd_readdir,
+    .finddir = &initrd_finddir
+};
+
+static vfs_node_operations_t initrd_file_operations = {
+    .read = &initrd_read,
+    .write = NULL,
+    .open = NULL,
+    .close = NULL,
+    .create = NULL,
+    .unlink = NULL,
+    .mkdir = NULL,
+    .rmdir = NULL,
+    .rename = NULL,
+    .readdir = NULL,
+    .finddir = NULL
+};
+
 int32_t initrd_init(void* memory_base) {
     initrd_header = (initrd_header_t*) memory_base;
 
@@ -26,8 +59,7 @@ int32_t initrd_init(void* memory_base) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    initrd_mountpoint->mount = &initrd_mount;
-    initrd_mountpoint->unmount = &initrd_unmount;
+    initrd_mountpoint->operations = &initrd_mount_operations;
 
     return vfs_mount(DRIVE_A, initrd_mountpoint);
 }
@@ -47,12 +79,7 @@ int32_t initrd_mount(vfs_mount_t* mount) {
     root->inode = 0;
     root->length = 0;
     root->link = NULL;
-    root->read = NULL;
-    root->write = NULL;
-    root->open = NULL;
-    root->close = NULL;
-    root->readdir = &initrd_readdir;
-    root->finddir = &initrd_finddir;
+    root->operations = &initrd_directory_operations;
 
     mount->root = root;
 
@@ -128,12 +155,7 @@ static vfs_node_t* initrd_finddir(vfs_node_t* node, char* name) {
             new_node->inode = index;
             new_node->length = file_header->length;
             new_node->link = NULL;
-            new_node->read = &initrd_read;
-            new_node->write = NULL;
-            new_node->open = NULL;
-            new_node->close = NULL;
-            new_node->readdir = NULL;
-            new_node->finddir = NULL;
+            new_node->operations = &initrd_file_operations;
 
             return new_node;
         }

@@ -20,7 +20,7 @@ int32_t vfs_mount(char drive, vfs_mount_t* mountpoint) {
         return -1;
     }
 
-    if(mountpoint->mount(mountpoint) != 0) {
+    if(mountpoint->operations->mount(mountpoint) != 0) {
         return -1;
     }
 
@@ -40,7 +40,7 @@ int32_t vfs_unmount(char drive) {
         return -1;
     }
 
-    if(vfs_mountpoints[index]->unmount(vfs_mountpoints[index]) != 0) {
+    if(vfs_mountpoints[index]->operations->unmount(vfs_mountpoints[index]) != 0) {
         return -1;
     }
 
@@ -150,48 +150,48 @@ static vfs_node_t* vfs_findpath_recursive(vfs_node_t* node, char* path) {
 
 
 int32_t vfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    if (node->read != NULL) {
-        return node->read(node, offset, size, buffer);
+    if (node->operations->read != NULL) {
+        return node->operations->read(node, offset, size, buffer);
     }
 
     return -1;
 }
 
 int32_t vfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    if (node->write != NULL) {
-        return node->write(node, offset, size, buffer);
+    if (node->operations->write != NULL) {
+        return node->operations->write(node, offset, size, buffer);
     }
 
     return -1;
 }
 
 int32_t vfs_open(vfs_node_t* node) {
-    if (node->open != NULL) {
-        return node->open(node);
+    if (node->operations->open != NULL) {
+        return node->operations->open(node);
     }
 
     return -1;
 }
 
 int32_t vfs_close(vfs_node_t* node) {
-    if (node->close != NULL) {
-        return node->close(node);
+    if (node->operations->close != NULL) {
+        return node->operations->close(node);
     }
 
     return -1;
 }
 
 vfs_dirent_t* vfs_readdir(vfs_node_t* node, uint32_t index) {
-    if (node->readdir != NULL && node->type & VFS_DIRECTORY) {
-        return node->readdir(node, index);
+    if (node->operations->readdir != NULL && node->type & VFS_DIRECTORY) {
+        return node->operations->readdir(node, index);
     }
 
     return NULL;
 }
 
 vfs_node_t* vfs_finddir(vfs_node_t* node, char* name) {
-    if (node->finddir != NULL && node->type & VFS_DIRECTORY) {
-        return node->finddir(node, name);
+    if (node->operations->finddir != NULL && node->type & VFS_DIRECTORY) {
+        return node->operations->finddir(node, name);
     }
 
     return NULL;
