@@ -1,51 +1,19 @@
-#ifndef _KERNEL_IO_VFS_H
-#define _KERNEL_IO_VFS_H
+#ifndef _KERNEL_FS_VFS_H
+#define _KERNEL_FS_VFS_H
 
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
 
-#define VFS_MAX_MOUNTPOINTS 26
-#define VFS_MAX_PATH_LENGTH 4096
-
-#define DRIVE_A 'A'
-#define DRIVE_B 'B'
-#define DRIVE_C 'C'
-#define DRIVE_D 'D'
-#define DRIVE_E 'E'
-#define DRIVE_F 'F'
-#define DRIVE_G 'G'
-#define DRIVE_H 'H'
-#define DRIVE_I 'I'
-#define DRIVE_J 'J'
-#define DRIVE_K 'K'
-#define DRIVE_L 'L'
-#define DRIVE_M 'M'
-#define DRIVE_N 'N'
-#define DRIVE_O 'O'
-#define DRIVE_P 'P'
-#define DRIVE_Q 'Q'
-#define DRIVE_R 'R'
-#define DRIVE_S 'S'
-#define DRIVE_T 'T'
-#define DRIVE_U 'U'
-#define DRIVE_V 'V'
-#define DRIVE_W 'W'
-#define DRIVE_X 'X'
-#define DRIVE_Y 'Y'
-#define DRIVE_Z 'Z'
-
 #define VFS_FILE        0x01
 #define VFS_DIRECTORY   0x02
 #define VFS_SYMLINK     0x03
 
 typedef struct vfs_node vfs_node_t;
-typedef struct vfs_mount vfs_mount_t;
 typedef struct vfs_dirent vfs_dirent_t;
 
 typedef struct vfs_node_operations vfs_node_operations_t;
-typedef struct vfs_mount_operations vfs_mount_operations_t;
 
 struct vfs_node_operations {
     int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
@@ -61,11 +29,6 @@ struct vfs_node_operations {
     vfs_node_t* (*finddir)(vfs_node_t* node, char* name);
 } __attribute__((packed));
 
-struct vfs_mount_operations {
-    int32_t (*mount)(vfs_mount_t* mount);
-    int32_t (*unmount)(vfs_mount_t* mount);
-} __attribute__((packed));
-
 struct vfs_node {
     char name[128];
     uint32_t permissions;
@@ -78,32 +41,10 @@ struct vfs_node {
     vfs_node_operations_t* operations;
 } __attribute__((packed));
 
-struct vfs_mount {
-    vfs_node_t* root;
-    vfs_mount_operations_t* operations;
-} __attribute__((packed));
-
 struct vfs_dirent {
     char name[128];
     uint32_t inode;
 } __attribute__((packed));
-
-/**
- * Mount a file system.
- * 
- * @param drive The drive letter to mount the file system to.
- * @param mountpoint The mount point to mount.
- * @return 0 on success or -1 on error.
- */
-int32_t vfs_mount(char drive, vfs_mount_t* mountpoint);
-
-/**
- * Unmount a file system.
- * 
- * @param drive The drive letter to unmount.
- * @return 0 on success or -1 on error.
- */
-int32_t vfs_unmount(char drive);
 
 /**
  * Read data from a file.
@@ -162,11 +103,12 @@ vfs_dirent_t* vfs_readdir(vfs_node_t* node, uint32_t index);
 vfs_node_t* vfs_finddir(vfs_node_t* node, char* name);
 
 /**
- * Find a file node by an absolute path.
+ * Find a file by path relative to a node.
  * 
- * @param path The path to the file.
+ * @param node The node to search from.
+ * @param path The path to search for.
  * @return The file or NULL if not found.
  */
-vfs_node_t* vfs_findpath(char* path);
+vfs_node_t* vfs_findpath(vfs_node_t* node, char* path);
 
-#endif // _KERNEL_IO_VFS_H
+#endif // _KERNEL_FS_VFS_H

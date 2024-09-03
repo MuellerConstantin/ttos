@@ -17,6 +17,7 @@
 #include <drivers/video/vga/textmode.h>
 #include <drivers/serial/uart/16550.h>
 #include <drivers/input/ps2/keyboard.h>
+#include <fs/mount.h>
 #include <fs/initrd.h>
 
 static void init_cpu();
@@ -99,9 +100,11 @@ static void init_filesystem(multiboot_info_t *multiboot_info) {
     multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_SPACE_BASE;
     uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_SPACE_BASE;
 
-    int32_t initrd_status = initrd_init((void*) initrd_start);
+    mnt_volume_t* initrd_volume = initrd_init((void*) initrd_start);
 
-    if(initrd_status != 0) {
+    if(!initrd_volume) {
         KPANIC(KPANIC_INITRD_INIT_FAILED_CODE, KPANIC_INITRD_INIT_FAILED_MESSAGE, NULL);
     }
+
+    mnt_volume_mount(DRIVE_A, initrd_volume);
 }

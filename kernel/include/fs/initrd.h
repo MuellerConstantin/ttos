@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <fs/vfs.h>
+#include <fs/mount.h>
 #include <memory/kheap.h>
 
 #define INITRD_HEADER_MAGIC 0xCAFE
@@ -28,8 +29,8 @@ typedef struct initrd_file_header initrd_file_header_t;
  * Initialize the initial ramdisk.
  * 
  * @param memory_base The base address of the memory.
- * @return 0 if the initial ramdisk was successfully initialized, -1 otherwise.
+ * @return The volume of the initial ramdisk.
  */
-int32_t initrd_init(void* memory_base);
+mnt_volume_t* initrd_init(void* memory_base);
 
 #endif // _KERNEL_FS_INITRD_H

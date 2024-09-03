@@ -1,17 +1,18 @@
 #include <fs/initrd.h>
+#include <memory/kheap.h>
 #include <sys/kpanic.h>
 #include <string.h>
 
 static initrd_header_t* initrd_header;
 static initrd_file_header_t* initrd_file_headers;
 
-int32_t initrd_mount(vfs_mount_t* mount);
-static int32_t initrd_unmount(vfs_mount_t* mount);
+int32_t initrd_mount(mnt_volume_t* volume);
+static int32_t initrd_unmount(mnt_volume_t* volume);
 static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
 static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index);
 static vfs_node_t* initrd_finddir(vfs_node_t* node, char* name);
 
-static vfs_mount_operations_t initrd_mount_operations = {
+static mnt_volume_operations_t initrd_volume_operations = {
     .mount = &initrd_mount,
     .unmount = &initrd_unmount
 };
@@ -44,7 +45,7 @@ static vfs_node_operations_t initrd_file_operations = {
     .finddir = NULL
 };
 
-int32_t initrd_init(void* memory_base) {
+mnt_volume_t* initrd_init(void* memory_base) {
     initrd_header = (initrd_header_t*) memory_base;
 
     if(initrd_header->magic != INITRD_HEADER_MAGIC) {
@@ -53,18 +54,18 @@ int32_t initrd_init(void* memory_base) {
 
     initrd_file_headers = (initrd_file_header_t*) ((uintptr_t) memory_base + sizeof(initrd_header_t));
 
-    vfs_mount_t* initrd_mountpoint = (vfs_mount_t*) kmalloc(sizeof(vfs_mount_t));
+    mnt_volume_t* initrd_volume = (mnt_volume_t*) kmalloc(sizeof(mnt_volume_t));
 
-    if(!initrd_mount) {
+    if(!initrd_volume) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    initrd_mountpoint->operations = &initrd_mount_operations;
+    initrd_volume->operations = &initrd_volume_operations;
 
-    return vfs_mount(DRIVE_A, initrd_mountpoint);
+    return initrd_volume;
 }
 
-int32_t initrd_mount(vfs_mount_t* mount) {
+int32_t initrd_mount(mnt_volume_t* volume) {
     vfs_node_t* root = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
 
     if(!root) {
@@ -81,12 +82,12 @@ int32_t initrd_mount(vfs_mount_t* mount) {
     root->link = NULL;
     root->operations = &initrd_directory_operations;
 
-    mount->root = root;
+    volume->root = root;
 
     return 0;
 }
 
-static int32_t initrd_unmount(vfs_mount_t* mount) {
+static int32_t initrd_unmount(mnt_volume_t* mount) {
     kfree(mount->root);
     kfree(mount);
 
