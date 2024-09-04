@@ -53,18 +53,18 @@ static inline void circular_linked_list_prepend(circular_linked_list_node_t *new
 }
 
 /**
- * Remove a node from the list.
+ * Remove a node from the list. The node or its data is not freed.
  * 
  * @param entry The node to remove.
  * @return The node that was removed.
  */
-static inline void circular_linked_list_del(circular_linked_list_node_t *entry) {
+static inline void circular_linked_list_remove(circular_linked_list_node_t *entry) {
     entry->prev->next = entry->next;
     entry->next->prev = entry->prev;
 }
 
 /**
- * Check if the list is empty.
+ * Check if the list is empty, besides the head.
  * 
  * @param head The head of the list.
  * @return Whether the list is empty.
@@ -89,6 +89,13 @@ static inline size_t circular_linked_list_size(circular_linked_list_node_t *head
     return size;
 }
 
+/**
+ * Get the node at the given index.
+ * 
+ * @param head The head of the list.
+ * @param index The index of the node to get.
+ * @return The node at the given index.
+ */
 static inline circular_linked_list_node_t* circular_linked_list_get(circular_linked_list_node_t *head, size_t index) {
     size_t current_index = 0;
 
