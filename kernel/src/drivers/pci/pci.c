@@ -1,7 +1,7 @@
 #include <drivers/pci/pci.h>
 #include <sys/kpanic.h>
 
-static linked_list_t *pci_devices = NULL;
+static circular_linked_list_node_t* pci_devices = NULL;
 
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);
 static uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
@@ -9,7 +9,13 @@ static uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t o
 static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 
 int32_t pci_init() {
-    pci_devices = linked_list_init();
+    pci_devices = kmalloc(sizeof(circular_linked_list_node_t));
+
+    if(!pci_devices) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    circular_linked_list_init(pci_devices);
 
     // Scan all slots and functions of the first 10 buses
     for(uint8_t bus = 0; bus < PCI_MAX_DEFAULT_SCAN_BUSES; bus++) {
@@ -21,7 +27,15 @@ int32_t pci_init() {
                     break;
                 }
 
-                linked_list_append(pci_devices, device);
+                circular_linked_list_node_t *node = kmalloc(sizeof(circular_linked_list_node_t));
+
+                if(!node) {
+                    KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+                }
+
+                node->data = device;
+
+                circular_linked_list_append(node, pci_devices);
 
                 // Skip function scanning if the device is a single function device
                 if(function == 0 && (pci_read_byte(bus, slot, function, PCI_HEADER_TYPE) & 0x80) == 0) {
@@ -32,8 +46,12 @@ int32_t pci_init() {
     }
 }
 
+circular_linked_list_node_t* pci_get_devices() {
+    return pci_devices;
+}
+
 pci_device_t* pci_get_device(uint16_t vendor_id, uint16_t device_id) {
-    linked_list_foreach(pci_devices, node) {
+    circular_linked_list_foreach(pci_devices, node) {
         pci_device_t *device = (pci_device_t*) node->data;
 
         if(device->vendor_id == vendor_id && device->device_id == device_id) {
@@ -44,14 +62,16 @@ pci_device_t* pci_get_device(uint16_t vendor_id, uint16_t device_id) {
     return NULL;
 }
 
-linked_list_t* pci_get_devices() {
-    return pci_devices;
-}
+circular_linked_list_node_t* pci_get_devices_of_type(uint8_t type, int16_t subtype) {
+    circular_linked_list_node_t* devices = kmalloc(sizeof(circular_linked_list_node_t));
 
-linked_list_t* pci_get_devices_of_type(uint8_t type, int16_t subtype) {
-    linked_list_t *devices = linked_list_init();
+    if(!devices) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
 
-    linked_list_foreach(pci_devices, node) {
+    circular_linked_list_init(devices);
+
+    circular_linked_list_foreach(pci_devices, node) {
         pci_device_t *device = (pci_device_t*) node->data;
 
         if(device->type == type) {
@@ -59,7 +79,15 @@ linked_list_t* pci_get_devices_of_type(uint8_t type, int16_t subtype) {
                 continue;
             }
 
-            linked_list_append(devices, device);
+            circular_linked_list_node_t *new_node = kmalloc(sizeof(circular_linked_list_node_t));
+
+            if(!new_node) {
+                KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+            }
+
+            new_node->data = device;
+
+            circular_linked_list_append(new_node, devices);
         }
     }
 
