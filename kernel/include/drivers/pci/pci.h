@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <io/ports.h>
 #include <drivers/pci/types.h>
-#include <ds/circular_linked_list.h>
+#include <ds/linked_list.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
@@ -69,7 +69,7 @@ int32_t pci_init();
  * 
  * @return A linked list of all PCI devices.
  */
-circular_linked_list_node_t* pci_get_devices();
+linked_list_t* pci_get_devices();
 
 /**
  * Returns a linked list of all PCI devices of the specified type and subtype.
@@ -79,7 +79,7 @@ circular_linked_list_node_t* pci_get_devices();
  * subtypes will be included.
  * @return A linked list of all PCI devices of the specified type and subtype.
  */
-circular_linked_list_node_t* pci_get_devices_of_type(uint8_t type, int16_t subtype);
+linked_list_t* pci_get_devices_of_type(uint8_t type, int16_t subtype);
 
 /**
  * Retrieves a PCI device with the specified vendor and device ID.
