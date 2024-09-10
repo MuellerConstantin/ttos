@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 #include <io/ports.h>
+#include <drivers/device.h>
 #include <drivers/pci/types.h>
-#include <ds/linked_list.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
@@ -63,32 +63,5 @@ struct pci_device {
  * @return 0 if the PCI driver was initialized successfully, -1 otherwise.
  */
 int32_t pci_init();
-
-/**
- * Retrieves a list of all PCI devices.
- * 
- * @return A linked list of all PCI devices.
- */
-linked_list_t* pci_get_devices();
-
-/**
- * Returns a linked list of all PCI devices of the specified type and subtype.
- * 
- * @param type The type of the PCI devices to get.
- * @param subtype An optional subtype of the PCI devices to get. If set to negative, all
- * subtypes will be included.
- * @return A linked list of all PCI devices of the specified type and subtype.
- */
-linked_list_t* pci_get_devices_of_type(uint8_t type, int16_t subtype);
-
-/**
- * Retrieves a PCI device with the specified vendor and device ID.
- * 
- * @param vendor_id The vendor ID of the PCI device.
- * @param device_id The device ID of the PCI device.
- * @return A pointer to the PCI device with the specified vendor and device ID, or NULL if no
- * such device was found.
- */
-pci_device_t* pci_get_device(uint16_t vendor_id, uint16_t device_id);
 
 #endif // _KERNEL_DRIVERS_PCI_H

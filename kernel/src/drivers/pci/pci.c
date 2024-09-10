@@ -1,37 +1,42 @@
 #include <drivers/pci/pci.h>
 #include <sys/kpanic.h>
 
-static linked_list_t* pci_devices = NULL;
-
+static char* pci_get_device_name(pci_device_t* pci_device);
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);
 static uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 
 int32_t pci_init() {
-    pci_devices = linked_list_create();
-
-    if(!pci_devices) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-    }
-
     // Scan all slots and functions of the first 10 buses
     for(uint8_t bus = 0; bus < PCI_MAX_DEFAULT_SCAN_BUSES; bus++) {
         for(uint8_t slot = 0; slot < PCI_DEVICES_PER_BUS; slot++) {
-            for(uint8_t function = 0; function < PCI_FUNCTIONS_PER_DEVICE; function++) {
-                pci_device_t* device = pci_probe_device(bus, slot, function);
+            device_t* slot_device = NULL;
 
-                if(!device) {
+            for(uint8_t function = 0; function < PCI_FUNCTIONS_PER_DEVICE; function++) {
+                pci_device_t* pci_device = pci_probe_device(bus, slot, function);
+
+                if(!pci_device) {
                     break;
                 }
 
-                linked_list_node_t *node = linked_list_create_node(device);
+                device_t* device = (device_t*) kmalloc(sizeof(device_t));
 
-                if(!node) {
+                if(!device) {
                     KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
                 }
 
-                linked_list_append(pci_devices, node);
+                device->name = pci_get_device_name(pci_device);
+                device->device_type = DEVICE_TYPE_UNKNOWN;
+                device->bus_type = DEVICE_BUS_TYPE_PCI;
+                device->bus_data = pci_device;
+
+                if(!slot_device) {
+                    slot_device = device;
+                    device_register(NULL, slot_device);
+                } else {
+                    device_register(slot_device, device);
+                }
 
                 // Skip function scanning if the device is a single function device
                 if(function == 0 && (pci_read_byte(bus, slot, function, PCI_HEADER_TYPE) & 0x80) == 0) {
@@ -42,48 +47,75 @@ int32_t pci_init() {
     }
 }
 
-linked_list_t* pci_get_devices() {
-    return pci_devices;
-}
+static char* pci_get_device_name(pci_device_t* pci_device) {
+    char* name = (char*) kmalloc(32);
 
-pci_device_t* pci_get_device(uint16_t vendor_id, uint16_t device_id) {
-    linked_list_foreach(pci_devices, node) {
-        pci_device_t *device = (pci_device_t*) node->data;
-
-        if(device->vendor_id == vendor_id && device->device_id == device_id) {
-            return device;
-        }
-    }
-
-    return NULL;
-}
-
-linked_list_t* pci_get_devices_of_type(uint8_t type, int16_t subtype) {
-    linked_list_node_t* selected_devices = linked_list_create();
-
-    if(!selected_devices) {
+    if(!name) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    linked_list_foreach(pci_devices, node) {
-        pci_device_t *device = (pci_device_t*) node->data;
+    /*
+        * The following code for generating the device name is not
+        * the most efficient way to do it, but it is simple way that
+        * works without sprintf.
+        */
 
-        if(device->type == type) {
-            if(subtype >= 0 && device->subtype != subtype) {
-                continue;
-            }
+    char* name_ptr = name;
 
-            linked_list_node_t *new_node = linked_list_create_node(device);
+    strcpy(name_ptr, "PCI Device ");
+    name_ptr += 11;
 
-            if(!new_node) {
-                KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-            }
+    char vendor_id_buffer[5];
 
-            linked_list_append(selected_devices, new_node);
-        }
-    }
+    itoa(pci_device->vendor_id, vendor_id_buffer, 16);
+    strcpy(name_ptr, vendor_id_buffer);
+    name_ptr += strlen(vendor_id_buffer);
 
-    return selected_devices;
+    *name_ptr = '/';
+    name_ptr++;
+
+    char device_id_buffer[5];
+
+    itoa(pci_device->device_id, device_id_buffer, 16);
+    strcpy(name_ptr, device_id_buffer);
+    name_ptr += strlen(device_id_buffer);
+
+    *name_ptr = ' ';
+    name_ptr++;
+
+    *name_ptr = '(';
+    name_ptr++;
+
+    char bus_buffer[3];
+    
+    itoa(pci_device->bus, bus_buffer, 16);
+    strcpy(name_ptr, bus_buffer);
+    name_ptr += strlen(bus_buffer);
+
+    *name_ptr = ':';
+    name_ptr++;
+
+    char slot_buffer[3];
+
+    itoa(pci_device->slot, slot_buffer, 16);
+    strcpy(name_ptr, slot_buffer);
+    name_ptr += strlen(slot_buffer);
+
+    *name_ptr = '.';
+    name_ptr++;
+
+    char function_buffer[3];
+
+    itoa(pci_device->function, function_buffer, 16);
+    strcpy(name_ptr, function_buffer);
+    name_ptr += strlen(function_buffer);
+
+    *name_ptr = ')';
+    name_ptr++;
+
+    *name_ptr = '\0';
+
+    return name;
 }
 
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function) {
@@ -106,6 +138,7 @@ static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t functio
 
     device->bus = bus;
     device->slot = slot;
+    device->function = function;
     device->vendor_id = vendor_id;
     device->device_id = device_id;
     device->type = type;

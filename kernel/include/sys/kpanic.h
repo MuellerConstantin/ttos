@@ -8,10 +8,11 @@
 
 #define KPANIC(code, message, info) kpanic(code, message, __FILE__, __LINE__, info)
 
-#define KPANIC_CPU_EXCEPTION_TYPE(code)         (0x100000 | (code))
-#define KPANIC_MULTIBOOT_EXCEPTION_TYPE(code)   (0x200000 | (code))
-#define KPANIC_MEMORY_EXCEPTION_TYPE(code)      (0x300000 | (code))
-#define KPANIC_FILESYSTEM_EXCEPTION_TYPE(code)  (0x400000 | (code))
+#define KPANIC_CPU_EXCEPTION_TYPE(code)             (0x100000 | (code))
+#define KPANIC_MULTIBOOT_EXCEPTION_TYPE(code)       (0x200000 | (code))
+#define KPANIC_MEMORY_EXCEPTION_TYPE(code)          (0x300000 | (code))
+#define KPANIC_FILESYSTEM_EXCEPTION_TYPE(code)      (0x400000 | (code))
+#define KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(code)  (0x500000 | (code))
 
 // Multiboot exceptions
 
@@ -39,6 +40,11 @@
 
 #define KPANIC_INITRD_INIT_FAILED_CODE          KPANIC_FILESYSTEM_EXCEPTION_TYPE(0)
 #define KPANIC_INITRD_INIT_FAILED_MESSAGE       "Failed to initialize initial ramdisk"
+
+// Device Manager exceptions
+
+#define KPANIC_DEVICE_NOT_FOUND_CODE     KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(0)
+#define KPANIC_DEVICE_NOT_FOUND_MESSAGE  "Parent device not found"
 
 /**
  * Panic handler for the kernel that displays a message on
