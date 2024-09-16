@@ -17,6 +17,7 @@
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/textmode.h>
 #include <drivers/serial/uart/16550.h>
+#include <drivers/input/keyboard.h>
 #include <drivers/input/ps2/keyboard.h>
 #include <fs/mount.h>
 #include <fs/initrd.h>
@@ -96,6 +97,7 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
     vga_init(VGA_80x25_16_TEXT, true);
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);
+    keyboard_init();
     ps2_keyboard_init();
     pci_init();
 }

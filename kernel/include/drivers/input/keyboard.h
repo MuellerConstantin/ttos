@@ -152,32 +152,37 @@
 
 #define KEYBOARD_BUFFER_SIZE 256
 
+typedef struct keyboard_event keyboard_event_t;
+
 struct keyboard_event {
     uint32_t keycode;
     bool pressed;
 };
 
-typedef struct keyboard_event keyboard_event_t;
+/**
+ * Initializes the keyboard manager. This function should be called before any other keyboard driver functions.
+ */
+void keyboard_init();
 
 /**
  * Pushes a keyboard event into the keyboard buffer.
  * 
  * @param event The keyboard event to push.
  */
-void keyboard_buffer_enqueue(keyboard_event_t event);
+void keyboard_enqueue(keyboard_event_t* event);
 
 /**
  * Retrieves the next keyboard event from the keyboard buffer.
  * 
- * @return The keyboard event that was retrieved.
+ * @param event The keyboard event to store the retrieved event.
  */
-keyboard_event_t keyboard_buffer_dequeue();
+void keyboard_dequeue(keyboard_event_t* event);
 
 /**
  * Checks if there is a keyboard event available in the keyboard buffer.
  * 
  * @return Whether there is a keyboard event available in the keyboard buffer.
  */
-bool keyboard_buffer_available();
+bool keyboard_available();
 
 #endif // _KERNEL_IO_KEYBOARD_H

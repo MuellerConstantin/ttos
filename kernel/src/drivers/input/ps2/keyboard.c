@@ -105,7 +105,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     .pressed = true
                 };
 
-                keyboard_buffer_enqueue(event);
+                keyboard_enqueue(&event);
             }
         // Standard key released
         } else if(scancode >= 0x80 && scancode <= 0xD8) {
@@ -117,7 +117,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     .pressed = false
                 };
 
-                keyboard_buffer_enqueue(event);
+                keyboard_enqueue(&event);
             }
         // Pause key pressed
         } else if(scancode == 0xE1) {
@@ -141,7 +141,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                     .pressed = true
                                 };
 
-                                keyboard_buffer_enqueue(event);
+                                keyboard_enqueue(&event);
                             }
                         }
                     }
@@ -165,7 +165,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                 .pressed = true
                             };
 
-                            keyboard_buffer_enqueue(event);
+                            keyboard_enqueue(&event);
                         }
                     }
                 // Print screen key released
@@ -182,7 +182,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                 .pressed = false
                             };
 
-                            keyboard_buffer_enqueue(event);
+                            keyboard_enqueue(&event);
                         }
                     }
                 // Extended key pressed
@@ -195,7 +195,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                             .pressed = true
                         };
 
-                        keyboard_buffer_enqueue(event);
+                        keyboard_enqueue(&event);
                     }
                 // Extended key released
                 } else if(scancode >= 0x80 && scancode <= 0xED) {
@@ -207,7 +207,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                             .pressed = false
                         };
 
-                        keyboard_buffer_enqueue(event);
+                        keyboard_enqueue(&event);
                     }
                 }
             }
