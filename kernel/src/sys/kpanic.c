@@ -17,7 +17,7 @@ const char* TECHNICAL_TITLE = "TECHNICAL DETAILS:";
 const char* TECHNICAL_TITLE_UNDERLINE = "------------------";
 
 void kpanic(uint32_t code, const char *message, const char* file, uint32_t line, isr_cpu_state_t *state) {
-    vga_init(VGA_80x25_16_TEXT, false);
+    vga_tm_init(false);
 
     vga_tm_fill(VGA_TM_BLUE);
     vga_tm_disable_cursor();

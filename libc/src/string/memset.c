@@ -10,3 +10,14 @@ void *memset(void *dest, uint8_t ch, size_t n) {
 
     return dest;
 }
+
+void *memsetw(void *dest, uint16_t value, size_t n) {
+    uint16_t *ptr = (uint16_t *) dest;
+    uint16_t *end = ptr + n;
+
+    while(ptr != end) {
+        *ptr++ = value;
+    }
+
+    return dest;
+}

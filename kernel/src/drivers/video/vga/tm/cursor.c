@@ -2,6 +2,8 @@
 
 extern const vga_video_mode_descriptor_t* vga_current_video_mode;
 
+extern vga_tm_screen_t vga_tm_screen;
+
 void vga_tm_enable_cursor(uint8_t start, uint8_t end) {
 	outb(VGA_CRTC_ADDRESS_REGISTER_PORT, VGA_CRTC_CURSOR_START_REGISTER);
 	outb(VGA_CRTC_DATA_REGISTER_PORT, (inb(VGA_CRTC_DATA_REGISTER_PORT) & 0xC0) | start);
@@ -27,6 +29,9 @@ int32_t vga_tm_move_cursor(size_t cell) {
 
 	outb(VGA_CRTC_ADDRESS_REGISTER_PORT, VGA_CRTC_CURSOR_LOCATION_LOW_REGISTER);
 	outb(VGA_CRTC_DATA_REGISTER_PORT, cell & 0xFF);
+
+	vga_tm_screen.cursor_x = cell % vga_current_video_mode->width;
+	vga_tm_screen.cursor_y = cell / vga_current_video_mode->width;
 
 	return 0;
 }

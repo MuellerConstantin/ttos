@@ -2,6 +2,7 @@
 #define _KERNEL_DRIVERS_VIDEO_VGA_TEXTMODE_H
 
 #include <drivers/video/vga/vga.h>
+#include <string.h>
 
 #define VGA_TM_ENTRY(ch, fgcolor, bgcolor) (ch | ((((bgcolor & 0x0F) << 4) | (fgcolor & 0x0F)) << 8))
 
@@ -24,6 +25,17 @@
 
 #define VGA_TM_CURSOR_MIN_SCANLINE 0x00
 #define VGA_TM_CURSOR_MAX_SCANLINE 0x0F
+
+typedef struct vga_tm_screen vga_tm_screen_t;
+
+struct vga_tm_screen {
+    size_t rows;
+    size_t columns;
+    size_t cursor_x;
+    size_t cursor_y;
+    uint8_t fgcolor;
+    uint8_t bgcolor;
+};
 
 /**
  * Enable the VGA text mode cursor.
@@ -79,5 +91,28 @@ int32_t vga_tm_write(size_t cell, uint8_t ch, uint8_t fgcolor, uint8_t bgcolor);
  * @return 0 if successful, -1 if the cell index is out of bounds.
  */
 int32_t vga_tm_strwrite(size_t offset, const char* str, uint8_t fgcolor, uint8_t bgcolor);
+
+/**
+ * Write a character to the VGA text mode buffer at the current cursor position.
+ * 
+ * @param ch The character to write.
+ * @param fgcolor The foreground color.
+ * @param bgcolor The background color.
+ */
+void vga_tm_putchar(char ch, uint8_t fgcolor, uint8_t bgcolor);
+
+/**
+ * Write a string to the VGA text mode buffer at the current cursor position.
+ * 
+ * @param str The string to write.
+ * @param fgcolor The foreground color.
+ * @param bgcolor The background color.
+ */
+void vga_tm_putstr(const char *str, uint8_t fgcolor, uint8_t bgcolor);
+
+/**
+ * Scroll the VGA text mode buffer up by one line.
+ */
+void vga_tm_scroll();
 
 #endif // _KERNEL_DRIVERS_VIDEO_VGA_TEXTMODE_H

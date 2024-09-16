@@ -56,6 +56,17 @@ int strcmp(const char* str1, const char* str2);
 void *memset(void *dest, uint8_t ch, size_t n);
 
 /**
+ * Copies the given value into each of the first n characters
+ * of the object pointed to by dest.
+ * 
+ * @param dest The destination to copy the value to.
+ * @param value The value to copy.
+ * @param n The number of characters to copy.
+ * @return A pointer to the destination.
+ */
+void *memsetw(void *dest, uint16_t value, size_t n);
+
+/**
  * Copies n characters from the object pointed to by src into
  * the object pointed to by dest.
  * 
