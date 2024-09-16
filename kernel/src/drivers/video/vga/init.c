@@ -1,15 +1,43 @@
 #include <drivers/video/vga/vga.h>
+#include <drivers/device.h>
+#include <memory/kheap.h>
+#include <sys/kpanic.h>
 
 uint16_t *const vga_tm_video_memory = (uint16_t *const) VGA_TM_VIDEO_MEMORY;
 uint8_t *const vga_gfx_video_memory = (uint8_t *const) VGA_GFX_VIDEO_MEMORY;
 
 const vga_video_mode_descriptor_t* vga_current_video_mode = NULL;
-
 extern const vga_video_mode_descriptor_t *const VGA_VIDEO_MODE_DESCRIPTOR_TABLE[VGA_NUM_VIDEO_MODES];
 
+static bool vga_probe(void);
 static void vga_init_registers(uint8_t *config);
 
-int32_t vga_init(vga_video_mode_t mode) {
+int32_t vga_init(vga_video_mode_t mode, bool probe) {
+    if(probe) {
+        if(!vga_probe()) {
+            return -1;
+        }
+
+        device_t *device = (device_t*) kmalloc(sizeof(device_t));
+
+        if(!device) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        device->name = (char*) kmalloc(15);
+
+        if(!device->name) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        strcpy(device->name, "VGA Controller");
+        device->device_type = DEVICE_TYPE_VGA;
+        device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
+        device->bus_data = NULL;
+
+        device_register(NULL, device);
+    }
+
     if (mode >= VGA_NUM_VIDEO_MODES) {
         return -1;
     }
@@ -24,6 +52,11 @@ int32_t vga_init(vga_video_mode_t mode) {
     vga_current_video_mode = descriptor;
 
     return 0;
+}
+
+static bool vga_probe(void) {
+    outb(VGA_GC_ADDRESS_REGISTER_PORT, 0x0F);
+    return inb(VGA_GC_ADDRESS_REGISTER_PORT) == 0x0F;
 }
 
 static void vga_init_registers(uint8_t *config) {

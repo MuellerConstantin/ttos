@@ -36,8 +36,9 @@
  * 
  * @param port The I/O port of the UART serial port.
  * @param baud_rate The baud rate of the UART serial port.
+ * @return 0 if the initialization was successful, otherwise an error code.
  */
-void uart_16550_init(uint16_t port, uint32_t baud_rate);
+int32_t uart_16550_init(uint16_t port, uint32_t baud_rate);
 
 /**
  * Writes data to a 16550 UART serial port.

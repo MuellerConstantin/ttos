@@ -25,6 +25,7 @@
 #define DEVICE_TYPE_NETWORK 0x0600
 #define DEVICE_TYPE_DISPLAY 0x0700
 #define DEVICE_TYPE_AUDIO 0x0800
+#define DEVICE_TYPE_SERIAL 0x0900
 #define DEVICE_TYPE_RESERVED 0xFF00
 
 // Minor input device types
@@ -51,6 +52,10 @@
 
 #define DEVICE_TYPE_SPEAKER (DEVICE_TYPE_AUDIO | 0x01)
 #define DEVICE_TYPE_MICROPHONE (DEVICE_TYPE_AUDIO | 0x02)
+
+// Minor serial device types
+
+#define DEVICE_TYPE_UART (DEVICE_TYPE_SERIAL | 0x01)
 
 typedef struct device device_t;
 

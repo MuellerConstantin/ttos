@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <kernel.h>
+#include <stdbool.h>
 
 #define VGA_NUM_SEQ_REGISTERS   5
 #define VGA_NUM_CRTC_REGISTERS  25
@@ -137,11 +138,14 @@ struct vga_video_mode_descriptor {
 typedef struct vga_video_mode_descriptor vga_video_mode_descriptor_t;
 
 /**
- * Initializes the VGA controller.
+ * Initializes the VGA controller. In general, we have to probe for the VGA controller
+ * before initializing it. However, in some cases, we can assume that the VGA controller
+ * is present and skip the probing process, for example, when panicing the system.
  * 
  * @param mode The video mode to initialize.
+ * @param probe Whether to probe for the VGA controller or to assume it is present.
  * @return 0 if the initialization was successful, -1 otherwise.
  */
-int32_t vga_init(vga_video_mode_t mode);
+int32_t vga_init(vga_video_mode_t mode, bool probe);
 
 #endif // _KERNEL_DRIVERS_VIDEO_VGA_VGA_H

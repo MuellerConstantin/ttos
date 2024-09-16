@@ -1,7 +1,11 @@
 #include <drivers/input/ps2/keyboard.h>
 #include <io/ports.h>
 #include <sys/isr.h>
+#include <drivers/device.h>
+#include <memory/kheap.h>
+#include <sys/kpanic.h>
 
+static bool ps2_keyboard_probe(void);
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state);
 
 static const uint32_t PS2_KEYBOARD_SET1_STANDARD_KEYCODES[] = {
@@ -36,15 +40,52 @@ static const uint32_t PS2_KEYBOARD_SET1_EXTENDED_KEYCODES[] = {
     /* 68 */ KEYBOARD_KEYCODE_MEDIA_WWW_STOP, KEYBOARD_KEYCODE_MEDIA_WWW_FORWARD, KEYBOARD_KEYCODE_MEDIA_WWW_BACK, KEYBOARD_KEYCODE_MEDIA_MY_COMPUTER, KEYBOARD_KEYCODE_MEDIA_EMAIL, KEYBOARD_KEYCODE_MEDIA_SELECT
 };
 
-void ps2_keyboard_init(void) {
-    isr_register_listener(KEYBOARD_INTERRUPT, ps2_keyboard_interrupt_handler);
+int32_t ps2_keyboard_init(void) {
+    // Test if the first PS/2 port is present
+    if(!ps2_8042_first_port_probe()) {
+        return -1;
+    }
 
     // Init and enable first PS/2 port
     ps2_8042_init_first_port(true);
     ps2_8042_enable_first_port();
 
+    if(!ps2_keyboard_probe()) {
+        return -1;
+    }
+
+    device_t *device = (device_t*) kmalloc(sizeof(device_t));
+
+    if(!device) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    device->name = (char*) kmalloc(14);
+
+    if(!device->name) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strcpy(device->name, "PS/2 Keyboard");
+    device->device_type = DEVICE_TYPE_KEYBOARD;
+    device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
+    device->bus_data = NULL;
+
+    device_register(NULL, device);
+
+    isr_register_listener(KEYBOARD_INTERRUPT, ps2_keyboard_interrupt_handler);
+
     // Enable keyboard scanning
     outb(PS2_DATA_REGISTER, 0xF4);
+
+    return 0;
+}
+
+static bool ps2_keyboard_probe(void) {
+    // Send self-test command
+    outb(PS2_DATA_REGISTER, 0xFF);
+
+    return inb(PS2_DATA_REGISTER) == 0xFA;
 }
 
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {

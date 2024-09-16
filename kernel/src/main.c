@@ -41,18 +41,20 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_cli();
 
-    vga_init(VGA_80x25_16_TEXT);
-
-    vga_tm_strwrite(0, "Kernel loading...", VGA_TM_WHITE, VGA_TM_BLACK);
-
     init_cpu();
     init_memory(multiboot_info);
     init_drivers(multiboot_info);
     init_filesystem(multiboot_info);
 
-    vga_tm_strwrite(80, "Kernel loaded!", VGA_TM_WHITE, VGA_TM_BLACK);
-
     isr_sti();
+
+    vga_tm_strwrite(0, " _____  _____  ____  ____ ", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_strwrite(80, "/__ __\\/__ __\\/  _ \\/ ___\\", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_strwrite(160, "  / \\    / \\  | / \\||    \\", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_strwrite(240, "  | |    | |  | \\_/|\\___ |", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_strwrite(320, "  \\_/    \\_/  \\____/\\____/", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_strwrite(400, "Tiny Toy Operating System", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_strwrite(480, "-*-*-*-*-*-*-*-*-*-*-*-*-*", VGA_TM_WHITE, VGA_TM_BLACK);
 
     while(1);
 }
@@ -90,11 +92,12 @@ static void init_memory(multiboot_info_t *multiboot_info) {
 
 static void init_drivers(multiboot_info_t *multiboot_info) {
     device_init();
-    pci_init();
     pic_8259_init();
+    vga_init(VGA_80x25_16_TEXT, true);
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);
     ps2_keyboard_init();
+    pci_init();
 }
 
 static void init_filesystem(multiboot_info_t *multiboot_info) {

@@ -9,11 +9,11 @@
 #define PS2_DATA_REGISTER 0x60
 
 /**
- * Initializes the first PS/2 port by convention the keyboard port.
+ * Probes the first PS/2 port.
  * 
- * @param enable_translation Whether to enable translation for the first PS/2 port.
+ * @return Whether the first PS/2 port is present.
  */
-void ps2_8042_init_first_port(bool enable_translation);
+bool ps2_8042_first_port_probe();
 
 /**
  * Enables the first PS/2 port, by convention the keyboard port.
@@ -26,9 +26,18 @@ void ps2_8042_enable_first_port();
 void ps2_8042_disable_first_port(void);
 
 /**
- * Initializes the second PS/2 port by convention the mouse port.
+ * Initializes the first PS/2 port by convention the keyboard port.
+ * 
+ * @param enable_translation Whether to enable translation for the first PS/2 port.
  */
-void ps2_8042_init_second_port();
+void ps2_8042_init_first_port(bool enable_translation);
+
+/**
+ * Probes the second PS/2 port.
+ * 
+ * @return Whether the second PS/2 port is present.
+ */
+bool ps2_8042_second_port_probe();
 
 /**
  * Enables the second PS/2 port, by convention the mouse port.
@@ -39,5 +48,10 @@ void ps2_8042_enable_second_port();
  * Disables the second PS/2 port, by convention the mouse port.
  */
 void ps2_8042_disable_second_port();
+
+/**
+ * Initializes the second PS/2 port by convention the mouse port.
+ */
+void ps2_8042_init_second_port();
 
 #endif // _KERNEL_DRIVERS_PS2_8042_H

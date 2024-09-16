@@ -1,5 +1,6 @@
 #include <drivers/pci/pci.h>
 #include <sys/kpanic.h>
+#include <drivers/serial/uart/16550.h>
 
 static char* pci_get_device_name(pci_device_t* pci_device);
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);
@@ -8,8 +9,7 @@ static uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t o
 static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 
 int32_t pci_init() {
-    // Scan all slots and functions of the first 10 buses
-    for(uint8_t bus = 0; bus < PCI_MAX_DEFAULT_SCAN_BUSES; bus++) {
+    for(uint16_t bus = 0; bus < PCI_MAX_NUM_BUSES; bus++) {
         for(uint8_t slot = 0; slot < PCI_DEVICES_PER_BUS; slot++) {
             device_t* slot_device = NULL;
 
@@ -55,10 +55,10 @@ static char* pci_get_device_name(pci_device_t* pci_device) {
     }
 
     /*
-        * The following code for generating the device name is not
-        * the most efficient way to do it, but it is simple way that
-        * works without sprintf.
-        */
+     * The following code for generating the device name is not
+     * the most efficient way to do it, but it is simple way that
+     * works without sprintf.
+     */
 
     char* name_ptr = name;
 
