@@ -18,6 +18,9 @@ void vga_tm_putchar(char ch, uint8_t fgcolor, uint8_t bgcolor) {
 
             vga_tm_write(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x, ' ', fgcolor, bgcolor);
             break;
+        case '\t':
+            vga_tm_screen.cursor_x = (vga_tm_screen.cursor_x + 8) & ~(8 - 1);
+            break;
         default:
             vga_tm_write(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x, ch, fgcolor, bgcolor);
             vga_tm_screen.cursor_x++;
