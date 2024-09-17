@@ -1,4 +1,0 @@
-#ifndef _KERNEL_IO_STREAM_H
-#define _KERNEL_IO_STREAM_H
-
-#endif // _KERNEL_IO_STREAM_H

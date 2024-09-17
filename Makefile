@@ -12,6 +12,7 @@ export PLATFORM
 export ROOTDIR
 
 QEMU := qemu-system-i386
+QEMU-IMG := qemu-img
 
 ISODIR := iso
 
@@ -41,7 +42,8 @@ clean:
 
 qemu:
 
-	$(QEMU) $(QEMUFLAGS)
+	$(QEMU-IMG) create -f raw hdd.img 500M
+	$(QEMU) $(QEMUFLAGS) -drive file=hdd.img,format=raw,index=0,if=ide
 
 $(TARGET):
 

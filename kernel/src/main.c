@@ -19,6 +19,7 @@
 #include <drivers/serial/uart/16550.h>
 #include <drivers/input/keyboard.h>
 #include <drivers/input/ps2/keyboard.h>
+#include <drivers/storage/ata.h>
 #include <fs/mount.h>
 #include <fs/initrd.h>
 
@@ -100,6 +101,7 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
     keyboard_init();
     ps2_keyboard_init();
     pci_init();
+    ata_init();
 }
 
 static void init_filesystem(multiboot_info_t *multiboot_info) {
