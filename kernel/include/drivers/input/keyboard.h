@@ -159,6 +159,21 @@ struct keyboard_event {
     bool pressed;
 };
 
+typedef struct keymap_entry keymap_entry_t;
+typedef struct keyboard_layout keyboard_layout_t;
+
+struct keymap_entry {
+    uint32_t keycode;
+    char normal;
+    char shifted;
+};
+
+struct keyboard_layout {
+    char name[32];
+    keymap_entry_t* keymap;
+    size_t keymap_size;
+};
+
 /**
  * Initializes the keyboard manager. This function should be called before any other keyboard driver functions.
  */
@@ -184,5 +199,13 @@ void keyboard_dequeue(keyboard_event_t* event);
  * @return Whether there is a keyboard event available in the keyboard buffer.
  */
 bool keyboard_available();
+
+/**
+ * Retrieves the next displayable character from the keyboard buffer. This function blocks until a
+ * displayable character is available.
+ * 
+ * @return The next character from the keyboard buffer.
+ */
+char keyboard_getchar();
 
 #endif // _KERNEL_IO_KEYBOARD_H

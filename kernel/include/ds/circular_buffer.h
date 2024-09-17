@@ -71,4 +71,8 @@ static inline bool circular_buffer_empty(circular_buffer_t* buffer) {
     return buffer->tail == buffer->head && !buffer->full;
 }
 
+static inline bool circular_buffer_full(circular_buffer_t* buffer) {
+    return buffer->full;
+}
+
 #endif // _KERNEL_DS_CIRCULAR_BUFFER_H
