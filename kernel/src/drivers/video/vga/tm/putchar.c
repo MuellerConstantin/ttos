@@ -2,7 +2,7 @@
 
 extern vga_tm_screen_t vga_tm_screen;
 
-void vga_tm_putchar(char ch, uint8_t fgcolor, uint8_t bgcolor) {
+void vga_tm_putchar(char ch) {
     switch(ch) {
         case '\n':
             vga_tm_screen.cursor_x = 0;
@@ -16,13 +16,13 @@ void vga_tm_putchar(char ch, uint8_t fgcolor, uint8_t bgcolor) {
                 vga_tm_screen.cursor_x--;
             }
 
-            vga_tm_write(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x, ' ', fgcolor, bgcolor);
+            vga_tm_write(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x, ' ', vga_tm_screen.fgcolor, vga_tm_screen.bgcolor);
             break;
         case '\t':
             vga_tm_screen.cursor_x = (vga_tm_screen.cursor_x + 8) & ~(8 - 1);
             break;
         default:
-            vga_tm_write(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x, ch, fgcolor, bgcolor);
+            vga_tm_write(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x, ch, vga_tm_screen.fgcolor, vga_tm_screen.bgcolor);
             vga_tm_screen.cursor_x++;
             break;
     }
@@ -41,8 +41,8 @@ void vga_tm_putchar(char ch, uint8_t fgcolor, uint8_t bgcolor) {
     vga_tm_move_cursor(vga_tm_screen.cursor_y * vga_tm_screen.columns + vga_tm_screen.cursor_x);
 }
 
-void vga_tm_putstr(const char *str, uint8_t fgcolor, uint8_t bgcolor) {
+void vga_tm_putstr(const char *str) {
     while(*str) {
-        vga_tm_putchar(*str++, fgcolor, bgcolor);
+        vga_tm_putchar(*str++);
     }
 }

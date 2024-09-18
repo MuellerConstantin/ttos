@@ -58,6 +58,7 @@ keyboard_layout_t keyboard_layout_de_DE = {
         {KEYBOARD_KEYCODE_COMMA, ',', ';'},
         {KEYBOARD_KEYCODE_PERIOD, '.', ':'},
         {KEYBOARD_KEYCODE_SLASH, '-', '_'},
+        {KEYBOARD_KEYCODE_SPACE, ' ', ' '},
     },
-    .keymap_size = 51
+    .keymap_size = 52
 };

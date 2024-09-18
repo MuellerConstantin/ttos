@@ -96,23 +96,27 @@ int32_t vga_tm_strwrite(size_t offset, const char* str, uint8_t fgcolor, uint8_t
  * Write a character to the VGA text mode buffer at the current cursor position.
  * 
  * @param ch The character to write.
- * @param fgcolor The foreground color.
- * @param bgcolor The background color.
  */
-void vga_tm_putchar(char ch, uint8_t fgcolor, uint8_t bgcolor);
+void vga_tm_putchar(char ch);
 
 /**
  * Write a string to the VGA text mode buffer at the current cursor position.
  * 
  * @param str The string to write.
- * @param fgcolor The foreground color.
- * @param bgcolor The background color.
  */
-void vga_tm_putstr(const char *str, uint8_t fgcolor, uint8_t bgcolor);
+void vga_tm_putstr(const char *str);
 
 /**
  * Scroll the VGA text mode buffer up by one line.
  */
 void vga_tm_scroll();
+
+/**
+ * Changes the foreground and background colors.
+ * 
+ * @param fgcolor The foreground color.
+ * @param bgcolor The background color.
+ */
+void vga_tm_set_color(uint8_t fgcolor, uint8_t bgcolor);
 
 #endif // _KERNEL_DRIVERS_VIDEO_VGA_TEXTMODE_H

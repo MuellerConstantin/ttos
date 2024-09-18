@@ -50,13 +50,13 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_sti();
 
-    vga_tm_putstr(" _____  _____  ____  ____ \n", VGA_TM_WHITE, VGA_TM_BLACK);
-    vga_tm_putstr("/__ __\\/__ __\\/  _ \\/ ___\\\n", VGA_TM_WHITE, VGA_TM_BLACK);
-    vga_tm_putstr("  / \\    / \\  | / \\||    \\\n", VGA_TM_WHITE, VGA_TM_BLACK);
-    vga_tm_putstr("  | |    | |  | \\_/|\\___ |\n", VGA_TM_WHITE, VGA_TM_BLACK);
-    vga_tm_putstr("  \\_/    \\_/  \\____/\\____/\n", VGA_TM_WHITE, VGA_TM_BLACK);
-    vga_tm_putstr("Tiny Toy Operating System\n", VGA_TM_WHITE, VGA_TM_BLACK);
-    vga_tm_putstr("-*-*-*-*-*-*-*-*-*-*-*-*-*\n", VGA_TM_WHITE, VGA_TM_BLACK);
+    vga_tm_putstr(" _____  _____  ____  ____ \n");
+    vga_tm_putstr("/__ __\\/__ __\\/  _ \\/ ___\\\n");
+    vga_tm_putstr("  / \\    / \\  | / \\||    \\\n");
+    vga_tm_putstr("  | |    | |  | \\_/|\\___ |\n");
+    vga_tm_putstr("  \\_/    \\_/  \\____/\\____/\n");
+    vga_tm_putstr("Tiny Toy Operating System\n");
+    vga_tm_putstr("-*-*-*-*-*-*-*-*-*-*-*-*-*\n");
 
     while(1);
 }
@@ -95,7 +95,7 @@ static void init_memory(multiboot_info_t *multiboot_info) {
 static void init_drivers(multiboot_info_t *multiboot_info) {
     device_init();
     pic_8259_init();
-    vga_tm_init(true);
+    vga_tm_init(VGA_TM_WHITE, VGA_TM_BLACK, true);
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);
     keyboard_init();
