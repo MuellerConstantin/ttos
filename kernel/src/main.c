@@ -22,6 +22,7 @@
 #include <drivers/storage/ata.h>
 #include <fs/mount.h>
 #include <fs/initrd.h>
+#include <io/shell.h>
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
@@ -56,7 +57,10 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     vga_tm_putstr("  | |    | |  | \\_/|\\___ |\n");
     vga_tm_putstr("  \\_/    \\_/  \\____/\\____/\n");
     vga_tm_putstr("Tiny Toy Operating System\n");
-    vga_tm_putstr("-*-*-*-*-*-*-*-*-*-*-*-*-*\n");
+    vga_tm_putstr("-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n");
+
+    shell_t *shell = shell_create(vga_tm_putchar, keyboard_getchar);
+    shell_execute(shell);
 
     while(1);
 }
