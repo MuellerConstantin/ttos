@@ -108,7 +108,7 @@ static void paging_allocate_page(page_directory_t *const page_directory, void *c
 
         page_directory->entries[page_directory_index].present = 1;
         page_directory->entries[page_directory_index].read_write = 1;
-        page_directory->entries[page_directory_index].user_supervisor = 0;
+        page_directory->entries[page_directory_index].user_supervisor = 1;
         page_directory->entries[page_directory_index].page_table_base = table_physical_address >> 12;
         page_directory->entries[page_directory_index].page_size = 0;
 

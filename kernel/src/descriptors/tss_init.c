@@ -34,7 +34,7 @@ void tss_init(uint16_t ss0, uintptr_t esp0) {
     tss_flush();
 }
 
-void tss_update_stack(uint16_t ss0, uintptr_t esp0) {
+void tss_update_ring0_stack(uint16_t ss0, uintptr_t esp0) {
     tss.ss0 = ss0;
     tss.esp0 = esp0;
 }

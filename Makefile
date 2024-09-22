@@ -20,7 +20,7 @@ TARGET := kernel/kernel.elf
 INITRD := initrd.img
 IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
-QEMUFLAGS := -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G
+QEMUFLAGS := -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G -d int -no-reboot
 
 all: boot/grub/grub.cfg $(INITRD) $(TARGET)
 
@@ -44,6 +44,11 @@ qemu:
 
 	$(QEMU-IMG) create -f raw hdd.img 500M
 	$(QEMU) $(QEMUFLAGS) -drive file=hdd.img,format=raw,index=0,if=ide
+
+qemu-debug:
+
+	$(QEMU-IMG) create -f raw hdd.img 500M
+	$(QEMU) $(QEMUFLAGS) -drive file=hdd.img,format=raw,index=0,if=ide -s -S
 
 $(TARGET):
 

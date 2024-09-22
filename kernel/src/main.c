@@ -23,11 +23,13 @@
 #include <fs/mount.h>
 #include <fs/initrd.h>
 #include <io/shell.h>
+#include <sys/switch_usermode.h>
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
 static void init_drivers(multiboot_info_t *multiboot_info);
 static void init_filesystem(multiboot_info_t *multiboot_info);
+static void init_usermode();
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
@@ -59,8 +61,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     vga_tm_putstr("Tiny Toy Operating System\n");
     vga_tm_putstr("-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n");
 
-    shell_t *shell = shell_create(vga_tm_putchar, keyboard_getchar);
-    shell_execute(shell);
+    // init_usermode();
 
     while(1);
 }
@@ -120,4 +121,20 @@ static void init_filesystem(multiboot_info_t *multiboot_info) {
     }
 
     mnt_volume_mount(DRIVE_A, initrd_volume);
+}
+
+static void init_usermode() {
+    /*
+     * Save the kernel stack pointer to the TSS so that the kernel has a valid
+     * stack pointer when switching back to kernel mode in case of an exception.
+     */
+
+    uint32_t kernel_stack;
+    __asm__ volatile("mov %%esp, %0" : "=r" (kernel_stack));
+
+    tss_update_ring0_stack(0x10, kernel_stack);
+
+    // TODO: Launch a user process with separate address space
+
+    switch_usermode();
 }

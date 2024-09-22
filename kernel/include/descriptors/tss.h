@@ -63,6 +63,6 @@ void tss_init(uint16_t ss0, uintptr_t esp0);
  * @param ss0 The stack segment for ring 0 (kernel mode).
  * @param esp0 The stack pointer for ring 0 (kernel mode).
  */
-void tss_update_stack(uint16_t ss0, uintptr_t esp0);
+void tss_update_ring0_stack(uint16_t ss0, uintptr_t esp0);
 
 #endif // _KERNEL_DESCRIPTORS_TSS_H

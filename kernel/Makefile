@@ -16,8 +16,8 @@ LIBK := $(ROOTDIR)/libc/libk.a
 
 INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/libc/include'
 
-CFLAGS := -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector
-ASFLAGS := -f elf
+CFLAGS := -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g
+ASFLAGS := -f elf -g
 
 SRCS := $(shell find $(SRCDIR) -name '*.asm') $(shell find $(SRCDIR) -name '*.c')
 OBJS := $(subst $(SRCDIR), $(OBJDIR), $(patsubst %.c, %.o, $(patsubst %.asm, %.o, $(SRCS))))
