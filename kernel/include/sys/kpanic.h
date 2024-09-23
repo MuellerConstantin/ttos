@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/isr.h>
+#include <drivers/video/vga/vga.h>
 #include <drivers/video/vga/textmode.h>
 
 #define KPANIC(code, message, info) kpanic(code, message, __FILE__, __LINE__, info)
@@ -45,6 +46,12 @@
 
 #define KPANIC_DEVICE_NOT_FOUND_CODE     KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(0)
 #define KPANIC_DEVICE_NOT_FOUND_MESSAGE  "Parent device not found"
+
+#define KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_CODE     KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(1)
+#define KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_MESSAGE  "No input device found"
+
+#define KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_CODE    KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(2)
+#define KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_MESSAGE "No output device found"
 
 /**
  * Panic handler for the kernel that displays a message on

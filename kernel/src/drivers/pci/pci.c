@@ -1,6 +1,5 @@
 #include <drivers/pci/pci.h>
 #include <sys/kpanic.h>
-#include <drivers/serial/uart/16550.h>
 
 static char* pci_get_device_name(pci_device_t* pci_device);
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);
@@ -27,9 +26,9 @@ int32_t pci_init() {
                 }
 
                 device->name = pci_get_device_name(pci_device);
-                device->device_type = DEVICE_TYPE_UNKNOWN;
-                device->bus_type = DEVICE_BUS_TYPE_PCI;
-                device->bus_data = pci_device;
+                device->type = DEVICE_TYPE_UNKNOWN;
+                device->bus.type = DEVICE_BUS_TYPE_PCI;
+                device->bus.data = pci_device;
 
                 if(!slot_device) {
                     slot_device = device;

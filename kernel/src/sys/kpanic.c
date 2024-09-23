@@ -3,8 +3,10 @@
 #include <string.h>
 
 void kpanic(uint32_t code, const char *message, const char* file, uint32_t line, isr_cpu_state_t *state) {
-    vga_tm_init(VGA_TM_WHITE, VGA_TM_BLUE, false);
+    vga_init(VGA_80x25_16_TEXT, false);
+    vga_tm_init();
 
+    vga_tm_set_color(VGA_TM_WHITE, VGA_TM_BLUE);
     vga_tm_fill(VGA_TM_BLUE);
     vga_tm_disable_cursor();
 

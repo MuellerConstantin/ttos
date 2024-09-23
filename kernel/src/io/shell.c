@@ -4,24 +4,23 @@
 
 static void shell_process_command(shell_t *shell, const char *command);
 
-shell_t* shell_create(void (stdout)(char), char (stdin)(void)) {
+shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
 
     if(shell == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
     }
 
-    shell->stdout = stdout;
-    shell->stdin = stdin;
+    shell->tty = tty0;
 
     return shell;
 }
 
 void shell_execute(shell_t *shell) {
     while(1) {
-        shell->stdout('>');
+        tty_putchar(shell->tty, '>');
 
-        char *command = stream_readline(shell->stdout, shell->stdin, true);
+        char *command = tty_readline(shell->tty, true);
 
         shell_process_command(shell, command);
 

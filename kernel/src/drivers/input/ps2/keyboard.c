@@ -1,9 +1,12 @@
 #include <drivers/input/ps2/keyboard.h>
+#include <ds/circular_buffer.h>
 #include <io/ports.h>
 #include <sys/isr.h>
-#include <drivers/device.h>
+#include <device/device.h>
 #include <memory/kheap.h>
 #include <sys/kpanic.h>
+
+static circular_buffer_t* ps2_keyboard_buffer;
 
 static bool ps2_keyboard_probe(void);
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state);
@@ -54,6 +57,12 @@ int32_t ps2_keyboard_init(void) {
         return -1;
     }
 
+    ps2_keyboard_buffer = circular_buffer_create(KEYBOARD_BUFFER_SIZE, sizeof(keyboard_event_t));
+
+    if (!ps2_keyboard_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
     device_t *device = (device_t*) kmalloc(sizeof(device_t));
 
     if(!device) {
@@ -67,9 +76,18 @@ int32_t ps2_keyboard_init(void) {
     }
 
     strcpy(device->name, "PS/2 Keyboard");
-    device->device_type = DEVICE_TYPE_KEYBOARD;
-    device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
-    device->bus_data = NULL;
+    device->type = DEVICE_TYPE_KEYBOARD;
+    device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+    device->bus.data = NULL;
+
+    device->driver.keyboard = (keyboard_driver_t*) kmalloc(sizeof(keyboard_driver_t));
+
+    if(!device->driver.keyboard) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    device->driver.keyboard->dequeue = ps2_keyboard_dequeue;
+    device->driver.keyboard->available = ps2_keyboard_available;
 
     device_register(NULL, device);
 
@@ -79,6 +97,14 @@ int32_t ps2_keyboard_init(void) {
     outb(PS2_DATA_REGISTER, 0xF4);
 
     return 0;
+}
+
+void ps2_keyboard_dequeue(keyboard_event_t* event) {
+    circular_buffer_dequeue(ps2_keyboard_buffer, event);
+}
+
+bool ps2_keyboard_available() {
+    return !circular_buffer_empty(ps2_keyboard_buffer);
 }
 
 static bool ps2_keyboard_probe(void) {
@@ -105,7 +131,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     .pressed = true
                 };
 
-                keyboard_enqueue(&event);
+                circular_buffer_enqueue(ps2_keyboard_buffer, &event);
             }
         // Standard key released
         } else if(scancode >= 0x80 && scancode <= 0xD8) {
@@ -117,7 +143,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     .pressed = false
                 };
 
-                keyboard_enqueue(&event);
+                circular_buffer_enqueue(ps2_keyboard_buffer, &event);
             }
         // Pause key pressed
         } else if(scancode == 0xE1) {
@@ -141,7 +167,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                     .pressed = true
                                 };
 
-                                keyboard_enqueue(&event);
+                                circular_buffer_enqueue(ps2_keyboard_buffer, &event);
                             }
                         }
                     }
@@ -165,7 +191,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                 .pressed = true
                             };
 
-                            keyboard_enqueue(&event);
+                            circular_buffer_enqueue(ps2_keyboard_buffer, &event);
                         }
                     }
                 // Print screen key released
@@ -182,7 +208,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                 .pressed = false
                             };
 
-                            keyboard_enqueue(&event);
+                            circular_buffer_enqueue(ps2_keyboard_buffer, &event);
                         }
                     }
                 // Extended key pressed
@@ -195,7 +221,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                             .pressed = true
                         };
 
-                        keyboard_enqueue(&event);
+                        circular_buffer_enqueue(ps2_keyboard_buffer, &event);
                     }
                 // Extended key released
                 } else if(scancode >= 0x80 && scancode <= 0xED) {
@@ -207,7 +233,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                             .pressed = false
                         };
 
-                        keyboard_enqueue(&event);
+                        circular_buffer_enqueue(ps2_keyboard_buffer, &event);
                     }
                 }
             }

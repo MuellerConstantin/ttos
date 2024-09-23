@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <io/ports.h>
-#include <drivers/device.h>
+#include <device/device.h>
 #include <drivers/pci/types.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8

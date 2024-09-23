@@ -11,17 +11,17 @@
 #include <descriptors/tss.h>
 #include <sys/kpanic.h>
 #include <sys/isr.h>
-#include <drivers/device.h>
+#include <device/device.h>
 #include <drivers/pci/pci.h>
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
-#include <drivers/video/vga/textmode.h>
+#include <drivers/video/vga/vga.h>
 #include <drivers/serial/uart/16550.h>
-#include <drivers/input/keyboard.h>
 #include <drivers/input/ps2/keyboard.h>
 #include <drivers/storage/ata.h>
 #include <fs/mount.h>
 #include <fs/initrd.h>
+#include <io/tty.h>
 #include <io/shell.h>
 #include <sys/switch_usermode.h>
 
@@ -53,15 +53,31 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_sti();
 
-    vga_tm_putstr(" _____  _____  ____  ____ \n");
-    vga_tm_putstr("/__ __\\/__ __\\/  _ \\/ ___\\\n");
-    vga_tm_putstr("  / \\    / \\  | / \\||    \\\n");
-    vga_tm_putstr("  | |    | |  | \\_/|\\___ |\n");
-    vga_tm_putstr("  \\_/    \\_/  \\____/\\____/\n");
-    vga_tm_putstr("Tiny Toy Operating System\n");
-    vga_tm_putstr("-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n");
-
     // init_usermode();
+
+    device_t* video_device = device_find_by_type(DEVICE_TYPE_VIDEO);
+    device_t* keyboard_device = device_find_by_type(DEVICE_TYPE_KEYBOARD);
+
+    if(!video_device) {
+        KPANIC(KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_CODE, KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_MESSAGE, NULL);
+    }
+
+    if(!keyboard_device) {
+        KPANIC(KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
+    }
+
+    tty_t* tty0 = tty_create(video_device->driver.video, keyboard_device->driver.keyboard, &tty_keyboard_layout_de_DE);
+
+    tty_printf(tty0, " _____  _____  ____  ____ \n");
+    tty_printf(tty0, "/__ __\\/__ __\\/  _ \\/ ___\\\n");
+    tty_printf(tty0, "  / \\    / \\  | / \\||    \\\n");
+    tty_printf(tty0, "  | |    | |  | \\_/|\\___ |\n");
+    tty_printf(tty0, "  \\_/    \\_/  \\____/\\____/\n");
+    tty_printf(tty0, "Tiny Toy Operating System\n");
+    tty_printf(tty0, "-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n");
+
+    shell_t* shell = shell_create(tty0);
+    shell_execute(shell);
 
     while(1);
 }
@@ -100,10 +116,9 @@ static void init_memory(multiboot_info_t *multiboot_info) {
 static void init_drivers(multiboot_info_t *multiboot_info) {
     device_init();
     pic_8259_init();
-    vga_tm_init(VGA_TM_WHITE, VGA_TM_BLACK, true);
+    vga_init(VGA_80x25_16_TEXT, true);
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);
-    keyboard_init();
     ps2_keyboard_init();
     pci_init();
     ata_init();

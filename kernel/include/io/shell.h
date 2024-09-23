@@ -2,23 +2,21 @@
 #define _KERNEL_IO_SHELL_H
 
 #include <stddef.h>
-#include <io/stream.h>
+#include <io/tty.h>
 
 typedef struct shell shell_t;
 
 struct shell {
-    void (*stdout)(char);
-    char (*stdin)(void);
+    tty_t *tty;
 };
 
 /**
  * Creates a new shell.
  * 
- * @param stdout The function to write a character to the shell.
- * @param stdin The function to read a character from the shell.
+ * @param tty The TTY to use.
  * @return The shell.
  */
-shell_t* shell_create(void (stdout)(char), char (stdin)(void));
+shell_t* shell_create(tty_t *tty);
 
 /**
  * Executes the shell.

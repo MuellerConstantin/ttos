@@ -1,5 +1,5 @@
-#ifndef _KERNEL_IO_KEYBOARD_H
-#define _KERNEL_IO_KEYBOARD_H
+#ifndef _KERNEL_DEVICE_KEYBOARD_H
+#define _KERNEL_DEVICE_KEYBOARD_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -150,8 +150,6 @@
 #define KEYBOARD_KEYCODE_ACPI_SLEEP           KEYBOARD_KEYCODE(KEYBOARD_KEYCODE_TYPE_ACPI, 1)
 #define KEYBOARD_KEYCODE_ACPI_WAKE            KEYBOARD_KEYCODE(KEYBOARD_KEYCODE_TYPE_ACPI, 2)
 
-#define KEYBOARD_BUFFER_SIZE 256
-
 typedef struct keyboard_event keyboard_event_t;
 
 struct keyboard_event {
@@ -159,53 +157,11 @@ struct keyboard_event {
     bool pressed;
 };
 
-typedef struct keymap_entry keymap_entry_t;
-typedef struct keyboard_layout keyboard_layout_t;
+typedef struct keyboard_driver keyboard_driver_t;
 
-struct keymap_entry {
-    uint32_t keycode;
-    char normal;
-    char shifted;
+struct keyboard_driver {
+    void (*dequeue)(keyboard_event_t* event);
+    bool (*available)(void);
 };
 
-struct keyboard_layout {
-    char name[32];
-    keymap_entry_t* keymap;
-    size_t keymap_size;
-};
-
-/**
- * Initializes the keyboard manager. This function should be called before any other keyboard driver functions.
- */
-void keyboard_init();
-
-/**
- * Pushes a keyboard event into the keyboard buffer.
- * 
- * @param event The keyboard event to push.
- */
-void keyboard_enqueue(keyboard_event_t* event);
-
-/**
- * Retrieves the next keyboard event from the keyboard buffer.
- * 
- * @param event The keyboard event to store the retrieved event.
- */
-void keyboard_dequeue(keyboard_event_t* event);
-
-/**
- * Checks if there is a keyboard event available in the keyboard buffer.
- * 
- * @return Whether there is a keyboard event available in the keyboard buffer.
- */
-bool keyboard_available();
-
-/**
- * Retrieves the next displayable character from the keyboard buffer. This function blocks until a
- * displayable character is available.
- * 
- * @return The next character from the keyboard buffer.
- */
-char keyboard_getchar();
-
-#endif // _KERNEL_IO_KEYBOARD_H
+#endif // _KERNEL_DEVICE_KEYBOARD_H

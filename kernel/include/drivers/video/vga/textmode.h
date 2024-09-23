@@ -38,6 +38,13 @@ struct vga_tm_screen {
 };
 
 /**
+ * Initialize the VGA text mode driver.
+ * 
+ * @return 0 if successful, -1 if the driver failed to initialize.
+ */
+int32_t vga_tm_init();
+
+/**
  * Enable the VGA text mode cursor.
  * 
  * @param start The start scanline.

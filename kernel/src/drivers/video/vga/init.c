@@ -1,5 +1,6 @@
 #include <drivers/video/vga/vga.h>
-#include <drivers/device.h>
+#include <drivers/video/vga/textmode.h>
+#include <device/device.h>
 #include <memory/kheap.h>
 #include <sys/kpanic.h>
 
@@ -10,14 +11,30 @@ const vga_video_mode_descriptor_t* vga_current_video_mode = NULL;
 extern const vga_video_mode_descriptor_t *const VGA_VIDEO_MODE_DESCRIPTOR_TABLE[VGA_NUM_VIDEO_MODES];
 
 static bool vga_probe(void);
+static bool vga_tm_probe(void);
+static bool vga_gfx_probe(void);
 static void vga_init_registers(uint8_t *config);
 
 int32_t vga_init(vga_video_mode_t mode, bool probe) {
-    if(probe) {
-        if(!vga_probe()) {
-            return -1;
-        }
+    // Check if the video mode is supported
+    if(mode != VGA_80x25_16_TEXT) {
+        return -1;
+    }
 
+    if(probe && !vga_probe()) {
+        return -1;
+    }
+
+    const vga_video_mode_descriptor_t* descriptor = VGA_VIDEO_MODE_DESCRIPTOR_TABLE[mode];
+
+    if(descriptor == NULL) {
+        return -1;
+    }
+
+    vga_init_registers(descriptor->config);
+    vga_current_video_mode = descriptor;
+
+    if(probe) {
         device_t *device = (device_t*) kmalloc(sizeof(device_t));
 
         if(!device) {
@@ -31,25 +48,36 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
         }
 
         strcpy(device->name, "VGA Controller");
-        device->device_type = DEVICE_TYPE_VGA;
-        device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
-        device->bus_data = NULL;
+        device->type = DEVICE_TYPE_VIDEO;
+        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->bus.data = NULL;
+
+        if(mode == VGA_80x25_16_TEXT) {
+            device->driver.video = (video_driver_t*) kmalloc(sizeof(video_driver_t));
+
+            if(!device->driver.video) {
+                KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+            }
+
+            device->driver.video->tm_probe = vga_tm_probe;
+            device->driver.video->gfx_probe = vga_gfx_probe;
+            device->driver.video->tm.clear = vga_tm_clear;
+            device->driver.video->tm.fill = vga_tm_fill;
+            device->driver.video->tm.write = vga_tm_write;
+            device->driver.video->tm.strwrite = vga_tm_strwrite;
+            device->driver.video->tm.putchar = vga_tm_putchar;
+            device->driver.video->tm.putstr = vga_tm_putstr;
+            device->driver.video->tm.scroll = vga_tm_scroll;
+            device->driver.video->tm.move_cursor = vga_tm_move_cursor;
+            device->driver.video->tm.enable_cursor = vga_tm_enable_cursor;
+            device->driver.video->tm.disable_cursor = vga_tm_disable_cursor;
+            device->driver.video->tm.set_color = vga_tm_set_color;
+
+            vga_tm_init();
+        }
 
         device_register(NULL, device);
     }
-
-    if (mode >= VGA_NUM_VIDEO_MODES) {
-        return -1;
-    }
-
-    const vga_video_mode_descriptor_t* descriptor = VGA_VIDEO_MODE_DESCRIPTOR_TABLE[mode];
-
-    if(descriptor == NULL) {
-        return -1;
-    }
-
-    vga_init_registers(descriptor->config);
-    vga_current_video_mode = descriptor;
 
     return 0;
 }
@@ -57,6 +85,14 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
 static bool vga_probe(void) {
     outb(VGA_GC_ADDRESS_REGISTER_PORT, 0x0F);
     return inb(VGA_GC_ADDRESS_REGISTER_PORT) == 0x0F;
+}
+
+static bool vga_tm_probe(void) {
+    return vga_current_video_mode != NULL && vga_current_video_mode->mode == VGA_80x25_16_TEXT;
+}
+
+static bool vga_gfx_probe(void) {
+    return vga_current_video_mode != NULL && !vga_tm_probe();
 }
 
 static void vga_init_registers(uint8_t *config) {

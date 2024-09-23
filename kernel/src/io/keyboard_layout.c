@@ -1,12 +1,13 @@
-#include <drivers/input/keyboard.h>
+#include <io/tty.h>
+#include <device/keyboard.h>
 
 /**
  * German (de_DE) keyboard layout (ISO 9995-1) translation table
  * for ASCII (ISO 8859-1) characters.
  */
-keyboard_layout_t keyboard_layout_de_DE = {
+tty_keyboard_layout_t tty_keyboard_layout_de_DE = {
     .name = "de_DE",
-    .keymap = (keymap_entry_t[]) {
+    .keymap = (tty_keymap_entry_t[]) {
         {KEYBOARD_KEYCODE_GRAVE, '^', '°'},
         {KEYBOARD_KEYCODE_1, '1', '!'},
         {KEYBOARD_KEYCODE_2, '2', '"'},

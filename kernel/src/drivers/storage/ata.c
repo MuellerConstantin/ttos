@@ -1,7 +1,7 @@
 #include <drivers/storage/ata.h>
 #include <memory/kheap.h>
 #include <sys/kpanic.h>
-#include <drivers/device.h>
+#include <device/device.h>
 #include <drivers/serial/uart/16550.h>
 
 static uint16_t ata_get_io_base(ata_drive_t drive);
@@ -9,6 +9,19 @@ static bool ata_is_master(ata_drive_t drive);
 static bool ata_drive_probe(ata_drive_t drive);
 static void ata_write_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer);
 static void ata_read_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer);
+
+static size_t ata_total_size_primary_master();
+static size_t ata_write_primary_master(size_t offset, size_t size, char* buffer);
+static size_t ata_read_primary_master(size_t offset, size_t size, char* buffer);
+static size_t ata_total_size_primary_slave();
+static size_t ata_write_primary_slave(size_t offset, size_t size, char* buffer);
+static size_t ata_read_primary_slave(size_t offset, size_t size, char* buffer);
+static size_t ata_total_size_secondary_master();
+static size_t ata_write_secondary_master(size_t offset, size_t size, char* buffer);
+static size_t ata_read_secondary_master(size_t offset, size_t size, char* buffer);
+static size_t ata_total_size_secondary_slave();
+static size_t ata_write_secondary_slave(size_t offset, size_t size, char* buffer);
+static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer);
 
 int32_t ata_init() {
     if(ata_drive_probe(ATA_PRIMARY_MASTER_DRIVE)) {
@@ -25,9 +38,19 @@ int32_t ata_init() {
         }
 
         strcpy(device->name, "ATA Primary Master Drive");
-        device->device_type = DEVICE_TYPE_STORAGE;
-        device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
-        device->bus_data = NULL;
+        device->type = DEVICE_TYPE_STORAGE;
+        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->bus.data = NULL;
+
+        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+
+        if(!device->driver.storage) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        device->driver.storage->total_size = ata_total_size_primary_master;
+        device->driver.storage->read = ata_read_primary_master;
+        device->driver.storage->write = ata_write_primary_master;
 
         device_register(NULL, device);
     }
@@ -46,9 +69,19 @@ int32_t ata_init() {
         }
 
         strcpy(device->name, "ATA Primary Slave Drive");
-        device->device_type = DEVICE_TYPE_STORAGE;
-        device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
-        device->bus_data = NULL;
+        device->type = DEVICE_TYPE_STORAGE;
+        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->bus.data = NULL;
+
+        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+
+        if(!device->driver.storage) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        device->driver.storage->total_size = ata_total_size_primary_slave;
+        device->driver.storage->read = ata_read_primary_slave;
+        device->driver.storage->write = ata_write_primary_slave;
 
         device_register(NULL, device);
     }
@@ -67,9 +100,19 @@ int32_t ata_init() {
         }
 
         strcpy(device->name, "ATA Secondary Master Drive");
-        device->device_type = DEVICE_TYPE_STORAGE;
-        device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
-        device->bus_data = NULL;
+        device->type = DEVICE_TYPE_STORAGE;
+        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->bus.data = NULL;
+
+        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+
+        if(!device->driver.storage) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        device->driver.storage->total_size = ata_total_size_secondary_master;
+        device->driver.storage->read = ata_read_secondary_master;
+        device->driver.storage->write = ata_write_secondary_master;
 
         device_register(NULL, device);
     }
@@ -88,14 +131,72 @@ int32_t ata_init() {
         }
 
         strcpy(device->name, "ATA Secondary Slave Drive");
-        device->device_type = DEVICE_TYPE_STORAGE;
-        device->bus_type = DEVICE_BUS_TYPE_MOTHERBOARD;
-        device->bus_data = NULL;
+        device->type = DEVICE_TYPE_STORAGE;
+        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->bus.data = NULL;
+
+        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+
+        if(!device->driver.storage) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        device->driver.storage->total_size = ata_total_size_secondary_slave;
+        device->driver.storage->read = ata_read_secondary_slave;
+        device->driver.storage->write = ata_write_secondary_slave;
 
         device_register(NULL, device);
     }
 
     return 0;
+}
+
+static size_t ata_total_size_primary_master() {
+    return 0;
+}
+
+static size_t ata_write_primary_master(size_t offset, size_t size, char* buffer) {
+    return ata_write(ATA_PRIMARY_MASTER_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_read_primary_master(size_t offset, size_t size, char* buffer) {
+    return ata_read(ATA_PRIMARY_MASTER_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_total_size_primary_slave() {
+    return 0;
+}
+
+static size_t ata_write_primary_slave(size_t offset, size_t size, char* buffer) {
+    return ata_write(ATA_PRIMARY_SLAVE_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_read_primary_slave(size_t offset, size_t size, char* buffer) {
+    return ata_read(ATA_PRIMARY_SLAVE_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_total_size_secondary_master() {
+    return 0;
+}
+
+static size_t ata_write_secondary_master(size_t offset, size_t size, char* buffer) {
+    return ata_write(ATA_SECONDARY_MASTER_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_read_secondary_master(size_t offset, size_t size, char* buffer) {
+    return ata_read(ATA_SECONDARY_MASTER_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_total_size_secondary_slave() {
+    return 0;
+}
+
+static size_t ata_write_secondary_slave(size_t offset, size_t size, char* buffer) {
+    return ata_write(ATA_SECONDARY_SLAVE_DRIVE, offset, size, buffer);
+}
+
+static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer) {
+    return ata_read(ATA_SECONDARY_SLAVE_DRIVE, offset, size, buffer);
 }
 
 static uint16_t ata_get_io_base(ata_drive_t drive) {
