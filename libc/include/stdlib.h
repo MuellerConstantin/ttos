@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#define RAND_MAX 32767
+
 /**
  * Converts an integer to a string.
  * 
@@ -16,6 +18,20 @@ extern "C" {
  * @return The string representation of the integer.
  */
 char *itoa(uint32_t n, char *buf, uint32_t base);
+
+/**
+ * Initializes the random number generator with a seed.
+ * 
+ * @param seed The seed to initialize the random number generator with.
+ */
+void srand(unsigned int seed);
+
+/**
+ * Generates a random number.
+ * 
+ * @return A random number between 0 and RAND_MAX.
+ */
+int rand(void);
 
 #ifdef __cplusplus
 }

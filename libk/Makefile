@@ -10,9 +10,9 @@ AR := ar
 SRCDIR := src
 OBJDIR := obj
 
-TARGET := libc.a
+TARGET := libk.a
 
-INCLUDE := -I '$(ROOTDIR)/libc/include'
+INCLUDE := -I '$(ROOTDIR)/libk/include' -I '$(ROOTDIR)/libc/include'
 
 CFLAGS := -std=c99 -ffreestanding -m32 -Wall -Wextra
 ARFLAGS := rcs
