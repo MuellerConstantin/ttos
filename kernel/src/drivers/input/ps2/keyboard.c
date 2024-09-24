@@ -1,5 +1,5 @@
 #include <drivers/input/ps2/keyboard.h>
-#include <ds/circular_buffer.h>
+#include <circular_buffer.h>
 #include <io/ports.h>
 #include <sys/isr.h>
 #include <device/device.h>

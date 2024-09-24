@@ -1,5 +1,5 @@
-#ifndef _KERNEL_DS_LINKED_LIST_H
-#define _KERNEL_DS_LINKED_LIST_H
+#ifndef _LIBK_LINKED_LIST_H
+#define _LIBK_LINKED_LIST_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -192,4 +192,4 @@ static inline linked_list_node_t* linked_list_find(linked_list_t* list, bool (*c
     return NULL;
 }
 
-#endif // _KERNEL_DS_LINKED_LIST_H
+#endif // _LIBK_LINKED_LIST_H

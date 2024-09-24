@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <ds/generic_tree.h>
-#include <ds/linked_list.h>
+#include <generic_tree.h>
+#include <linked_list.h>
 #include <device/keyboard.h>
 #include <device/storage.h>
 #include <device/video.h>
