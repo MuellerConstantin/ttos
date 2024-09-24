@@ -6,13 +6,6 @@
 #include <stdbool.h>
 #include <io/ports.h>
 
-typedef enum {
-    ATA_PRIMARY_MASTER_DRIVE,
-    ATA_PRIMARY_SLAVE_DRIVE,
-    ATA_SECONDARY_MASTER_DRIVE,
-    ATA_SECONDARY_SLAVE_DRIVE
-} ata_drive_t;
-
 #define ATA_PRIMARY_IO_BASE 0x1F0
 #define ATA_PRIMARY_CONTROL_BASE 0x3F6
 
@@ -36,6 +29,23 @@ typedef enum {
 
 #define ATA_SECTOR_SIZE 512
 
+typedef enum {
+    ATA_PRIMARY_MASTER_DRIVE,
+    ATA_PRIMARY_SLAVE_DRIVE,
+    ATA_SECONDARY_MASTER_DRIVE,
+    ATA_SECONDARY_SLAVE_DRIVE
+} ata_drive_t;
+
+typedef struct ata_device ata_device_t;
+
+struct ata_device {
+    ata_drive_t drive;
+    bool present;
+    bool lba_supported;
+    bool lba48_supported;
+    uint32_t size;
+};
+
 /**
  * Initialize the ATA driver and detect the drives.
  * 
@@ -46,23 +56,23 @@ int32_t ata_init();
 /**
  * Write data to an ATA drive.
  * 
- * @param drive The drive to write to.
+ * @param device The device to write to.
  * @param offset The offset to write to.
  * @param size The size of the data to write.
  * @param buffer The buffer to write the data from.
  * @return The number of bytes written.
  */
-size_t ata_write(ata_drive_t drive, size_t offset, size_t size, char* buffer);
+size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer);
 
 /**
  * Read data from an ATA drive.
  * 
- * @param drive The drive to read from.
+ * @param device The device to read from.
  * @param offset The offset to read from.
  * @param size The size of the data to read.
  * @param buffer The buffer to read the data to.
  * @return The number of bytes read.
  */
-size_t ata_read(ata_drive_t drive, size_t offset, size_t size, char* buffer);
+size_t ata_read(ata_device_t* device, size_t offset, size_t size, char* buffer);
 
 #endif // _KERNEL_DRIVERS_STORAGE_ATA_H

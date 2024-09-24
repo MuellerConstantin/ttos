@@ -2,13 +2,19 @@
 #include <memory/kheap.h>
 #include <sys/kpanic.h>
 #include <device/device.h>
-#include <drivers/serial/uart/16550.h>
 
-static uint16_t ata_get_io_base(ata_drive_t drive);
-static bool ata_is_master(ata_drive_t drive);
-static bool ata_drive_probe(ata_drive_t drive);
-static void ata_write_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer);
-static void ata_read_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer);
+static ata_device_t ata_devices[4] = {
+    {ATA_PRIMARY_MASTER_DRIVE, 0, false, false, false},
+    {ATA_PRIMARY_SLAVE_DRIVE, 0, false, false, false},
+    {ATA_SECONDARY_MASTER_DRIVE, 0, false, false, false},
+    {ATA_SECONDARY_SLAVE_DRIVE, 0, false, false, false}
+};
+
+static uint16_t ata_get_io_base(ata_device_t* device);
+static bool ata_is_master(ata_device_t* device);
+static bool ata_device_probe(ata_device_t* device);
+static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
+static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
 
 static size_t ata_total_size_primary_master();
 static size_t ata_write_primary_master(size_t offset, size_t size, char* buffer);
@@ -24,7 +30,7 @@ static size_t ata_write_secondary_slave(size_t offset, size_t size, char* buffer
 static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer);
 
 int32_t ata_init() {
-    if(ata_drive_probe(ATA_PRIMARY_MASTER_DRIVE)) {
+    if(ata_device_probe(&ata_devices[ATA_PRIMARY_MASTER_DRIVE])) {
         device_t *device = (device_t*) kmalloc(sizeof(device_t));
 
         if(!device) {
@@ -55,7 +61,7 @@ int32_t ata_init() {
         device_register(NULL, device);
     }
 
-    if(ata_drive_probe(ATA_PRIMARY_SLAVE_DRIVE)) {
+    if(ata_device_probe(&ata_devices[ATA_PRIMARY_SLAVE_DRIVE])) {
         device_t *device = (device_t*) kmalloc(sizeof(device_t));
 
         if(!device) {
@@ -86,7 +92,7 @@ int32_t ata_init() {
         device_register(NULL, device);
     }
 
-    if(ata_drive_probe(ATA_SECONDARY_MASTER_DRIVE)) {
+    if(ata_device_probe(&ata_devices[ATA_SECONDARY_MASTER_DRIVE])) {
         device_t *device = (device_t*) kmalloc(sizeof(device_t));
 
         if(!device) {
@@ -117,7 +123,7 @@ int32_t ata_init() {
         device_register(NULL, device);
     }
 
-    if(ata_drive_probe(ATA_SECONDARY_SLAVE_DRIVE)) {
+    if(ata_device_probe(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE])) {
         device_t *device = (device_t*) kmalloc(sizeof(device_t));
 
         if(!device) {
@@ -152,55 +158,55 @@ int32_t ata_init() {
 }
 
 static size_t ata_total_size_primary_master() {
-    return 0;
+    return ata_devices[ATA_PRIMARY_MASTER_DRIVE].size;
 }
 
 static size_t ata_write_primary_master(size_t offset, size_t size, char* buffer) {
-    return ata_write(ATA_PRIMARY_MASTER_DRIVE, offset, size, buffer);
+    return ata_write(&ata_devices[ATA_PRIMARY_MASTER_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_read_primary_master(size_t offset, size_t size, char* buffer) {
-    return ata_read(ATA_PRIMARY_MASTER_DRIVE, offset, size, buffer);
+    return ata_read(&ata_devices[ATA_PRIMARY_MASTER_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_total_size_primary_slave() {
-    return 0;
+    return ata_devices[ATA_PRIMARY_SLAVE_DRIVE].size;
 }
 
 static size_t ata_write_primary_slave(size_t offset, size_t size, char* buffer) {
-    return ata_write(ATA_PRIMARY_SLAVE_DRIVE, offset, size, buffer);
+    return ata_write(&ata_devices[ATA_PRIMARY_SLAVE_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_read_primary_slave(size_t offset, size_t size, char* buffer) {
-    return ata_read(ATA_PRIMARY_SLAVE_DRIVE, offset, size, buffer);
+    return ata_read(&ata_devices[ATA_PRIMARY_SLAVE_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_total_size_secondary_master() {
-    return 0;
+    return ata_devices[ATA_SECONDARY_MASTER_DRIVE].size;
 }
 
 static size_t ata_write_secondary_master(size_t offset, size_t size, char* buffer) {
-    return ata_write(ATA_SECONDARY_MASTER_DRIVE, offset, size, buffer);
+    return ata_write(&ata_devices[ATA_SECONDARY_MASTER_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_read_secondary_master(size_t offset, size_t size, char* buffer) {
-    return ata_read(ATA_SECONDARY_MASTER_DRIVE, offset, size, buffer);
+    return ata_read(&ata_devices[ATA_SECONDARY_MASTER_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_total_size_secondary_slave() {
-    return 0;
+    return ata_devices[ATA_SECONDARY_SLAVE_DRIVE].size;
 }
 
 static size_t ata_write_secondary_slave(size_t offset, size_t size, char* buffer) {
-    return ata_write(ATA_SECONDARY_SLAVE_DRIVE, offset, size, buffer);
+    return ata_write(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE], offset, size, buffer);
 }
 
 static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer) {
-    return ata_read(ATA_SECONDARY_SLAVE_DRIVE, offset, size, buffer);
+    return ata_read(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE], offset, size, buffer);
 }
 
-static uint16_t ata_get_io_base(ata_drive_t drive) {
-    switch(drive) {
+static uint16_t ata_get_io_base(ata_device_t* device) {
+    switch(device->drive) {
         case ATA_PRIMARY_MASTER_DRIVE:
         case ATA_PRIMARY_SLAVE_DRIVE:
             return ATA_PRIMARY_IO_BASE;
@@ -212,8 +218,8 @@ static uint16_t ata_get_io_base(ata_drive_t drive) {
     }
 }
 
-static bool ata_is_master(ata_drive_t drive) {
-    switch(drive) {
+static bool ata_is_master(ata_device_t* device) {
+    switch(device->drive) {
         case ATA_PRIMARY_MASTER_DRIVE:
         case ATA_SECONDARY_MASTER_DRIVE:
             return true;
@@ -225,9 +231,9 @@ static bool ata_is_master(ata_drive_t drive) {
     }
 }
 
-static bool ata_drive_probe(ata_drive_t drive) {
-    uint16_t io_base = ata_get_io_base(drive);
-    bool is_master = ata_is_master(drive);
+static bool ata_device_probe(ata_device_t* device) {
+    uint16_t io_base = ata_get_io_base(device);
+    bool is_master = ata_is_master(device);
 
     // Choose master/slave drive
     outb(io_base + ATA_DRIVE_REGISTER, is_master ? 0xA0 : 0xB0);
@@ -266,15 +272,61 @@ static bool ata_drive_probe(ata_drive_t drive) {
         return false;
     }
 
+    uint16_t identify_data[256];
+
     // Read the drive's identification data
     for(uint16_t i = 0; i < 256; i++) {
-        inw(io_base + ATA_DATA_REGISTER);
+        identify_data[i] = inw(io_base + ATA_DATA_REGISTER);
     }
+
+    // Check if LBA is supported
+    if(identify_data[49] & (1 << 9)) {
+        device->lba_supported = true;
+    }
+
+    // Check if LBA48 is supported
+    if(identify_data[83] & (1 << 10)) {
+        device->lba48_supported = true;
+    }
+
+    // Get the drive's size
+    if(device->lba_supported) {
+        if(device->lba48_supported) {
+            device->size = (identify_data[100] | (identify_data[101] << 16) | (identify_data[102] << 32) | (identify_data[103] << 48)) * ATA_SECTOR_SIZE;
+        } else {
+            device->size = (identify_data[60] | (identify_data[61] << 16)) * ATA_SECTOR_SIZE;
+        }
+    } else {
+        /*
+         * If LBA is not supported, the drive's size is calculated using CHS. The formula is:
+         * Capacity = (Cyliners * Heads * Sectors) * 512 bytes
+         */
+
+        uint16_t cylinders = identify_data[1];
+        uint16_t heads = identify_data[3];
+        uint16_t sectors = identify_data[6];
+        
+        device->size = (cylinders * heads * sectors) * ATA_SECTOR_SIZE;
+    }
+
+    device->present = true;
 
     return true;
 }
 
-size_t ata_write(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
+size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer) {
+    if(device->size < offset + size) {
+        return 0;
+    }
+
+    if(!device->present) {
+        return 0;
+    }
+
+    if(!device->lba_supported) {
+        return 0;
+    }
+
     size_t start_sector = offset / ATA_SECTOR_SIZE;
     size_t start_sector_offset = offset % ATA_SECTOR_SIZE;
 
@@ -294,7 +346,7 @@ size_t ata_write(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
 
     for(size_t sector_index = start_sector; sector_index <= end_sector; sector_index++) {
         // Read whole sector from the drive
-        ata_read_sector(drive, sector_index, sector_buffer);
+        ata_read_sector_lba28(device, sector_index, sector_buffer);
 
         if(sector_index == start_sector) {
             write_offset = start_sector_offset;
@@ -309,7 +361,7 @@ size_t ata_write(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
         memcpy(sector_buffer + write_offset, buffer_pointer, write_size);
 
         // Write whole sector back to the drive
-        ata_write_sector(drive, sector_index, sector_buffer);
+        ata_write_sector_lba28(device, sector_index, sector_buffer);
 
         buffer_pointer = (char*) (((uintptr_t) buffer_pointer) + write_size);
         total_size += write_size;
@@ -320,7 +372,19 @@ size_t ata_write(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
     return total_size;
 }
 
-size_t ata_read(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
+size_t ata_read(ata_device_t* device, size_t offset, size_t size, char* buffer) {
+    if(device->size < offset + size) {
+        return 0;
+    }
+
+    if(!device->present) {
+        return 0;
+    }
+
+    if(!device->lba_supported) {
+        return 0;
+    }
+
     size_t start_sector = offset / ATA_SECTOR_SIZE;
     size_t start_sector_offset = offset % ATA_SECTOR_SIZE;
 
@@ -340,7 +404,7 @@ size_t ata_read(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
 
     for(size_t sector_index = start_sector; sector_index <= end_sector; sector_index++) {
         // Read whole sector from the drive
-        ata_read_sector(drive, sector_index, sector_buffer);
+        ata_read_sector_lba28(device, sector_index, sector_buffer);
 
         if(sector_index == start_sector) {
             read_offset = start_sector_offset;
@@ -363,8 +427,8 @@ size_t ata_read(ata_drive_t drive, size_t offset, size_t size, char* buffer) {
     return total_size;
 }
 
-static void ata_write_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer) {
-    uint16_t io_base = ata_get_io_base(drive);
+static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
+    uint16_t io_base = ata_get_io_base(device);
 
     // Choose master/slave drives and set the LBA mode
     outb(io_base + ATA_DRIVE_REGISTER, 0xE0 | ((lba >> 24) & 0x0F));
@@ -389,8 +453,8 @@ static void ata_write_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer) {
     }
 }
 
-static void ata_read_sector(ata_drive_t drive, uint32_t lba, uint8_t* buffer) {
-    uint16_t io_base = ata_get_io_base(drive);
+static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
+    uint16_t io_base = ata_get_io_base(device);
 
     // Choose master/slave drives and set the LBA mode
     outb(io_base + ATA_DRIVE_REGISTER, 0xE0 | ((lba >> 24) & 0x0F));
