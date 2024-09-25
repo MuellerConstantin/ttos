@@ -27,3 +27,15 @@ void uuid_v4_to_string(uuid_t* uuid, char* buffer) {
 
     buffer[pos] = '\0';
 }
+
+int uuid_v4_compare(uuid_t* uuid1, uuid_t* uuid2) {
+    for (int i = 0; i < 16; ++i) {
+        if (uuid1->bytes[i] < uuid2->bytes[i]) {
+            return -1;
+        } else if (uuid1->bytes[i] > uuid2->bytes[i]) {
+            return 1;
+        }
+    }
+
+    return 0;
+}

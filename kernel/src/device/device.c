@@ -27,6 +27,7 @@ void device_init() {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
+    generate_uuid_v4(&root_device->id);
     strcpy(root_device->name, "Computer");
     root_device->type = DEVICE_TYPE_RESERVED;
     root_device->bus.type = DEVICE_BUS_TYPE_RESERVED;
@@ -93,13 +94,13 @@ void device_unregister(device_t* device) {
 
 static bool _device_find_by_type_compare(void* node_data, void* compare_data) {
     device_t* node_device = (device_t*) node_data;
-    uint16_t compare_type = (uint16_t) compare_data;
+    uint16_t* compare_type = (uint16_t*) compare_data;
 
-    return node_device->type == compare_type;
+    return node_device->type == *compare_type;
 }
 
 device_t* device_find_by_type(uint16_t type) {
-    generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_type_compare, type);
+    generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_type_compare, &type);
 
     if(!node) {
         return NULL;
@@ -140,4 +141,21 @@ linked_list_t* device_find_all_by_type(uint16_t type) {
     generic_tree_foreach(device_tree, _device_find_all_by_type_callback, &payload);
 
     return devices;
+}
+
+static bool _device_find_by_id_compare(void* node_data, void* compare_data) {
+    device_t* node_device = (device_t*) node_data;
+    uuid_t* id = (uuid_t*) compare_data;
+
+    return uuid_v4_compare(&node_device->id, id) == 0;
+}
+
+device_t* device_find_by_id(uuid_t id) {
+    generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_id_compare, &id);
+
+    if(!node) {
+        return NULL;
+    }
+
+    return (device_t*) node->data;
 }

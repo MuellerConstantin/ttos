@@ -4,8 +4,8 @@
 
 static char tty_keycode_to_char(tty_t* tty0, uint32_t keycode, bool shifted);
 
-tty_t* tty_create(video_driver_t* video, keyboard_driver_t* keyboard, tty_keyboard_layout_t* layout) {
-    if(!video->tm_probe()) {
+tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout) {
+    if(!video->driver->tm_probe()) {
         return NULL;
     }
 
@@ -23,7 +23,7 @@ tty_t* tty_create(video_driver_t* video, keyboard_driver_t* keyboard, tty_keyboa
 }
 
 void tty_putchar(tty_t* tty0, char c) {
-    tty0->video->tm.putchar(c);
+    tty0->video->driver->tm.putchar(c);
 }
 
 char tty_getchar(tty_t* tty0) {
@@ -34,10 +34,10 @@ char tty_getchar(tty_t* tty0) {
     while(1) {
         // Wait for a key press/release event
         do {
-            waiting = !tty0->keyboard->available();
+            waiting = !tty0->keyboard->driver->available();
         } while(waiting);
 
-        tty0->keyboard->dequeue(&event);
+        tty0->keyboard->driver->dequeue(&event);
 
         if(!event.pressed) {
             if(event.keycode == KEYBOARD_KEYCODE_LEFT_SHIFT || event.keycode == KEYBOARD_KEYCODE_RIGHT_SHIFT) {

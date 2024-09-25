@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <uuid.h>
 #include <generic_tree.h>
 #include <linked_list.h>
 #include <device/keyboard.h>
@@ -25,9 +26,11 @@
 #define DEVICE_TYPE_VIDEO       0x0300
 #define DEVICE_TYPE_RESERVED    0xFF00
 
-typedef struct device device_t;
 typedef struct bus bus_t;
-typedef struct driver driver_t;
+typedef struct device device_t;
+typedef struct video_device video_device_t;
+typedef struct storage_device storage_device_t;
+typedef struct keyboard_device keyboard_device_t;
 
 struct bus {
     uint8_t type;
@@ -35,16 +38,26 @@ struct bus {
 };
 
 struct device {
+    uuid_t id;
     char* name;
     uint16_t type;
     bus_t bus;
+} __attribute__((packed));
 
-    union {
-        keyboard_driver_t* keyboard;
-        storage_driver_t* storage;
-        video_driver_t* video;
-    } driver;
-};
+struct video_device {
+    device_t info;
+    video_driver_t* driver;
+} __attribute__((packed));
+
+struct storage_device {
+    device_t info;
+    storage_driver_t* driver;
+} __attribute__((packed));
+
+struct keyboard_device {
+    device_t info;
+    keyboard_driver_t* driver;
+} __attribute__((packed));
 
 /**
  * Initialize the device manager.
@@ -75,7 +88,15 @@ void device_register(device_t* parent, device_t* device);
 void device_unregister(device_t* device);
 
 /**
- * Find a device by type.
+ * Find a device by ID.
+ * 
+ * @param id The device ID.
+ * @return The device.
+ */
+device_t* device_find_by_id(uuid_t id);
+
+/**
+ * Find the first device by type.
  * 
  * @param type The device type.
  * @return The device.

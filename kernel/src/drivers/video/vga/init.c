@@ -35,43 +35,44 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
     vga_current_video_mode = descriptor;
 
     if(probe) {
-        device_t *device = (device_t*) kmalloc(sizeof(device_t));
+        video_device_t *device = (video_device_t*) kmalloc(sizeof(video_device_t));
 
         if(!device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->name = (char*) kmalloc(15);
+        device->info.name = (char*) kmalloc(15);
 
-        if(!device->name) {
+        if(!device->info.name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(device->name, "VGA Controller");
-        device->type = DEVICE_TYPE_VIDEO;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        generate_uuid_v4(&device->info.id);
+        strcpy(device->info.name, "VGA Controller");
+        device->info.type = DEVICE_TYPE_VIDEO;
+        device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->info.bus.data = NULL;
 
         if(mode == VGA_80x25_16_TEXT) {
-            device->driver.video = (video_driver_t*) kmalloc(sizeof(video_driver_t));
+            device->driver = (video_driver_t*) kmalloc(sizeof(video_driver_t));
 
-            if(!device->driver.video) {
+            if(!device->driver) {
                 KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
             }
 
-            device->driver.video->tm_probe = vga_tm_probe;
-            device->driver.video->gfx_probe = vga_gfx_probe;
-            device->driver.video->tm.clear = vga_tm_clear;
-            device->driver.video->tm.fill = vga_tm_fill;
-            device->driver.video->tm.write = vga_tm_write;
-            device->driver.video->tm.strwrite = vga_tm_strwrite;
-            device->driver.video->tm.putchar = vga_tm_putchar;
-            device->driver.video->tm.putstr = vga_tm_putstr;
-            device->driver.video->tm.scroll = vga_tm_scroll;
-            device->driver.video->tm.move_cursor = vga_tm_move_cursor;
-            device->driver.video->tm.enable_cursor = vga_tm_enable_cursor;
-            device->driver.video->tm.disable_cursor = vga_tm_disable_cursor;
-            device->driver.video->tm.set_color = vga_tm_set_color;
+            device->driver->tm_probe = vga_tm_probe;
+            device->driver->gfx_probe = vga_gfx_probe;
+            device->driver->tm.clear = vga_tm_clear;
+            device->driver->tm.fill = vga_tm_fill;
+            device->driver->tm.write = vga_tm_write;
+            device->driver->tm.strwrite = vga_tm_strwrite;
+            device->driver->tm.putchar = vga_tm_putchar;
+            device->driver->tm.putstr = vga_tm_putstr;
+            device->driver->tm.scroll = vga_tm_scroll;
+            device->driver->tm.move_cursor = vga_tm_move_cursor;
+            device->driver->tm.enable_cursor = vga_tm_enable_cursor;
+            device->driver->tm.disable_cursor = vga_tm_disable_cursor;
+            device->driver->tm.set_color = vga_tm_set_color;
 
             vga_tm_init();
         }

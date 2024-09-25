@@ -25,6 +25,7 @@ int32_t pci_init() {
                     KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
                 }
 
+                generate_uuid_v4(&device->id);
                 device->name = pci_get_device_name(pci_device);
                 device->type = DEVICE_TYPE_UNKNOWN;
                 device->bus.type = DEVICE_BUS_TYPE_PCI;

@@ -24,8 +24,8 @@ struct tty_keyboard_layout {
 typedef struct tty tty_t;
 
 struct tty {
-    video_driver_t* video;
-    keyboard_driver_t* keyboard;
+    video_device_t* video;
+    keyboard_device_t* keyboard;
     tty_keyboard_layout_t* layout;
 };
 
@@ -34,12 +34,12 @@ extern tty_keyboard_layout_t tty_keyboard_layout_de_DE;
 /**
  * Creates a new TTY.
  * 
- * @param video The video driver of the device to use.
- * @param keyboard The keyboard driver of the device to use.
+ * @param video The video device to use.
+ * @param keyboard The keyboard device to use.
  * @param layout The keyboard layout to use.
  * @return The TTY.
  */
-tty_t* tty_create(video_driver_t* video, keyboard_driver_t* keyboard, tty_keyboard_layout_t* layout);
+tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout);
 
 /**
  * Writes a character to the TTY.

@@ -25,4 +25,13 @@ void generate_uuid_v4(uuid_t* uuid);
  */
 void uuid_v4_to_string(uuid_t* uuid, char* buffer);
 
+/**
+ * Compares two UUIDs.
+ * 
+ * @param uuid1 The first UUID.
+ * @param uuid2 The second UUID.
+ * @return 0 if the UUIDs are equal, a negative number if uuid1 is less than uuid2, a positive number if uuid1 is greater than uuid2.
+ */
+int uuid_v4_compare(uuid_t* uuid1, uuid_t* uuid2);
+
 #endif // _LIBK_UUID_H

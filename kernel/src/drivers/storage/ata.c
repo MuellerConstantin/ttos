@@ -31,125 +31,129 @@ static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer)
 
 int32_t ata_init() {
     if(ata_device_probe(&ata_devices[ATA_PRIMARY_MASTER_DRIVE])) {
-        device_t *device = (device_t*) kmalloc(sizeof(device_t));
+        storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->name = (char*) kmalloc(25);
+        device->info.name = (char*) kmalloc(25);
 
-        if(!device->name) {
+        if(!device->info.name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(device->name, "ATA Primary Master Drive");
-        device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        generate_uuid_v4(&device->info.id);
+        strcpy(device->info.name, "ATA Primary Master Drive");
+        device->info.type = DEVICE_TYPE_STORAGE;
+        device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->info.bus.data = NULL;
 
-        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+        device->driver = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
-        if(!device->driver.storage) {
+        if(!device->driver) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->driver.storage->total_size = ata_total_size_primary_master;
-        device->driver.storage->read = ata_read_primary_master;
-        device->driver.storage->write = ata_write_primary_master;
+        device->driver->total_size = ata_total_size_primary_master;
+        device->driver->read = ata_read_primary_master;
+        device->driver->write = ata_write_primary_master;
 
         device_register(NULL, device);
     }
 
     if(ata_device_probe(&ata_devices[ATA_PRIMARY_SLAVE_DRIVE])) {
-        device_t *device = (device_t*) kmalloc(sizeof(device_t));
+        storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->name = (char*) kmalloc(24);
+        device->info.name = (char*) kmalloc(24);
 
-        if(!device->name) {
+        if(!device->info.name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(device->name, "ATA Primary Slave Drive");
-        device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        generate_uuid_v4(&device->info.id);
+        strcpy(device->info.name, "ATA Primary Slave Drive");
+        device->info.type = DEVICE_TYPE_STORAGE;
+        device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->info.bus.data = NULL;
 
-        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+        device->driver = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
-        if(!device->driver.storage) {
+        if(!device->driver) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->driver.storage->total_size = ata_total_size_primary_slave;
-        device->driver.storage->read = ata_read_primary_slave;
-        device->driver.storage->write = ata_write_primary_slave;
+        device->driver->total_size = ata_total_size_primary_slave;
+        device->driver->read = ata_read_primary_slave;
+        device->driver->write = ata_write_primary_slave;
 
         device_register(NULL, device);
     }
 
     if(ata_device_probe(&ata_devices[ATA_SECONDARY_MASTER_DRIVE])) {
-        device_t *device = (device_t*) kmalloc(sizeof(device_t));
+        storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->name = (char*) kmalloc(27);
+        device->info.name = (char*) kmalloc(27);
 
-        if(!device->name) {
+        if(!device->info.name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(device->name, "ATA Secondary Master Drive");
-        device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        generate_uuid_v4(&device->info.id);
+        strcpy(device->info.name, "ATA Secondary Master Drive");
+        device->info.type = DEVICE_TYPE_STORAGE;
+        device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->info.bus.data = NULL;
 
-        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+        device->driver = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
-        if(!device->driver.storage) {
+        if(!device->driver) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->driver.storage->total_size = ata_total_size_secondary_master;
-        device->driver.storage->read = ata_read_secondary_master;
-        device->driver.storage->write = ata_write_secondary_master;
+        device->driver->total_size = ata_total_size_secondary_master;
+        device->driver->read = ata_read_secondary_master;
+        device->driver->write = ata_write_secondary_master;
 
         device_register(NULL, device);
     }
 
     if(ata_device_probe(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE])) {
-        device_t *device = (device_t*) kmalloc(sizeof(device_t));
+        storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->name = (char*) kmalloc(26);
+        device->info.name = (char*) kmalloc(26);
 
-        if(!device->name) {
+        if(!device->info.name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(device->name, "ATA Secondary Slave Drive");
-        device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        generate_uuid_v4(&device->info.id);
+        strcpy(device->info.name, "ATA Secondary Slave Drive");
+        device->info.type = DEVICE_TYPE_STORAGE;
+        device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
+        device->info.bus.data = NULL;
 
-        device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+        device->driver = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
-        if(!device->driver.storage) {
+        if(!device->driver) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        device->driver.storage->total_size = ata_total_size_secondary_slave;
-        device->driver.storage->read = ata_read_secondary_slave;
-        device->driver.storage->write = ata_write_secondary_slave;
+        device->driver->total_size = ata_total_size_secondary_slave;
+        device->driver->read = ata_read_secondary_slave;
+        device->driver->write = ata_write_secondary_slave;
 
         device_register(NULL, device);
     }

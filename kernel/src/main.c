@@ -55,8 +55,8 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     // init_usermode();
 
-    device_t* video_device = device_find_by_type(DEVICE_TYPE_VIDEO);
-    device_t* keyboard_device = device_find_by_type(DEVICE_TYPE_KEYBOARD);
+    video_device_t* video_device = device_find_by_type(DEVICE_TYPE_VIDEO);
+    keyboard_device_t* keyboard_device = device_find_by_type(DEVICE_TYPE_KEYBOARD);
 
     if(!video_device) {
         KPANIC(KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_CODE, KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_MESSAGE, NULL);
@@ -66,7 +66,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
         KPANIC(KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
     }
 
-    tty_t* tty0 = tty_create(video_device->driver.video, keyboard_device->driver.keyboard, &tty_keyboard_layout_de_DE);
+    tty_t* tty0 = tty_create(video_device, keyboard_device, &tty_keyboard_layout_de_DE);
 
     tty_printf(tty0, " _____  _____  ____  ____ \n");
     tty_printf(tty0, "/__ __\\/__ __\\/  _ \\/ ___\\\n");
