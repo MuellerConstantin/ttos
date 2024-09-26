@@ -1,50 +1,50 @@
 #include <fs/mount.h>
 
-static mnt_volume_t* mnt_volume_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
+static mnt_mountpoint_t* mnt_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
 
 static int32_t mnt_get_drive_index(char drive);
 
-int32_t mnt_volume_mount(char drive, mnt_volume_t* volume) {
+int32_t mnt_drive_mount(char drive, mnt_mountpoint_t* mountpoint) {
     int32_t index = mnt_get_drive_index(drive);
 
     if(index == -1) {
         return -1;
     }
 
-    if(mnt_volume_mountpoints[index]) {
+    if(mnt_mountpoints[index]) {
         return -1;
     }
 
-    if(volume->operations->mount(volume) != 0) {
+    if(mountpoint->operations->mount(mountpoint) != 0) {
         return -1;
     }
 
-    mnt_volume_mountpoints[index] = volume;
+    mnt_mountpoints[index] = mountpoint;
 
     return 0;
 }
 
-int32_t mnt_volume_unmount(char drive) {
+int32_t mnt_drive_unmount(char drive) {
     int32_t index = mnt_get_drive_index(drive);
 
     if(index == -1) {
         return -1;
     }
 
-    if(!mnt_volume_mountpoints[index]) {
+    if(!mnt_mountpoints[index]) {
         return -1;
     }
 
-    if(mnt_volume_mountpoints[index]->operations->unmount(mnt_volume_mountpoints[index]) != 0) {
+    if(mnt_mountpoints[index]->operations->unmount(mnt_mountpoints[index]) != 0) {
         return -1;
     }
 
-    mnt_volume_mountpoints[index] = NULL;
+    mnt_mountpoints[index] = NULL;
 
     return 0;
 }
 
-mnt_volume_t* mnt_get_mountpoint(char* path) {
+mnt_mountpoint_t* mnt_get_mountpoint(char* path) {
     if(strlen(path) < 3) {
         return NULL;
     }
@@ -55,7 +55,7 @@ mnt_volume_t* mnt_get_mountpoint(char* path) {
         return NULL;
     }
 
-    return mnt_volume_mountpoints[index];
+    return mnt_mountpoints[index];
 }
 
 static int32_t mnt_get_drive_index(char drive) {

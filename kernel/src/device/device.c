@@ -42,7 +42,7 @@ void device_init() {
     device_tree->root = root_node;
 }
 
-generic_tree_t* device_get_tree() {
+generic_tree_t* device_get_all() {
     return device_tree;
 }
 

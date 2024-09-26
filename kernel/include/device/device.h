@@ -69,14 +69,13 @@ void device_init();
  * 
  * @return The device tree.
  */
-generic_tree_t* device_get_tree();
+generic_tree_t* device_get_all();
 
 /**
  * Register a device.
  * 
  * @param parent The parent device.
  * @param device The device to register.
- * @return The new device.
  */
 void device_register(device_t* parent, device_t* device);
 

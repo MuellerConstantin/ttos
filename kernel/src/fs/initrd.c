@@ -6,13 +6,13 @@
 static initrd_header_t* initrd_header;
 static initrd_file_header_t* initrd_file_headers;
 
-int32_t initrd_mount(mnt_volume_t* volume);
-static int32_t initrd_unmount(mnt_volume_t* volume);
+int32_t initrd_mount(mnt_mountpoint_t* volume);
+static int32_t initrd_unmount(mnt_mountpoint_t* volume);
 static int32_t initrd_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
 static vfs_dirent_t* initrd_readdir(vfs_node_t* node, uint32_t index);
 static vfs_node_t* initrd_finddir(vfs_node_t* node, char* name);
 
-static mnt_volume_operations_t initrd_volume_operations = {
+static mnt_mountpoint_operations_t initrd_volume_operations = {
     .mount = &initrd_mount,
     .unmount = &initrd_unmount
 };
@@ -45,7 +45,7 @@ static vfs_node_operations_t initrd_file_operations = {
     .finddir = NULL
 };
 
-mnt_volume_t* initrd_init(void* memory_base) {
+mnt_mountpoint_t* initrd_init(void* memory_base) {
     initrd_header = (initrd_header_t*) memory_base;
 
     if(initrd_header->magic != INITRD_HEADER_MAGIC) {
@@ -54,18 +54,18 @@ mnt_volume_t* initrd_init(void* memory_base) {
 
     initrd_file_headers = (initrd_file_header_t*) ((uintptr_t) memory_base + sizeof(initrd_header_t));
 
-    mnt_volume_t* initrd_volume = (mnt_volume_t*) kmalloc(sizeof(mnt_volume_t));
+    mnt_mountpoint_t* initrd_mountpoint = (mnt_mountpoint_t*) kmalloc(sizeof(mnt_mountpoint_t));
 
-    if(!initrd_volume) {
+    if(!initrd_mountpoint) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    initrd_volume->operations = &initrd_volume_operations;
+    initrd_mountpoint->operations = &initrd_volume_operations;
 
-    return initrd_volume;
+    return initrd_mountpoint;
 }
 
-int32_t initrd_mount(mnt_volume_t* volume) {
+int32_t initrd_mount(mnt_mountpoint_t* volume) {
     vfs_node_t* root = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
 
     if(!root) {
@@ -87,7 +87,7 @@ int32_t initrd_mount(mnt_volume_t* volume) {
     return 0;
 }
 
-static int32_t initrd_unmount(mnt_volume_t* mount) {
+static int32_t initrd_unmount(mnt_mountpoint_t* mount) {
     kfree(mount->root);
     kfree(mount);
 

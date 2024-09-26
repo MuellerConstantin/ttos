@@ -29,8 +29,8 @@ typedef struct initrd_file_header initrd_file_header_t;
  * Initialize the initial ramdisk.
  * 
  * @param memory_base The base address of the memory.
- * @return The volume of the initial ramdisk.
+ * @return The mount point of the initial ramdisk.
  */
-mnt_volume_t* initrd_init(void* memory_base);
+mnt_mountpoint_t* initrd_init(void* memory_base);
 
 #endif // _KERNEL_FS_INITRD_H

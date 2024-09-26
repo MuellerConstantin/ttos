@@ -12,6 +12,7 @@
 #include <sys/kpanic.h>
 #include <sys/isr.h>
 #include <device/device.h>
+#include <device/volume.h>
 #include <drivers/pci/pci.h>
 #include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
@@ -27,8 +28,9 @@
 
 static void init_cpu();
 static void init_memory(multiboot_info_t *multiboot_info);
+static void init_management();
+static void init_initrd(multiboot_info_t *multiboot_info);
 static void init_drivers(multiboot_info_t *multiboot_info);
-static void init_filesystem(multiboot_info_t *multiboot_info);
 static void init_usermode();
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
@@ -48,8 +50,9 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     init_cpu();
     init_memory(multiboot_info);
+    init_management();
+    init_initrd(multiboot_info);
     init_drivers(multiboot_info);
-    init_filesystem(multiboot_info);
 
     isr_sti();
 
@@ -101,20 +104,38 @@ static void init_memory(multiboot_info_t *multiboot_info) {
     // Enable paging
     paging_init();
 
-    // Map the initrd's virtual address space
+    // Initialize the kernel heap
+    kheap_init();
+}
+
+static void init_management() {
+    // Initialize the device manager
+    device_init();
+
+    // Initialize the volume manager
+    volume_init();
+}
+
+static void init_initrd(multiboot_info_t *multiboot_info) {
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + KERNEL_SPACE_BASE);
     multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_SPACE_BASE;
     uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_SPACE_BASE;
     size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
 
+    // Map the initrd's virtual address space
     paging_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - KERNEL_SPACE_BASE, true, true);
 
-    // Initialize the kernel heap
-    kheap_init();
+    // Initialize the initial ramdisk
+    mnt_mountpoint_t* initrd_mountpoint = initrd_init((void*) initrd_start);
+
+    if(!initrd_mountpoint) {
+        KPANIC(KPANIC_INITRD_INIT_FAILED_CODE, KPANIC_INITRD_INIT_FAILED_MESSAGE, NULL);
+    }
+
+    mnt_drive_mount(DRIVE_A, initrd_mountpoint);
 }
 
 static void init_drivers(multiboot_info_t *multiboot_info) {
-    device_init();
     pic_8259_init();
     vga_init(VGA_80x25_16_TEXT, true);
     pit_8253_init(PIT_8253_COUNTER_0, 1000);
@@ -122,20 +143,6 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
     ps2_keyboard_init();
     pci_init();
     ata_init();
-}
-
-static void init_filesystem(multiboot_info_t *multiboot_info) {
-    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + KERNEL_SPACE_BASE);
-    multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_SPACE_BASE;
-    uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_SPACE_BASE;
-
-    mnt_volume_t* initrd_volume = initrd_init((void*) initrd_start);
-
-    if(!initrd_volume) {
-        KPANIC(KPANIC_INITRD_INIT_FAILED_CODE, KPANIC_INITRD_INIT_FAILED_MESSAGE, NULL);
-    }
-
-    mnt_volume_mount(DRIVE_A, initrd_volume);
 }
 
 static void init_usermode() {

@@ -33,28 +33,28 @@
 #define DRIVE_Y 'Y'
 #define DRIVE_Z 'Z'
 
-typedef struct mnt_volume mnt_volume_t;
+typedef struct mnt_mountpoint mnt_mountpoint_t;
 
-typedef struct mnt_volume_operations mnt_volume_operations_t;
+typedef struct mnt_mountpoint_operations mnt_mountpoint_operations_t;
 
-struct mnt_volume_operations {
-    int32_t (*mount)(mnt_volume_t* mount);
-    int32_t (*unmount)(mnt_volume_t* mount);
+struct mnt_mountpoint_operations {
+    int32_t (*mount)(mnt_mountpoint_t* mount);
+    int32_t (*unmount)(mnt_mountpoint_t* mount);
 } __attribute__((packed));
 
-struct mnt_volume {
+struct mnt_mountpoint {
     vfs_node_t* root;
-    mnt_volume_operations_t* operations;
+    mnt_mountpoint_operations_t* operations;
 } __attribute__((packed));
 
 /**
  * Mount a volume/file system.
  * 
  * @param drive The drive letter to mount the file system to.
- * @param volume The volume to mount.
+ * @param mountpoint The mount point to mount.
  * @return 0 on success or -1 on error.
  */
-int32_t mnt_volume_mount(char drive, mnt_volume_t* volume);
+int32_t mnt_drive_mount(char drive, mnt_mountpoint_t* mountpoint);
 
 /**
  * Unmount a volume/file system.
@@ -62,7 +62,7 @@ int32_t mnt_volume_mount(char drive, mnt_volume_t* volume);
  * @param drive The drive letter to unmount.
  * @return 0 on success or -1 on error.
  */
-int32_t mnt_volume_unmount(char drive);
+int32_t mnt_drive_unmount(char drive);
 
 /**
  * Get the mounted volume for a path.
@@ -70,6 +70,6 @@ int32_t mnt_volume_unmount(char drive);
  * @param path The path to get the mounted volume for.
  * @return The mounted volume or NULL if not found.
  */
-mnt_volume_t* mnt_get_mountpoint(char* path);
+mnt_mountpoint_t* mnt_get_mountpoint(char* path);
 
 #endif // _KERNEL_FS_MOUNT_H
