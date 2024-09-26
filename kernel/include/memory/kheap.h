@@ -27,7 +27,24 @@ struct kheap_block {
 
 typedef struct kheap_block kheap_block_t;
 
+/**
+ * Initialize the kernel heap.
+ */
 void kheap_init();
+
+/**
+ * Get the total amount of memory in the kernel heap.
+ * 
+ * @return The total amount of memory.
+ */
+size_t kheap_get_total_memory_size();
+
+/**
+ * Get the amount of free memory in the kernel heap.
+ * 
+ * @return The amount of free memory.
+ */
+size_t kheap_get_available_memory_size();
 
 /**
  * Allocate a block of memory with a specified size. The memory

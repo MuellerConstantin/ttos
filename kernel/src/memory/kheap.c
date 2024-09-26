@@ -49,6 +49,26 @@ void kheap_init() {
     kheap_enabled = true;
 }
 
+size_t kheap_get_total_memory_size() {
+    return KHEAP_HEAP_SIZE;
+}
+
+size_t kheap_get_available_memory_size() {
+    size_t free_memory = 0;
+
+    kheap_block_t* current = kheap_head;
+
+    while(current != NULL) {
+        if(current->free) {
+            free_memory += current->size;
+        }
+
+        current = current->next;
+    }
+
+    return free_memory;
+}
+
 void* kmalloc_a(size_t size) {
     return kmalloc_int(size, true);
 }
