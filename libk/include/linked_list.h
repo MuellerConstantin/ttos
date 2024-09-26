@@ -182,7 +182,7 @@ static inline linked_list_node_t* linked_list_get(linked_list_t *list, size_t in
  * @param data The data to compare.
  * @return The node if found, NULL otherwise.
  */
-static inline linked_list_node_t* linked_list_find(linked_list_t* list, bool (*compare)(void*, void*), void* data) {
+static inline linked_list_node_t* linked_list_find(linked_list_t* list, bool (*compare)(void* node_data, void* compare_data), void* data) {
     linked_list_foreach(list, node) {
         if(compare(node->data, data)) {
             return node;

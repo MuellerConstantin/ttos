@@ -1,4 +1,5 @@
 #include <device/device.h>
+#include <device/volume.h>
 #include <sys/kpanic.h>
 
 generic_tree_t* device_tree;
@@ -73,6 +74,11 @@ void device_register(device_t* parent, device_t* device) {
     }
 
     generic_tree_insert(parent_node, new_node);
+
+    // Handle storage devices over to the volume manager
+    if(device->type == DEVICE_TYPE_STORAGE) {
+        volume_register_device((storage_device_t*) device);
+    }
 }
 
 static bool _device_unregister_compare(void* node_data, void* compare_data) {
@@ -90,6 +96,12 @@ void device_unregister(device_t* device) {
     }
 
     generic_tree_remove(device_tree, node);
+    kfree(node);
+
+    // Handle storage devices over to the volume manager
+    if(device->type == DEVICE_TYPE_STORAGE) {
+        volume_unregister_device((storage_device_t*) device);
+    }
 }
 
 static bool _device_find_by_type_compare(void* node_data, void* compare_data) {

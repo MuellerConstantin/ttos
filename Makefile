@@ -12,15 +12,15 @@ export PLATFORM
 export ROOTDIR
 
 QEMU := qemu-system-i386
-QEMU-IMG := qemu-img
 
 ISODIR := iso
 
 TARGET := kernel/kernel.elf
 INITRD := initrd.img
+HDD := hdd.img
 IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
-QEMUFLAGS := -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G -d int -no-reboot
+QEMUFLAGS := -boot order=d -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G -d int -no-reboot
 
 all: boot/grub/grub.cfg $(INITRD) $(TARGET)
 
@@ -38,17 +38,16 @@ clean:
 	$(MAKE) -C kernel clean
 
 	rm -rf $(INITRD)
+	rm -rf $(HDD)
 	rm -f $(IMAGE)
 
-qemu:
+qemu: $(HDD)
 
-	$(QEMU-IMG) create -f raw hdd.img 500M
-	$(QEMU) $(QEMUFLAGS) -drive file=hdd.img,format=raw,index=0,if=ide
+	$(QEMU) $(QEMUFLAGS) -drive file=$(HDD),format=raw,index=0,if=ide
 
-qemu-debug:
+qemu-debug: $(HDD)
 
-	$(QEMU-IMG) create -f raw hdd.img 500M
-	$(QEMU) $(QEMUFLAGS) -drive file=hdd.img,format=raw,index=0,if=ide -s -S
+	$(QEMU) $(QEMUFLAGS) -drive file=$(HDD),format=raw,index=0,if=ide -s -S
 
 $(TARGET):
 
@@ -57,3 +56,8 @@ $(TARGET):
 $(INITRD):
 
 	./scripts/mkinitrd.py -o $(INITRD)
+
+$(HDD):
+
+	dd if=/dev/zero of=hdd.img bs=1M count=500
+	echo "2,,83;" | sfdisk $(HDD)

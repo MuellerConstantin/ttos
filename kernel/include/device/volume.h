@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <device/device.h>
-#include <fs/mount.h>
 #include <linked_list.h>
 #include <uuid.h>
 
@@ -14,7 +13,6 @@ struct volume {
     uuid_t id;
     char* name;
     storage_device_t* device;
-    mnt_mountpoint_t* mountpoint;
 };
 
 /**
