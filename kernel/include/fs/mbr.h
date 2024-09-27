@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <device/device.h>
 
+#define MBR_SIGNATURE 0xAA55
+#define MBR_SECTION_SIZE 512
+
 typedef struct mbr mbr_t;
 typedef struct mbr_partition_entry mbr_partition_entry_t;
 

@@ -4,7 +4,7 @@ static mnt_mountpoint_t* mnt_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
 
 static int32_t mnt_get_drive_index(char drive);
 
-int32_t mnt_drive_mount(char drive, mnt_mountpoint_t* mountpoint) {
+int32_t mnt_volume_mount(char drive, volume_t* volume) {
     int32_t index = mnt_get_drive_index(drive);
 
     if(index == -1) {
@@ -15,16 +15,16 @@ int32_t mnt_drive_mount(char drive, mnt_mountpoint_t* mountpoint) {
         return -1;
     }
 
-    if(mountpoint->operations->mount(mountpoint) != 0) {
-        return -1;
+    // Probe for the file system
+    if(initfs_probe(volume)) {
+        mnt_mountpoints[index] = initfs_init(volume);
+        return 0;
     }
 
-    mnt_mountpoints[index] = mountpoint;
-
-    return 0;
+    return -1;
 }
 
-int32_t mnt_drive_unmount(char drive) {
+int32_t mnt_volume_unmount(char drive) {
     int32_t index = mnt_get_drive_index(drive);
 
     if(index == -1) {

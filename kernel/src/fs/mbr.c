@@ -7,7 +7,7 @@ bool mbr_probe(storage_device_t* device) {
 
     device->driver->read(0, sizeof(mbr), (uint8_t*) &mbr);
 
-    return mbr.signature == 0xAA55;
+    return mbr.signature == MBR_SIGNATURE;
 }
 
 mbr_t* mbr_read(storage_device_t* device) {

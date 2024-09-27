@@ -8,11 +8,21 @@
 #include <uuid.h>
 
 typedef struct volume volume_t;
+typedef struct volume_operations volume_operations_t;
+
+struct volume_operations {
+    size_t (*total_size)(volume_t* volume);
+    size_t (*read)(volume_t* volume, size_t offset, size_t size, char* buffer);
+    size_t (*write)(volume_t* volume, size_t offset, size_t size, char* buffer);
+};
 
 struct volume {
     uuid_t id;
     char* name;
+    size_t offset;
+    size_t size;
     storage_device_t* device;
+    volume_operations_t* operations;
 };
 
 /**
@@ -41,23 +51,6 @@ size_t volume_register_device(storage_device_t* device);
  * @param device The device to unregister.
  */
 void volume_unregister_device(storage_device_t* device);
-
-/**
- * Mount a volume.
- * 
- * @param drive The drive letter.
- * @param volume The volume to mount.
- * @return 0 on success or -1 on error.
- */
-int32_t volume_mount(char drive, volume_t* volume);
-
-/**
- * Unmount a volume.
- * 
- * @param volume The volume to unmount.
- * @return 0 on success or -1 on error.
- */
-int32_t volume_unmount(volume_t* volume);
 
 /**
  * Find a volume by its ID.

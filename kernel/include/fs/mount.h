@@ -34,27 +34,26 @@
 #define DRIVE_Z 'Z'
 
 typedef struct mnt_mountpoint mnt_mountpoint_t;
-
 typedef struct mnt_mountpoint_operations mnt_mountpoint_operations_t;
 
 struct mnt_mountpoint_operations {
-    int32_t (*mount)(mnt_mountpoint_t* mount);
     int32_t (*unmount)(mnt_mountpoint_t* mount);
 } __attribute__((packed));
 
 struct mnt_mountpoint {
     vfs_node_t* root;
+    volume_t* volume;
     mnt_mountpoint_operations_t* operations;
 } __attribute__((packed));
 
 /**
- * Mount a volume/file system.
+ * Mount a volume.
  * 
  * @param drive The drive letter to mount the file system to.
- * @param mountpoint The mount point to mount.
+ * @param volume The volume to mount.
  * @return 0 on success or -1 on error.
  */
-int32_t mnt_drive_mount(char drive, mnt_mountpoint_t* mountpoint);
+int32_t mnt_volume_mount(char drive, volume_t* volume);
 
 /**
  * Unmount a volume/file system.
@@ -62,7 +61,7 @@ int32_t mnt_drive_mount(char drive, mnt_mountpoint_t* mountpoint);
  * @param drive The drive letter to unmount.
  * @return 0 on success or -1 on error.
  */
-int32_t mnt_drive_unmount(char drive);
+int32_t mnt_volume_unmount(char drive);
 
 /**
  * Get the mounted volume for a path.

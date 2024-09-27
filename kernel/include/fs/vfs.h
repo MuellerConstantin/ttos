@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <device/volume.h>
 
 #define VFS_FILE        0x01
 #define VFS_DIRECTORY   0x02
@@ -39,6 +40,7 @@ struct vfs_node {
     uint32_t length;
     struct vfs_node *link;
     vfs_node_operations_t* operations;
+    volume_t* volume;
 } __attribute__((packed));
 
 struct vfs_dirent {

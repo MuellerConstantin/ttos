@@ -37,11 +37,6 @@
 #define KPANIC_KHEAP_OUT_OF_MEMORY_CODE         KPANIC_MEMORY_EXCEPTION_TYPE(2)
 #define KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE      "Kernel heap out of memory"
 
-// Filesystem exceptions
-
-#define KPANIC_INITRD_INIT_FAILED_CODE          KPANIC_FILESYSTEM_EXCEPTION_TYPE(0)
-#define KPANIC_INITRD_INIT_FAILED_MESSAGE       "Failed to initialize initial ramdisk"
-
 // Device Manager exceptions
 
 #define KPANIC_DEVICE_NOT_FOUND_CODE     KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(0)
