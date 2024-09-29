@@ -28,10 +28,10 @@ void paging_init() {
     memset(kernel_page_directory, 0, sizeof(page_directory_t));
 
     // Mapping the kernel's virtual address space
-    for(uint32_t page_address = KERNEL_SPACE_BASE;
-        page_address < KERNEL_SPACE_BASE + KERNEL_SPACE_SIZE;
+    for(uint32_t page_address = KERNEL_HIGHER_HALF_VIRTUAL_BASE;
+        page_address < KERNEL_HIGHER_HALF_VIRTUAL_BASE + KERNEL_HIGHER_HALF_VIRTUAL_SIZE;
         page_address += PAGE_SIZE) {
-        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_SPACE_BASE), true, true);
+        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_HIGHER_HALF_VIRTUAL_BASE), true, true);
     }
 
     paging_switch_page_directory(kernel_page_directory);
@@ -166,7 +166,7 @@ static void* paging_virtual_to_physical_address(const page_directory_t *const pa
     uint32_t page_offset = PAGE_OFFSET(virtual_address);
 
     if(!paging_enabled) {
-        return (void*) (virtual_address - KERNEL_SPACE_BASE);
+        return (void*) (virtual_address - KERNEL_HIGHER_HALF_VIRTUAL_BASE);
     }
 
     if (!page_directory->tables[page_directory_index]) {

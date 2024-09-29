@@ -4,16 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <kernel.h>
+#include <memory/map.h>
 
 /** Size of the placement memory. */
 #define KHEAP_PLACEMENT_SIZE 0x100000
-
-/** Virtual base address of the kernel heap. */
-#define KHEAP_HEAP_BASE 0xE0000000
-
-/** Size of the kernel heap. */
-#define KHEAP_HEAP_SIZE 0x2000000
 
 #define KHEAP_MAGIC 0xD11EF00D
 

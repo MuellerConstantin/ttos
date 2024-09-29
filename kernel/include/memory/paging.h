@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
-#include <kernel.h>
+#include <memory/map.h>
 
 #define PAGE_SIZE 4096
 #define PAGE_TABLE_SIZE 1024
