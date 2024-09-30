@@ -1,4 +1,4 @@
-#include <drivers/video/vga/textmode.h>
+#include <drivers/video/vga/tm.h>
 
 extern uint16_t *const vga_tm_video_memory;
 

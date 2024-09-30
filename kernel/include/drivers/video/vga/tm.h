@@ -1,5 +1,5 @@
-#ifndef _KERNEL_DRIVERS_VIDEO_VGA_TEXTMODE_H
-#define _KERNEL_DRIVERS_VIDEO_VGA_TEXTMODE_H
+#ifndef _KERNEL_DRIVERS_VIDEO_VGA_TM_H
+#define _KERNEL_DRIVERS_VIDEO_VGA_TM_H
 
 #include <drivers/video/vga/vga.h>
 #include <string.h>
@@ -126,4 +126,4 @@ void vga_tm_scroll();
  */
 void vga_tm_set_color(uint8_t fgcolor, uint8_t bgcolor);
 
-#endif // _KERNEL_DRIVERS_VIDEO_VGA_TEXTMODE_H
+#endif // _KERNEL_DRIVERS_VIDEO_VGA_TM_H

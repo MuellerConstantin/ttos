@@ -1,4 +1,4 @@
-#include <drivers/video/vga/textmode.h>
+#include <drivers/video/vga/tm.h>
 
 extern vga_tm_screen_t vga_tm_screen;
 

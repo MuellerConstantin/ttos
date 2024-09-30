@@ -1,4 +1,4 @@
-#include <drivers/video/vga/textmode.h>
+#include <drivers/video/vga/tm.h>
 
 extern const vga_video_mode_descriptor_t* vga_current_video_mode;
 

@@ -123,7 +123,8 @@
 #define VGA_NUM_VIDEO_MODES     20
 
 typedef enum {
-    VGA_80x25_16_TEXT = 0x03
+    VGA_80x25_16_TEXT = 0x03,
+    VGA_320X200X256_GFX = 0x13
 } vga_video_mode_t;
 
 struct vga_video_mode_descriptor {

@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <sys/isr.h>
 #include <drivers/video/vga/vga.h>
-#include <drivers/video/vga/textmode.h>
+#include <drivers/video/vga/tm.h>
 
 #define KPANIC(code, message, info) kpanic(code, message, __FILE__, __LINE__, info)
 
