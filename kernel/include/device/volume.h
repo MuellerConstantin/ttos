@@ -35,7 +35,7 @@ void volume_init();
  * 
  * @return The list of volumes.
  */
-linked_list_t* volume_get_all();
+const linked_list_t* volume_get_all();
 
 /**
  * Scan a device for volumes and register them.
@@ -58,6 +58,14 @@ void volume_unregister_device(storage_device_t* device);
  * @param id The volume ID.
  * @return The volume or NULL if not found.
  */
-volume_t* volume_find_by_id(uuid_t id);
+const volume_t* volume_find_by_id(uuid_t id);
+
+/**
+ * Find a volume by its name.
+ * 
+ * @param name The volume name.
+ * @return The volume or NULL if not found.
+ */
+const volume_t* volume_find_by_name(const char* name);
 
 #endif // _KERNEL_DEVICE_VOLUME_H

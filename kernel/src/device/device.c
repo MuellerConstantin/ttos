@@ -43,7 +43,7 @@ void device_init() {
     device_tree->root = root_node;
 }
 
-generic_tree_t* device_get_all() {
+const generic_tree_t* device_get_all() {
     return device_tree;
 }
 
@@ -111,7 +111,7 @@ static bool _device_find_by_type_compare(void* node_data, void* compare_data) {
     return node_device->type == *compare_type;
 }
 
-device_t* device_find_by_type(uint16_t type) {
+const device_t* device_find_by_type(uint16_t type) {
     generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_type_compare, &type);
 
     if(!node) {
@@ -138,7 +138,7 @@ static void _device_find_all_by_type_callback(generic_tree_node_t* node, void* d
     }
 }
 
-linked_list_t* device_find_all_by_type(uint16_t type) {
+const linked_list_t* device_find_all_by_type(uint16_t type) {
     linked_list_t* devices = linked_list_create();
 
     if(!devices) {
@@ -162,8 +162,25 @@ static bool _device_find_by_id_compare(void* node_data, void* compare_data) {
     return uuid_v4_compare(&node_device->id, id) == 0;
 }
 
-device_t* device_find_by_id(uuid_t id) {
+const device_t* device_find_by_id(uuid_t id) {
     generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_id_compare, &id);
+
+    if(!node) {
+        return NULL;
+    }
+
+    return (device_t*) node->data;
+}
+
+static bool _device_find_by_name_compare(void* node_data, void* compare_data) {
+    device_t* node_device = (device_t*) node_data;
+    char* compare_name = (char*) compare_data;
+
+    return strcmp(node_device->name, compare_name) == 0;
+}
+
+const device_t* device_find_by_name(const char* name) {
+    generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_name_compare, (void*) name);
 
     if(!node) {
         return NULL;

@@ -69,7 +69,7 @@ void device_init();
  * 
  * @return The device tree.
  */
-generic_tree_t* device_get_all();
+const generic_tree_t* device_get_all();
 
 /**
  * Register a device.
@@ -92,15 +92,23 @@ void device_unregister(device_t* device);
  * @param id The device ID.
  * @return The device.
  */
-device_t* device_find_by_id(uuid_t id);
+const device_t* device_find_by_id(uuid_t id);
 
 /**
  * Find the first device by type.
  * 
  * @param type The device type.
- * @return The device.
+ * @return The device or NULL if not found.
  */
-device_t* device_find_by_type(uint16_t type);
+const device_t* device_find_by_type(uint16_t type);
+
+/**
+ * Find a device by name.
+ * 
+ * @param name The device name.
+ * @return The device or NULL if not found.
+ */
+const device_t* device_find_by_name(const char* name);
 
 /**
  * Find all devices by type.
@@ -108,6 +116,6 @@ device_t* device_find_by_type(uint16_t type);
  * @param type The device type.
  * @return The devices.
  */
-linked_list_t* device_find_all_by_type(uint16_t type);
+const linked_list_t* device_find_all_by_type(uint16_t type);
 
 #endif // _KERNEL_DEVICE_DEVICE_H

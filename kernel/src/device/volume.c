@@ -7,6 +7,7 @@ static linked_list_t* volumes;
 
 static bool volume_unregister_device_compare(void* node_data, void* compare_data);
 static bool volume_find_by_id_compare(void* node_data, void* compare_data);
+static bool volume_find_by_name_compare(void* node_data, void* compare_data);
 static size_t volume_total_size(volume_t* volume);
 static size_t volume_read(volume_t* volume, size_t offset, size_t size, char* buffer);
 static size_t volume_write(volume_t* volume, size_t offset, size_t size, char* buffer);
@@ -19,7 +20,7 @@ void volume_init() {
     }
 }
 
-linked_list_t* volume_get_all() {
+const linked_list_t* volume_get_all() {
     return volumes;
 }
 
@@ -164,8 +165,25 @@ static bool volume_find_by_id_compare(void* node_data, void* compare_data) {
     return uuid_v4_compare(&volume->id, id) == 0;
 }
 
-volume_t* volume_find_by_id(uuid_t id) {
+const volume_t* volume_find_by_id(uuid_t id) {
     linked_list_node_t* node = linked_list_find(volumes, volume_find_by_id_compare, &id);
+
+    if(!node) {
+        return NULL;
+    }
+
+    return (volume_t*) node->data;
+}
+
+static bool volume_find_by_name_compare(void* node_data, void* compare_data) {
+    volume_t* volume = (volume_t*) node_data;
+    const char* name = (const char*) compare_data;
+
+    return strcmp(volume->name, name) == 0;
+}
+
+const volume_t* volume_find_by_name(const char* name) {
+    linked_list_node_t* node = linked_list_find(volumes, volume_find_by_name_compare, (void*) name);
 
     if(!node) {
         return NULL;
