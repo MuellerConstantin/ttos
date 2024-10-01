@@ -18,7 +18,7 @@ static void vga_init_registers(uint8_t *config);
 
 int32_t vga_init(vga_video_mode_t mode, bool probe) {
     // Check if the video mode is supported
-    if(mode != VGA_80x25_16_TEXT && mode != VGA_320X200X256_GFX) {
+    if(mode != VGA_80x25_16_TEXT && mode != VGA_640X480X16_GFX && mode != VGA_320X200X256_GFX) {
         return -1;
     }
 
@@ -76,6 +76,23 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
             device->driver->tm.set_color = vga_tm_set_color;
 
             vga_tm_init();
+        } else if (mode == VGA_640X480X16_GFX) {
+            device->driver = (video_driver_t*) kmalloc(sizeof(video_driver_t));
+
+            if(!device->driver) {
+                KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+            }
+
+            device->driver->tm_probe = vga_tm_probe;
+            device->driver->gfx_probe = vga_gfx_probe;
+            device->driver->gfx.set_pixel = vga_gfx_set_pixel;
+            device->driver->gfx.clear = vga_gfx_clear;
+            device->driver->gfx.fill = vga_gfx_fill;
+            device->driver->gfx.draw_rect = vga_gfx_draw_rect;
+            device->driver->gfx.draw_char = vga_gfx_draw_char;
+            device->driver->gfx.draw_string = vga_gfx_draw_string;
+
+            vga_gfx_init();
         } else if (mode == VGA_320X200X256_GFX) {
             device->driver = (video_driver_t*) kmalloc(sizeof(video_driver_t));
 

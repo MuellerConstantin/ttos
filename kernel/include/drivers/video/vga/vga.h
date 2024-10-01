@@ -124,6 +124,7 @@
 
 typedef enum {
     VGA_80x25_16_TEXT = 0x03,
+    VGA_640X480X16_GFX = 0x12,
     VGA_320X200X256_GFX = 0x13
 } vga_video_mode_t;
 
@@ -148,5 +149,29 @@ typedef struct vga_video_mode_descriptor vga_video_mode_descriptor_t;
  * @return 0 if the initialization was successful, -1 otherwise.
  */
 int32_t vga_init(vga_video_mode_t mode, bool probe);
+
+/**
+ * Sets the write mode of the VGA controller.
+ * 
+ * @param mode The write mode to set.
+ * @return 0 if the write mode was set successfully, -1 otherwise.
+ */
+int32_t vga_set_write_mode(uint8_t mode);
+
+/**
+ * Sets the plane mask of the VGA controller.
+ * 
+ * @param mask The bit mask to set.
+ * @return 0 if the bit mask was set successfully, -1 otherwise.
+ */
+int32_t vga_set_plane_mask(uint8_t mask);
+
+/**
+ * Sets the bit mask of the VGA controller.
+ * 
+ * @param mask The bit mask to set.
+ * @return 0 if the bit mask was set successfully, -1 otherwise.
+ */
+int32_t vga_set_bit_mask(uint8_t mask);
 
 #endif // _KERNEL_DRIVERS_VIDEO_VGA_VGA_H

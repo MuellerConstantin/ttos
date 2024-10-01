@@ -110,6 +110,61 @@ uint8_t VGA_320X200X256_GFX_CONFIG[] = {
 	0x41, 0x00, 0x0F, 0x00,	0x00
 };
 
+const uint8_t VGA_640X480X16_GFX_CONFIG[] = {
+    // External registers
+    0xE3, // Misc output register
+
+    // Sequencer registers
+    0x03, // Reset Register
+    0x01, // Clocking Mode Register
+    0x0F, // Map Mask Register
+    0x00, // Character Map Select Register
+    0x06, // Sequencer Memory Mode Register
+
+    // CRT controller registers
+    0x5F, // Horizontal Total Register
+    0x4F, // End Horizontal Display Register
+    0x50, // Start Horizontal Blanking Register
+    0x82, // End Horizontal Blanking Register
+    0x54, // Start Horizontal Retrace Register
+    0x80, // End Horizontal Retrace Register
+    0x0B, // Vertical Total Register
+    0x3E, // Overflow Register
+    0x00, // Preset Row Scan Register
+    0x40, // Maximum Scan Line Register
+    0x00, // Cursor Start Register
+    0x00, // Cursor End Register
+    0x00, // Start Address High Register
+    0x00, // Start Address Low Register
+    0x00, // Cursor Location High Register
+    0x59, // Cursor Location Low Register
+    0xEA, // Vertical Retrace Start Register
+    0x8C, // Vertical Retrace End Register
+    0xDF, // Vertical Display End Register
+    0x28, // Offset Register
+    0x00, // Underline Location Register
+    0xE7, // Start Vertical Blanking Register
+    0x04, // End Vertical Blanking Register
+    0xE3, // CRTC Mode Control Register
+    0xFF, // Line Compare Register
+
+    // Graphics controller registers
+    0x00, // Set/Reset Register
+    0x00, // Enable Set/Reset Register
+    0x00, // Color Compare Register
+    0x00, // Data Rotate Register
+    0x00, // Read Map Select Register
+    0x00, // Graphics Mode Register
+    0x05, // Miscellaneous Graphics Register
+    0x0F, // Color Don't Care Register
+    0xFF, // Bit Mask Register
+
+    // Attribute controller registers
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+    0x01, 0x00, 0x0F, 0x00, 0x00
+};
+ 
 const vga_video_mode_descriptor_t VGA_80x25_16_TEXT_DESCRIPTOR = {
     .mode = VGA_80x25_16_TEXT,
     .config = VGA_80x25_16_TEXT_CONFIG,
@@ -126,6 +181,15 @@ const vga_video_mode_descriptor_t VGA_320X200X256_GFX_DESCRIPTOR = {
     .width = 320,
     .height = 200,
     .colors = 256
+};
+
+const vga_video_mode_descriptor_t VGA_640X480X16_GFX_DESCRIPTOR = {
+    .mode = VGA_640X480X16_GFX,
+    .config = VGA_640X480X16_GFX_CONFIG,
+    .framebuffer = VGA_GFX_VIDEO_MEMORY,
+    .width = 640,
+    .height = 480,
+    .colors = 16
 };
 
 const vga_video_mode_descriptor_t *const VGA_VIDEO_MODE_DESCRIPTOR_TABLE[VGA_NUM_VIDEO_MODES] = {
@@ -147,6 +211,6 @@ const vga_video_mode_descriptor_t *const VGA_VIDEO_MODE_DESCRIPTOR_TABLE[VGA_NUM
     NULL,
     NULL,
     NULL,
-    NULL,
+    &VGA_640X480X16_GFX_DESCRIPTOR,
     &VGA_320X200X256_GFX_DESCRIPTOR
 };

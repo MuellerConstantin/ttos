@@ -11,7 +11,7 @@ int32_t vga_gfx_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t heigh
 
     for(uint32_t i = 0; i < height; ++i) {
         for(uint32_t j = 0; j < width; ++j) {
-            vga_gfx_video_memory[(y + i) * vga_gfx_screen.width + (x + j)] = color;
+            vga_gfx_set_pixel(x + j, y + i, color);
         }
     }
 
