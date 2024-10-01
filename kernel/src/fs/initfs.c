@@ -4,9 +4,20 @@
 #include <string.h>
 
 static int32_t initfs_unmount(mnt_mountpoint_t* volume);
+
+static int32_t initfs_open(vfs_node_t* node);
+static int32_t initfs_close(vfs_node_t* node);
 static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+static int32_t initfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+static int32_t initfs_create(vfs_node_t* node, char* name, uint32_t permissions);
+static int32_t initfs_unlink(vfs_node_t* node, char* name);
+
+static int32_t initfs_mkdir(vfs_node_t* node, char* name, uint32_t permissions);
+static int32_t initfs_rmdir(vfs_node_t* node, char* name);
 static vfs_dirent_t* initfs_readdir(vfs_node_t* node, uint32_t index);
 static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name);
+
+static int32_t initfs_rename(vfs_node_t* node, char* new_name);
 
 static vfs_node_operations_t initfs_directory_operations = {
     .read = NULL,
@@ -15,25 +26,25 @@ static vfs_node_operations_t initfs_directory_operations = {
     .close = NULL,
     .create = NULL,
     .unlink = NULL,
-    .mkdir = NULL,
-    .rmdir = NULL,
-    .rename = NULL,
+    .mkdir = &initfs_mkdir,
+    .rmdir = &initfs_rmdir,
     .readdir = &initfs_readdir,
-    .finddir = &initfs_finddir
+    .finddir = &initfs_finddir,
+    .rename = &initfs_rename,
 };
 
 static vfs_node_operations_t initfs_file_operations = {
     .read = &initfs_read,
-    .write = NULL,
-    .open = NULL,
-    .close = NULL,
-    .create = NULL,
-    .unlink = NULL,
+    .write = &initfs_write,
+    .open = &initfs_open,
+    .close = &initfs_close,
+    .create = &initfs_create,
+    .unlink = &initfs_unlink,
     .mkdir = NULL,
     .rmdir = NULL,
-    .rename = NULL,
     .readdir = NULL,
-    .finddir = NULL
+    .finddir = NULL,
+    .rename = &initfs_rename,
 };
 
 bool initfs_probe(volume_t* volume) {
@@ -93,7 +104,7 @@ static int32_t initfs_unmount(mnt_mountpoint_t* mount) {
     return 0;
 }
 
-static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
+static int32_t initfs_open(vfs_node_t* node) {
     if(node->type & VFS_DIRECTORY) {
         return -1;
     }
@@ -105,24 +116,82 @@ static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void*
         return -1;
     }
 
-    initfs_file_header_t file_header;
-    node->volume->operations->read(node->volume, sizeof(initfs_header_t) + node->inode * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), &file_header);
+    initfs_file_header_t* file_header = kmalloc(sizeof(initfs_file_header_t));
 
-    if(file_header.magic != INITFS_FILE_HEADER_MAGIC) {
+    if(!file_header) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    node->volume->operations->read(node->volume, sizeof(initfs_header_t) + node->inode * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), file_header);
+
+    if(file_header->magic != INITFS_FILE_HEADER_MAGIC) {
         return -1;
     }
 
-    if(offset > file_header.length) {
+    node->inode_data = (void*) file_header;
+
+    return 0;
+}
+
+static int32_t initfs_close(vfs_node_t* node) {
+    if(node->type & VFS_DIRECTORY) {
         return 0;
     }
 
-    if(offset + size > file_header.length) {
-        size = file_header.length - offset;
+    if(node->inode_data) {
+        kfree(node->inode_data);
     }
 
-    node->volume->operations->read(node->volume, file_header.offset + offset, size, (char*) buffer);
+    return 0;
+}
+
+static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
+    if(node->type & VFS_DIRECTORY) {
+        return -1;
+    }
+
+    if(node->inode_data == NULL) {
+        return -1;
+    }
+
+    initfs_file_header_t* file_header = (initfs_file_header_t*) node->inode_data;
+
+    if(offset > file_header->length) {
+        return 0;
+    }
+
+    if(offset + size > file_header->length) {
+        size = file_header->length - offset;
+    }
+
+    node->volume->operations->read(node->volume, file_header->offset + offset, size, (char*) buffer);
 
     return size;
+}
+
+static int32_t initfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
+    // Unsupported because the file system is read-only
+    return -1;
+}
+
+static int32_t initfs_create(vfs_node_t* node, char* name, uint32_t permissions) {
+    // Unsupported because the file system is read-only
+    return -1;
+}
+
+static int32_t initfs_unlink(vfs_node_t* node, char* name) {
+    // Unsupported because the file system is read-only
+    return -1;
+}
+
+static int32_t initfs_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
+    // Unsupported because the file system is read-only
+    return -1;
+}
+
+static int32_t initfs_rmdir(vfs_node_t* node, char* name) {
+    // Unsupported because the file system is read-only
+    return -1;
 }
 
 static vfs_dirent_t* initfs_readdir(vfs_node_t* node, uint32_t index) {
@@ -183,4 +252,9 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
     }
 
     return NULL;
+}
+
+static int32_t initfs_rename(vfs_node_t* node, char* new_name) {
+    // Unsupported because the file system is read-only
+    return -1;
 }

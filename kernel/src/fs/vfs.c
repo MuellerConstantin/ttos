@@ -36,6 +36,38 @@ int32_t vfs_close(vfs_node_t* node) {
     return -1;
 }
 
+int32_t vfs_create(vfs_node_t* node, char* name, uint32_t permissions) {
+    if (node->operations->create != NULL && node->type & VFS_DIRECTORY) {
+        return node->operations->create(node, name, permissions);
+    }
+
+    return -1;
+}
+
+int32_t vfs_unlink(vfs_node_t* node, char* name) {
+    if (node->operations->unlink != NULL && node->type & VFS_DIRECTORY) {
+        return node->operations->unlink(node, name);
+    }
+
+    return -1;
+}
+
+int32_t vfs_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
+    if (node->operations->mkdir != NULL && node->type & VFS_DIRECTORY) {
+        return node->operations->mkdir(node, name, permissions);
+    }
+
+    return -1;
+}
+
+int32_t vfs_rmdir(vfs_node_t* node, char* name) {
+    if (node->operations->rmdir != NULL && node->type & VFS_DIRECTORY) {
+        return node->operations->rmdir(node, name);
+    }
+
+    return -1;
+}
+
 vfs_dirent_t* vfs_readdir(vfs_node_t* node, uint32_t index) {
     if (node->operations->readdir != NULL && node->type & VFS_DIRECTORY) {
         return node->operations->readdir(node, index);
@@ -90,4 +122,12 @@ static vfs_node_t* vfs_findpath_recursive(vfs_node_t* node, char* path) {
     }
 
     return vfs_findpath_recursive(next_node, path);
+}
+
+int32_t vfs_rename(vfs_node_t* node, char* new_name) {
+    if (node->operations->rename != NULL) {
+        return node->operations->rename(node, new_name);
+    }
+
+    return -1;
 }

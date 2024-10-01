@@ -44,7 +44,7 @@ int32_t mnt_volume_unmount(char drive) {
     return 0;
 }
 
-mnt_mountpoint_t* mnt_get_mountpoint(char* path) {
+const mnt_mountpoint_t* mnt_get_mountpoint(char* path) {
     if(strlen(path) < 3) {
         return NULL;
     }

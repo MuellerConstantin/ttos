@@ -17,17 +17,25 @@ typedef struct vfs_dirent vfs_dirent_t;
 typedef struct vfs_node_operations vfs_node_operations_t;
 
 struct vfs_node_operations {
+    // File operations
+
     int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
     int32_t (*write)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
     int32_t (*open)(vfs_node_t* node);
     int32_t (*close)(vfs_node_t* node);
     vfs_node_t* (*create)(vfs_node_t* node, char* name, uint32_t permissions);
     int32_t (*unlink)(vfs_node_t* node, char* name);
+
+    // Directory operations
+
     int32_t (*mkdir)(vfs_node_t* node, char* name, uint32_t permissions);
     int32_t (*rmdir)(vfs_node_t* node, char* name);
-    int32_t (*rename)(vfs_node_t* node, char* old_name, char* new_name);
     vfs_dirent_t* (*readdir)(vfs_node_t* node, uint32_t index);
     vfs_node_t* (*finddir)(vfs_node_t* node, char* name);
+
+    // General operations
+
+    int32_t (*rename)(vfs_node_t* node, char* new_name);
 } __attribute__((packed));
 
 struct vfs_node {
@@ -36,8 +44,9 @@ struct vfs_node {
     uint32_t type;
     uint32_t uid;
     uint32_t gid;
-    uint32_t inode;
     uint32_t length;
+    uint32_t inode;
+    void* inode_data;
     struct vfs_node *link;
     vfs_node_operations_t* operations;
     volume_t* volume;
@@ -87,6 +96,44 @@ int32_t vfs_open(vfs_node_t* node);
 int32_t vfs_close(vfs_node_t* node);
 
 /**
+ * Create a file.
+ * 
+ * @param node The directory to create the file in.
+ * @param name The name of the file to create.
+ * @param permissions The permissions of the file.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_create(vfs_node_t* node, char* name, uint32_t permissions);
+
+/**
+ * Delete a file.
+ * 
+ * @param node The directory to delete the file from.
+ * @param name The name of the file to delete.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_unlink(vfs_node_t* node, char* name);
+
+/**
+ * Create a directory.
+ * 
+ * @param node The directory to create the new directory in.
+ * @param name The name of the new directory.
+ * @param permissions The permissions of the new directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_mkdir(vfs_node_t* node, char* name, uint32_t permissions);
+
+/**
+ * Delete a directory.
+ * 
+ * @param node The directory to delete the directory from.
+ * @param name The name of the directory to delete.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_rmdir(vfs_node_t* node, char* name);
+
+/**
  * Read a directory entry.
  * 
  * @param node The directory to read from.
@@ -112,5 +159,14 @@ vfs_node_t* vfs_finddir(vfs_node_t* node, char* name);
  * @return The file or NULL if not found.
  */
 vfs_node_t* vfs_findpath(vfs_node_t* node, char* path);
+
+/**
+ * Rename a file/directory.
+ * 
+ * @param node The directory or file to rename.
+ * @param new_name The new name of the file/directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_rename(vfs_node_t* node, char* new_name);
 
 #endif // _KERNEL_FS_VFS_H
