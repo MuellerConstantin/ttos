@@ -63,17 +63,15 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
 
             device->driver->tm_probe = vga_tm_probe;
             device->driver->gfx_probe = vga_gfx_probe;
-            device->driver->tm.clear = vga_tm_clear;
             device->driver->tm.fill = vga_tm_fill;
             device->driver->tm.write = vga_tm_write;
             device->driver->tm.strwrite = vga_tm_strwrite;
-            device->driver->tm.putchar = vga_tm_putchar;
-            device->driver->tm.putstr = vga_tm_putstr;
             device->driver->tm.scroll = vga_tm_scroll;
             device->driver->tm.move_cursor = vga_tm_move_cursor;
             device->driver->tm.enable_cursor = vga_tm_enable_cursor;
             device->driver->tm.disable_cursor = vga_tm_disable_cursor;
-            device->driver->tm.set_color = vga_tm_set_color;
+            device->driver->tm.total_rows = vga_tm_total_rows;
+            device->driver->tm.total_columns = vga_tm_total_columns;
 
             vga_tm_init();
         } else if (mode == VGA_640X480X16_GFX) {
@@ -86,11 +84,12 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
             device->driver->tm_probe = vga_tm_probe;
             device->driver->gfx_probe = vga_gfx_probe;
             device->driver->gfx.set_pixel = vga_gfx_set_pixel;
-            device->driver->gfx.clear = vga_gfx_clear;
             device->driver->gfx.fill = vga_gfx_fill;
             device->driver->gfx.draw_rect = vga_gfx_draw_rect;
             device->driver->gfx.draw_char = vga_gfx_draw_char;
             device->driver->gfx.draw_string = vga_gfx_draw_string;
+            device->driver->gfx.total_width = vga_gfx_total_width;
+            device->driver->gfx.total_height = vga_gfx_total_height;
 
             vga_gfx_init();
         } else if (mode == VGA_320X200X256_GFX) {
@@ -103,11 +102,12 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
             device->driver->tm_probe = vga_tm_probe;
             device->driver->gfx_probe = vga_gfx_probe;
             device->driver->gfx.set_pixel = vga_gfx_set_pixel;
-            device->driver->gfx.clear = vga_gfx_clear;
             device->driver->gfx.fill = vga_gfx_fill;
             device->driver->gfx.draw_rect = vga_gfx_draw_rect;
             device->driver->gfx.draw_char = vga_gfx_draw_char;
             device->driver->gfx.draw_string = vga_gfx_draw_string;
+            device->driver->gfx.total_width = vga_gfx_total_width;
+            device->driver->gfx.total_height = vga_gfx_total_height;
 
             vga_gfx_init();
         }

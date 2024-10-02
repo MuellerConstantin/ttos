@@ -20,17 +20,6 @@
 #define VGA_GFX_YELLOW          0x0E
 #define VGA_GFX_WHITE           0x0F
 
-typedef struct vga_gfx_screen vga_gfx_screen_t;
-
-struct vga_gfx_screen {
-    size_t width;
-    size_t height;
-    size_t cursor_x;
-    size_t cursor_y;
-    uint8_t fgcolor;
-    uint8_t bgcolor;
-};
-
 /**
  * Initialize the VGA graphics mode driver.
  * 
@@ -95,5 +84,19 @@ int32_t vga_gfx_draw_char(uint32_t x, uint32_t y, char c, uint32_t color);
  * @return 0 if successful, -1 if the buffer is not initialized.
  */
 int32_t vga_gfx_draw_string(uint32_t x, uint32_t y, const char* str, uint32_t color);
+
+/**
+ * Get the total width of the VGA graphics mode buffer.
+ * 
+ * @return The total width of the buffer.
+ */
+size_t vga_gfx_total_width();
+
+/**
+ * Get the total height of the VGA graphics mode buffer.
+ * 
+ * @return The total height of the buffer.
+ */
+size_t vga_gfx_total_height();
 
 #endif // _KERNEL_DRIVERS_VIDEO_VGA_GFX_H

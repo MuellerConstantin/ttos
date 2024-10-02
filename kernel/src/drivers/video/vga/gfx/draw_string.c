@@ -2,8 +2,6 @@
 
 extern uint8_t *const vga_gfx_video_memory;
 
-extern vga_gfx_screen_t vga_gfx_screen;
-
 int32_t vga_gfx_draw_string(uint32_t x, uint32_t y, const char* str, uint32_t color) {
     uint32_t index = 0;
 

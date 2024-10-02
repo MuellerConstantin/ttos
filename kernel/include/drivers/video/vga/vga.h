@@ -132,9 +132,9 @@ struct vga_video_mode_descriptor {
     vga_video_mode_t mode;
     uint8_t *config;
     uint32_t framebuffer;
-    uint16_t width;
-    uint16_t height;
-    uint16_t colors;
+    uint32_t width;
+    uint32_t height;
+    uint32_t colors;
 };
 
 typedef struct vga_video_mode_descriptor vga_video_mode_descriptor_t;

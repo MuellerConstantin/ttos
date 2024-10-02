@@ -15,6 +15,12 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
     }
 
+    tty0->rows = video->driver->tm.total_rows();
+    tty0->columns = video->driver->tm.total_columns();
+    tty0->cursor_x = 0;
+    tty0->cursor_y = 0;
+    tty0->fgcolor = TTY_WHITE;
+    tty0->bgcolor = TTY_BLACK;
     tty0->video = video;
     tty0->keyboard = keyboard;
     tty0->layout = layout;
@@ -22,8 +28,45 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     return tty0;
 }
 
-void tty_putchar(tty_t* tty0, char c) {
-    tty0->video->driver->tm.putchar(c);
+void tty_putchar(tty_t* tty0, char ch) {
+    switch(ch) {
+        case '\n':
+            tty0->cursor_x = 0;
+            tty0->cursor_y++;
+            break;
+        case '\r':
+            tty0->cursor_x = 0;
+            break;
+        case '\b':
+            if(tty0->cursor_x > 0) {
+                tty0->cursor_x--;
+            }
+
+            tty0->video->driver->tm.write(tty0->cursor_y * tty0->columns + tty0->cursor_x, ' ', tty0->fgcolor, tty0->bgcolor);
+            break;
+        case '\t':
+            tty0->cursor_x = (tty0->cursor_x + 8) & ~(8 - 1);
+            break;
+        default:
+            tty0->video->driver->tm.write(tty0->cursor_y * tty0->columns + tty0->cursor_x, ch, tty0->fgcolor, tty0->bgcolor);
+            tty0->cursor_x++;
+            break;
+    }
+
+    // Check if end of line has been reached
+    if(tty0->cursor_x >= tty0->columns) {
+        tty0->cursor_x = 0;
+        tty0->cursor_y++;
+    }
+
+    // Check if end of screen has been reached
+    if(tty0->cursor_y >= tty0->rows) {
+        tty0->video->driver->tm.scroll(tty0->fgcolor, tty0->bgcolor);
+        tty0->cursor_y--;
+        tty0->video->driver->tm.move_cursor(tty0->cursor_y * tty0->columns + tty0->cursor_x);
+    }
+
+    vga_tm_move_cursor(tty0->cursor_y * tty0->columns + tty0->cursor_x);
 }
 
 char tty_getchar(tty_t* tty0) {
@@ -229,4 +272,12 @@ int tty_vprintf(tty_t* tty0, const char *format, va_list args) {
     }
 
     return count;
+}
+
+void tty_set_fgcolor(tty_t* tty0, uint8_t fgcolor) {
+    tty0->fgcolor = fgcolor;
+}
+
+void tty_set_bgcolor(tty_t* tty0, uint8_t bgcolor) {
+    tty0->bgcolor = bgcolor;
 }
