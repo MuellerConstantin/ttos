@@ -63,4 +63,30 @@ struct pci_device {
  */
 int32_t pci_init();
 
+/**
+ * Get a BAR value from a PCI device.
+ * 
+ * @param pci_device The PCI device.
+ * @param bar The BAR number. Must be between 0 and 5.
+ * @return The BAR value.
+ */
+uint32_t pci_get_bar_address(pci_device_t* pci_device, uint8_t bar_index);
+
+/**
+ * Get the size of a BAR from a PCI device.
+ * 
+ * @param pci_device The PCI device.
+ * @param bar The BAR number. Must be between 0 and 5.
+ * @return The size of the BAR.
+ */
+size_t pci_get_bar_size(pci_device_t* pci_device, uint8_t bar_index);
+
+/**
+ * Get the interrupt line of a PCI device.
+ * 
+ * @param pci_device The PCI device.
+ * @return The interrupt line.
+ */
+uint8_t pci_get_interrupt_line(pci_device_t* pci_device);
+
 #endif // _KERNEL_DRIVERS_PCI_H

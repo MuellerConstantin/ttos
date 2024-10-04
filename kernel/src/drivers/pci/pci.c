@@ -6,6 +6,7 @@ static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t functio
 static uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
+static void pci_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint32_t value);
 
 int32_t pci_init() {
     for(uint16_t bus = 0; bus < PCI_MAX_NUM_BUSES; bus++) {
@@ -45,6 +46,76 @@ int32_t pci_init() {
             }
         }
     }
+}
+
+uint32_t pci_get_bar_address(pci_device_t* pci_device, uint8_t bar_index) {
+    uint8_t offset;
+
+    switch(bar_index) {
+        case 0:
+            offset = PCI_H0_BAR0;
+            break;
+        case 1:
+            offset = PCI_H0_BAR1;
+            break;
+        case 2:
+            offset = PCI_H0_BAR2;
+            break;
+        case 3:
+            offset = PCI_H0_BAR3;
+            break;
+        case 4:
+            offset = PCI_H0_BAR4;
+            break;
+        case 5:
+            offset = PCI_H0_BAR5;
+            break;
+        default:
+            return 0;
+    }
+
+    return pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
+}
+
+size_t pci_get_bar_size(pci_device_t* pci_device, uint8_t bar_index) {
+    uint8_t offset;
+
+    switch(bar_index) {
+        case 0:
+            offset = PCI_H0_BAR0;
+            break;
+        case 1:
+            offset = PCI_H0_BAR1;
+            break;
+        case 2:
+            offset = PCI_H0_BAR2;
+            break;
+        case 3:
+            offset = PCI_H0_BAR3;
+            break;
+        case 4:
+            offset = PCI_H0_BAR4;
+            break;
+        case 5:
+            offset = PCI_H0_BAR5;
+            break;
+        default:
+            return 0;
+    }
+
+    uint32_t bar_address = pci_get_bar_address(pci_device, bar_index);
+
+    pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, 0xFFFFFFFF);
+
+    uint32_t mask = pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
+
+    pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, bar_address);
+
+    return ~(mask & ~0xf) + 1;
+}
+
+uint8_t pci_get_interrupt_line(pci_device_t* pci_device) {
+    return pci_read_byte(pci_device->bus, pci_device->slot, pci_device->function, PCI_H0_INTERRUPT_LINE);
 }
 
 static char* pci_get_device_name(pci_device_t* pci_device) {
@@ -170,4 +241,11 @@ static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t 
     outl(PCI_CONFIG_ADDRESS, address);
 
     return (uint32_t) (inl(PCI_CONFIG_DATA));
+}
+
+static void pci_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint32_t value) {
+    uint32_t address = (uint32_t) ((bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC) | ((uint32_t) 0x80000000));
+
+    outl(PCI_CONFIG_ADDRESS, address);
+    outl(PCI_CONFIG_DATA, value);
 }
