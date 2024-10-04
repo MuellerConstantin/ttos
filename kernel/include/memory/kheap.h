@@ -1,3 +1,13 @@
+/**
+ * @file kheap.h
+ * @brief Kernel heap manager.
+ * 
+ * The kernel heap manager is responsible for managing the kernel heap. The kernel heap is a
+ * memory region that is used to allocate memory dynamically. In early stages of the kernel,
+ * before the heap manager is initialized, the placement memory, a memory region in the
+ * data/bss section, is used to simulate the heap and allocate memory.
+ */
+
 #ifndef _KERNEL_MEMORY_KHEAP_H
 #define _KERNEL_MEMORY_KHEAP_H
 

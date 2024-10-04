@@ -1,3 +1,11 @@
+/**
+ * @file multiboot_util.h
+ * @brief Utility functions for the Multiboot information structure.
+ * 
+ * This file contains utility functions for the Multiboot information structure. It's important to
+ * note that we're talking about the Multiboot 1 information structure, not the Multiboot 2 one.
+ */
+
 #ifndef _KERNEL_MULTIBOOT_UTIL_H
 #define _KERNEL_MULTIBOOT_UTIL_H
 

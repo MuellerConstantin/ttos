@@ -1,3 +1,12 @@
+/**
+ * @file isr.h
+ * @brief Utility functions for handling interrupts.
+ * 
+ * This file contains functions for handling interrupts. It provides a common interface for
+ * registering and unregistering interrupt listeners and for enabling and disabling maskable
+ * interrupts.
+ */
+
 #ifndef _KERNEL_SYS_ISR_H
 #define _KERNEL_SYS_ISR_H
 

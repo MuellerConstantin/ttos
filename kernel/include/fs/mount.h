@@ -1,3 +1,12 @@
+/**
+ * @file mount.h
+ * @brief Definitions for the file system mount manager.
+ * 
+ * The mount manager is responsible for managing mounted file systems. It provides a common interface
+ * for mounting and unmounting file systems and enables easy access to mounted volumes by defining
+ * mount operations for different kind of file systems.
+ */
+
 #ifndef _KERNEL_FS_MOUNT_H
 #define _KERNEL_FS_MOUNT_H
 

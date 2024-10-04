@@ -1,3 +1,11 @@
+/**
+ * @file file.h
+ * @brief File handling operations.
+ * 
+ * This file contains functions for handling files, such as opening, closing, reading, and writing files
+ * independently of the underlying file system.
+ */
+
 #ifndef _KERNEL_FS_FILE_H
 #define _KERNEL_FS_FILE_H
 

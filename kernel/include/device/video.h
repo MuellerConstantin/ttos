@@ -1,3 +1,11 @@
+/**
+ * @file video.h
+ * @brief Definitions for the video devices.
+ * 
+ * This file contains structures and definitions for the video devices. This includes the
+ * video driver interface and the video device structure.
+ */
+
 #ifndef _KERNEL_DEVICE_VIDEO_H
 #define _KERNEL_DEVICE_VIDEO_H
 

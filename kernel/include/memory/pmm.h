@@ -1,3 +1,12 @@
+/**
+ * @file pmm.h
+ * @brief Definitions for the Physical Memory Manager.
+ * 
+ * The Physical Memory Manager (PMM) is responsible for managing the physical memory of the system.
+ * It keeps track of the available and reserved memory regions and provides functions to allocate and
+ * free memory blocks.
+ */
+
 #ifndef _KERNEL_MEMORY_PMM_H
 #define _KERNEL_MEMORY_PMM_H
 

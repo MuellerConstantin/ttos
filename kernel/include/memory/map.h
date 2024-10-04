@@ -1,3 +1,11 @@
+/**
+ * @file map.h
+ * @brief Definitions for the kernel's memory map.
+ * 
+ * The memory map defines the layout of the kernel's virtual memory space and the physical memory
+ * regions used by the kernel.
+ */
+
 #ifndef _KERNEL_MEMORY_MAP_H
 #define _KERNEL_MEMORY_MAP_H
 

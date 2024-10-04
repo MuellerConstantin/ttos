@@ -1,3 +1,12 @@
+/**
+ * @file idt.h
+ * @brief Definitions for the Interrupt Descriptor Table (IDT).
+ * 
+ * The Interrupt Descriptor Table (IDT) is a data structure used by the x86 architecture to handle
+ * hardware interrupts and processor exceptions. This file contains the definitions of the IDT and its
+ * descriptors as well as the functions to initialize the IDT.
+ */
+
 #ifndef _KERNEL_DESCRIPTORS_IDT_H
 #define _KERNEL_DESCRIPTORS_IDT_H
 

@@ -1,3 +1,12 @@
+/**
+ * @file device.h
+ * @brief Kernel's central device manager.
+ * 
+ * The device manager is responsible for managing all devices in the system. It provides
+ * a common device interface for all devices and enables easy access to devices by
+ * defining driver interfaces for different kind of devices.
+ */
+
 #ifndef _KERNEL_DEVICE_DEVICE_H
 #define _KERNEL_DEVICE_DEVICE_H
 
@@ -32,11 +41,17 @@ typedef struct video_device video_device_t;
 typedef struct storage_device storage_device_t;
 typedef struct keyboard_device keyboard_device_t;
 
+/**
+ * Structure representing a bus, used to connect devices.
+ */
 struct bus {
     uint8_t type;
     void* data;
 };
 
+/**
+ * Common device structure, holding essential information about a device.
+ */
 struct device {
     uuid_t id;
     char* name;
@@ -44,16 +59,25 @@ struct device {
     bus_t bus;
 } __attribute__((packed));
 
+/**
+ * Structure representing a video device.
+ */
 struct video_device {
     device_t info;
     video_driver_t* driver;
 } __attribute__((packed));
 
+/**
+ * Structure representing a storage device.
+ */
 struct storage_device {
     device_t info;
     storage_driver_t* driver;
 } __attribute__((packed));
 
+/**
+ * Structure representing a keyboard device.
+ */
 struct keyboard_device {
     device_t info;
     keyboard_driver_t* driver;

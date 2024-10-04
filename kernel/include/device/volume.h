@@ -1,3 +1,13 @@
+/**
+ * @file volume.h
+ * @brief Kernel's volume manager.
+ * 
+ * The volume manager is responsible for managing all volumes in the system. It provides a common
+ * volume interface for all volumes and enables easy access to volumes by defining volume operations
+ * for different kind of volumes. Moreover, the volume manager is responsible for scanning storage
+ * devices for volumes and registering them.
+ */
+
 #ifndef _KERNEL_DEVICE_VOLUME_H
 #define _KERNEL_DEVICE_VOLUME_H
 

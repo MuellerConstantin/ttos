@@ -1,3 +1,12 @@
+/**
+ * @file gdt.h
+ * @brief Global Descriptor Table (GDT) definitions.
+ * 
+ * The Global Descriptor Table (GDT) is a data structure used by the x86 architecture to define the
+ * characteristics of the various memory areas used during program execution. This file contains the
+ * definitions of the GDT and its descriptors.
+ */
+
 #ifndef _KERNEL_DESCRIPTORS_GDT_H
 #define _KERNEL_DESCRIPTORS_GDT_H
 

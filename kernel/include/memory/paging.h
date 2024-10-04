@@ -1,3 +1,11 @@
+/**
+ * @file paging.h
+ * @brief Definitions for the kernel's paging system.
+ * 
+ * The paging system is responsible for managing the virtual memory of the kernel. It provides
+ * functions to map and unmap memory regions, switch page directories, and copy page directories.
+ */
+
 #ifndef _KERNEL_MEMORY_PAGING_H
 #define _KERNEL_MEMORY_PAGING_H
 

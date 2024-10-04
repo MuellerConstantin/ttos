@@ -1,3 +1,10 @@
+/**
+ * @file ports.h
+ * @brief Definitions for I/O ports.
+ * 
+ * This file contains definitions for I/O ports and functions to read and write to them.
+ */
+
 #ifndef _KERNEL_IO_PORTS_H
 #define _KERNEL_IO_PORTS_H
 

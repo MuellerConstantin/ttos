@@ -1,3 +1,11 @@
+/**
+ * @file kpanic.h
+ * @brief Kernel panic handler.
+ * 
+ * This file contains the definitions for the kernel panic handler. The panic handler is used to
+ * display a message on the screen and halt the system when a critical error occurs.
+ */
+
 #ifndef _KERNEL_SYS_KPANIC_H
 #define _KERNEL_SYS_KPANIC_H
 

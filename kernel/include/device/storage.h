@@ -1,3 +1,11 @@
+/**
+ * @file storage.h
+ * @brief Definitions for the storage devices.
+ * 
+ * This file contains structures and definitions for the storage devices. This includes the
+ * storage driver interface and the storage device structure.
+ */
+
 #ifndef _KERNEL_DEVICE_STORAGE_H
 #define _KERNEL_DEVICE_STORAGE_H
 

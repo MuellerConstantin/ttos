@@ -1,3 +1,13 @@
+/**
+ * @file tss.h
+ * @brief Task State Segment (TSS) descriptor.
+ * 
+ * The Task State Segment (TSS) is a data structure that was originally designed to hold information
+ * about a task during hardware task switching. However, it is no used by this kernel for its intended
+ * purpose. Instead, it is used to store information about the stack pointers for different privilege
+ * levels during context switches.
+ */
+
 #ifndef _KERNEL_DESCRIPTORS_TSS_H
 #define _KERNEL_DESCRIPTORS_TSS_H
 

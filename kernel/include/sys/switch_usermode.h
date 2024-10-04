@@ -1,3 +1,10 @@
+/**
+ * @file switch_usermode.h
+ * @brief Definitions for switching to user mode.
+ * 
+ * This file contains functions for switching to user mode.
+ */
+
 #ifndef _KERNEL_SYS_SWITCH_USERMODE_H
 #define _KERNEL_SYS_SWITCH_USERMODE_H
 

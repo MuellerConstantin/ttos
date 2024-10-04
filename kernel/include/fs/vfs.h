@@ -1,3 +1,12 @@
+/**
+ * @file vfs.h
+ * @brief Virtual File System (VFS) interface.
+ * 
+ * The Virtual File System (VFS) interface provides a common interface for file systems. It defines
+ * structures for nodes and directory entries, as well as operations for reading, writing, creating,
+ * and deleting files and directories.
+ */
+
 #ifndef _KERNEL_FS_VFS_H
 #define _KERNEL_FS_VFS_H
 

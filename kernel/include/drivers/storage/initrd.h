@@ -1,3 +1,12 @@
+/**
+ * @file initrd.h
+ * @brief Definitions for the initial ramdisk.
+ * 
+ * The initial ramdisk isn't a real device/disk, but rather a memory region that contains
+ * a filesystem image and simulates a storage device. This file contains definitions for
+ * the initial ramdisk driver.
+ */
+
 #ifndef _KERNEL_DRIVERS_STORAGE_INITRD_H
 #define _KERNEL_DRIVERS_STORAGE_INITRD_H
 
