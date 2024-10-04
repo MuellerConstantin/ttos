@@ -42,6 +42,30 @@ static inline linked_list_t* linked_list_create() {
 }
 
 /**
+ * Destroy the linked list. It frees the allocated memory for all nodes
+ * and the list metadata. Optionally, it can also free the data.
+ * 
+ * @param list The list to destroy.
+ * @param free_data Whether to free the data.
+ */
+static inline void linked_list_destroy(linked_list_t* list, bool free_data) {
+    linked_list_node_t* node = list->head;
+
+    while(node) {
+        linked_list_node_t* next = node->next;
+
+        if(free_data) {
+            kfree(node->data);
+        }
+
+        kfree(node);
+        node = next;
+    }
+
+    kfree(list);
+}
+
+/**
  * Create a new linked list node.
  * 
  * @return The new linked list node.

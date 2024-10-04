@@ -142,4 +142,12 @@ const device_t* device_find_by_name(const char* name);
  */
 const linked_list_t* device_find_all_by_type(uint16_t type);
 
+/**
+ * Find all devices by bus type.
+ * 
+ * @param bus_type The bus type.
+ * @return The devices.
+ */
+const linked_list_t* device_find_all_by_bus_type(uint8_t bus_type);
+
 #endif // _KERNEL_DEVICE_DEVICE_H

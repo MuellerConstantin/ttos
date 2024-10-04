@@ -9,6 +9,11 @@ static struct _device_find_all_by_type_callback_payload {
     uint16_t type;
 };
 
+static struct _device_find_all_by_bus_type_callback_payload {
+    linked_list_t* devices;
+    uint8_t type;
+};
+
 void device_init() {
     device_tree = generic_tree_create();
 
@@ -187,4 +192,38 @@ const device_t* device_find_by_name(const char* name) {
     }
 
     return (device_t*) node->data;
+}
+
+static void _device_find_all_by_bus_type_callback(generic_tree_node_t* node, void* data) {
+    struct _device_find_all_by_bus_type_callback_payload* payload = (struct _device_find_all_by_bus_type_callback_payload*) data;
+    device_t* device = (device_t*) node->data;
+
+    if(device->bus.type == payload->type) {
+        linked_list_node_t* devices_node = (linked_list_node_t*) kmalloc(sizeof(linked_list_node_t));
+
+        if(!devices_node) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        devices_node->data = device;
+
+        linked_list_append(payload->devices, devices_node);
+    }
+}
+
+const linked_list_t* device_find_all_by_bus_type(uint8_t bus_type) {
+    linked_list_t* devices = linked_list_create();
+
+    if(!devices) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    struct _device_find_all_by_bus_type_callback_payload payload = {
+        .devices = devices,
+        .type = bus_type
+    };
+
+    generic_tree_foreach(device_tree, _device_find_all_by_bus_type_callback, &payload);
+
+    return devices;
 }

@@ -41,6 +41,11 @@ static inline circular_buffer_t* circular_buffer_create(size_t capacity, size_t 
     return buffer;
 }
 
+static inline void circular_buffer_destroy(circular_buffer_t* buffer) {
+    kfree(buffer->buffer);
+    kfree(buffer);
+}
+
 static inline void circular_buffer_enqueue(circular_buffer_t* buffer, void* element) {
     void* destination = (uint8_t*) buffer->buffer + buffer->head * buffer->element_size;
     memcpy(destination, element, buffer->element_size);

@@ -35,6 +35,39 @@ static inline generic_tree_t* generic_tree_create() {
     return tree;
 }
 
+static inline void _generic_tree_destroy_recursive(generic_tree_node_t* node, bool free_data) {
+    if(node->children != NULL) {
+        generic_tree_node_t* current = node->children;
+
+        while(current != NULL) {
+            generic_tree_node_t* next = current->next;
+            _generic_tree_destroy_recursive(current, free_data);
+            current = next;
+        }
+    }
+
+    if(free_data) {
+        kfree(node->data);
+    }
+
+    kfree(node);
+}
+
+/**
+ * Destroy the generic tree. It frees the allocated memory for all nodes
+ * and the tree metadata. Optionally, it can also free the data.
+ * 
+ * @param tree The tree to destroy.
+ * @param free_data Whether to free the data.
+ */
+static inline void generic_tree_destroy(generic_tree_t* tree, bool free_data) {
+    if(tree->root != NULL) {
+        _generic_tree_destroy_recursive(tree->root, free_data);
+    }
+
+    kfree(tree);
+}
+
 /**
  * Create a new generic tree node.
  * 
