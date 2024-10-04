@@ -17,7 +17,8 @@ ISODIR := iso
 
 TARGET := kernel/kernel.elf
 INITRD := initrd.img
-HDD := hdd.img
+HDA := hda.img
+SDA := sda.img
 IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
 QEMUFLAGS := -boot order=d -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G -d int -no-reboot
@@ -38,16 +39,17 @@ clean:
 	$(MAKE) -C kernel clean
 
 	rm -rf $(INITRD)
-	rm -rf $(HDD)
+	rm -rf $(HDA)
+	rm -rf $(SDA)
 	rm -f $(IMAGE)
 
-qemu: $(HDD)
+qemu: $(HDA) $(SDA)
 
-	$(QEMU) $(QEMUFLAGS) -drive file=$(HDD),format=raw,index=0,if=ide
+	$(QEMU) $(QEMUFLAGS) -drive file=$(HDA),format=raw,index=0,if=ide,id=hda -drive file=$(SDA),format=raw,if=none,id=sda -device ahci,id=ahci -device ide-hd,drive=sda,bus=ahci.0
 
-qemu-debug: $(HDD)
+qemu-debug: $(HDA) $(SDA)
 
-	$(QEMU) $(QEMUFLAGS) -drive file=$(HDD),format=raw,index=0,if=ide -s -S
+	$(QEMU) $(QEMUFLAGS) -drive file=$(HDA),format=raw,index=0,if=ide,id=hda -drive file=$(SDA),format=raw,if=none,id=sda -device ahci,id=ahci -device ide-hd,drive=sda,bus=ahci.0 -s -S
 
 $(TARGET):
 
@@ -57,7 +59,12 @@ $(INITRD):
 
 	./scripts/mkinitrd.py -o $(INITRD)
 
-$(HDD):
+$(HDA):
 
-	dd if=/dev/zero of=hdd.img bs=1M count=500
-	echo "2,,83;" | sfdisk $(HDD)
+	dd if=/dev/zero of=hda.img bs=1M count=500
+	echo "2,,83;" | sfdisk $(HDA)
+
+$(SDA):
+
+	dd if=/dev/zero of=sda.img bs=1M count=500
+	echo "2,,83;" | sfdisk $(SDA)
