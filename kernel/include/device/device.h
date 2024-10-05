@@ -33,6 +33,7 @@
 #define DEVICE_TYPE_KEYBOARD    0x0100
 #define DEVICE_TYPE_STORAGE     0x0200
 #define DEVICE_TYPE_VIDEO       0x0300
+#define DEVICE_TYPE_CONTROLLER  0x0400
 #define DEVICE_TYPE_RESERVED    0xFF00
 
 typedef struct bus bus_t;

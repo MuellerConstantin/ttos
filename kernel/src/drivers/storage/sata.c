@@ -14,19 +14,15 @@ int32_t sata_init() {
         pci_device_t* pci_device = (pci_device_t*) device->bus.data;
 
         if(pci_device->type == PCI_TYPE_MASS_STORAGE_CONTROLLER && pci_device->subtype == PCI_SUBTYPE_SATA_CONTROLLER) {
-            uint32_t bar5_address = pci_get_bar_address(pci_device, 5);
-            size_t bar5_size = pci_get_bar_size(pci_device, 5);
-            uint8_t interrupt_line = pci_get_interrupt_line(pci_device);
-
-            if(bar5_size > SATA_DMA_BUFFER_VIRTUAL_SIZE) {
+            if(pci_load_bar_info(pci_device, 5) != 0) {
                 return -1;
             }
 
-            paging_map_memory((void*) SATA_DMA_BUFFER_VIRTUAL_BASE, bar5_size, (void*) bar5_address, true, true);
+            if(pci_device->data.general.bar[5].size > SATA_DMA_BUFFER_VIRTUAL_SIZE) {
+                return -1;
+            }
 
-            pci_device->data.general.bar[5] = SATA_DMA_BUFFER_VIRTUAL_BASE;
-            pci_device->data.general.bar_size[5] = bar5_size;
-            pci_device->data.general.interrupt_line = interrupt_line;
+            paging_map_memory((void*) SATA_DMA_BUFFER_VIRTUAL_BASE, pci_device->data.general.bar[5].size, (void*) pci_device->data.general.bar[5].base_address, true, true);
 
             char* new_device_name = (char*) kmalloc(21);
 
@@ -38,6 +34,7 @@ int32_t sata_init() {
 
             kfree(device->name);
             device->name = new_device_name;
+            device->type = DEVICE_TYPE_CONTROLLER;
 
             break;
         }

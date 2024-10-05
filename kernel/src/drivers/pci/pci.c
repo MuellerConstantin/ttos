@@ -3,6 +3,9 @@
 
 static char* pci_get_device_name(pci_device_t* pci_device);
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);
+static int32_t pci_general_load_bar_info(pci_device_t* pci_device, uint8_t bar_index);
+static int32_t pci_pci2pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_index);
+
 static uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
@@ -40,7 +43,7 @@ int32_t pci_init() {
                 }
 
                 // Skip function scanning if the device is a single function device
-                if(function == 0 && (pci_read_byte(bus, slot, function, PCI_HEADER_TYPE) & 0x80) == 0) {
+                if(function == 0 && (pci_device->header_type & PIC_HEADER_TYPE_MULTIFUNCTION) == 0) {
                     break;
                 }
             }
@@ -48,7 +51,21 @@ int32_t pci_init() {
     }
 }
 
-uint32_t pci_get_bar_address(pci_device_t* pci_device, uint8_t bar_index) {
+int32_t pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_index) {
+    uint8_t header_type = pci_device->header_type & 0x7F;
+
+    switch(header_type) {
+        case PCI_HEADER_TYPE_0:
+            return pci_general_load_bar_info(pci_device, bar_index);
+        case PCI_HEADER_TYPE_1:
+            return pci_pci2pci_load_bar_info(pci_device, bar_index);
+        case PCI_HEADER_TYPE_2:
+        default:
+            return -1;
+    }
+}
+
+static int32_t pci_general_load_bar_info(pci_device_t* pci_device, uint8_t bar_index) {
     uint8_t offset;
 
     switch(bar_index) {
@@ -71,51 +88,57 @@ uint32_t pci_get_bar_address(pci_device_t* pci_device, uint8_t bar_index) {
             offset = PCI_H0_BAR5;
             break;
         default:
-            return 0;
+            return -1;
     }
 
-    return pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
-}
+    uint32_t bar_address = pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
 
-size_t pci_get_bar_size(pci_device_t* pci_device, uint8_t bar_index) {
-    uint8_t offset;
+    if(bar_address & PCI_BAR_IO_SPACE) {
+        pci_device->data.general.bar[bar_index].type = PCI_BAR_IO_SPACE;
 
-    switch(bar_index) {
-        case 0:
-            offset = PCI_H0_BAR0;
-            break;
-        case 1:
-            offset = PCI_H0_BAR1;
-            break;
-        case 2:
-            offset = PCI_H0_BAR2;
-            break;
-        case 3:
-            offset = PCI_H0_BAR3;
-            break;
-        case 4:
-            offset = PCI_H0_BAR4;
-            break;
-        case 5:
-            offset = PCI_H0_BAR5;
-            break;
-        default:
-            return 0;
+        // Get BAR size through BAR masking
+
+        pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, 0xFFFFFFFF);
+
+        uint32_t mask = pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
+
+        pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, bar_address);
+
+        // Apply size and io port
+
+        pci_device->data.general.bar[bar_index].size = ~(mask & ~0x3) + 1;
+        pci_device->data.general.bar[bar_index].io_port = bar_address & ~0x3;
+        pci_device->data.general.bar[bar_index].flags = bar_address & 0x3;
+
+    } else {
+        uint8_t bar_address_type = bar_address & 0x3;
+
+        if(bar_address_type != PCI_BAR_MEMORY_32BIT) {
+            return -1;
+        }
+
+        pci_device->data.general.bar[bar_index].type = PCI_BAR_MEMORY_SPACE;
+
+        // Get BAR size through BAR masking
+
+        pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, 0xFFFFFFFF);
+
+        uint32_t mask = pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
+
+        pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, bar_address);
+
+        // Apply size and base address
+
+        pci_device->data.general.bar[bar_index].size = ~(mask & ~0xf) + 1;
+        pci_device->data.general.bar[bar_index].base_address = bar_address;
+        pci_device->data.general.bar[bar_index].flags = bar_address & 0xf;
     }
 
-    uint32_t bar_address = pci_get_bar_address(pci_device, bar_index);
-
-    pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, 0xFFFFFFFF);
-
-    uint32_t mask = pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
-
-    pci_write_dword(pci_device->bus, pci_device->slot, pci_device->function, offset, bar_address);
-
-    return ~(mask & ~0xf) + 1;
+    return 0;
 }
 
-uint8_t pci_get_interrupt_line(pci_device_t* pci_device) {
-    return pci_read_byte(pci_device->bus, pci_device->slot, pci_device->function, PCI_H0_INTERRUPT_LINE);
+static int32_t pci_pci2pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_index) {
+    return -1;
 }
 
 static char* pci_get_device_name(pci_device_t* pci_device) {
@@ -200,6 +223,7 @@ static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t functio
     uint8_t type = pci_read_byte(bus, slot, function, PCI_CLASS);
     uint8_t subtype = pci_read_byte(bus, slot, function, PCI_SUBCLASS);
     uint8_t prog_if = pci_read_byte(bus, slot, function, PCI_PROG_IF);
+    uint8_t header_type = pci_read_byte(bus, slot, function, PCI_HEADER_TYPE);
 
     pci_device_t *device = (pci_device_t*) kmalloc(sizeof(pci_device_t));
 
@@ -215,6 +239,7 @@ static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t functio
     device->type = type;
     device->subtype = subtype;
     device->prog_if = prog_if;
+    device->header_type = header_type;
 
     return device;
 }

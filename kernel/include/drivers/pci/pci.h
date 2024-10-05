@@ -32,6 +32,27 @@
 #define PCI_HEADER_TYPE         0x0E
 #define PCI_BIST                0x0F
 
+// PCI BAR address register
+
+#define PCI_BAR_IO_SPACE        0x01
+#define PCI_BAR_MEMORY_SPACE    0x00
+
+#define PCI_BAR_MEMORY_32BIT    0x00
+#define PCI_BAR_MEMORY_64BIT    0x04
+
+// PCI Header type register
+
+#define PIC_HEADER_TYPE_MULTIFUNCTION   0x80
+
+/** General PCI device */
+#define PCI_HEADER_TYPE_0        0x00
+
+/** PCI-to-PCI bridge */
+#define PCI_HEADER_TYPE_1        0x01
+
+/** PCI-to-CardBus bridge */
+#define PCI_HEADER_TYPE_2        0x02
+
 // PCI header type 0 fields
 
 #define PCI_H0_BAR0             0x10
@@ -43,9 +64,20 @@
 #define PCI_H0_INTERRUPT_LINE   0x3C
 #define PCI_H0_SECONDARY_BUS    0x19
 
-struct pci_general_device_data {
-    uint32_t bar[6];
-    size_t bar_size[6];
+struct pci_bar {
+    uint8_t type;
+
+    union {
+        uint32_t base_address;
+        uint16_t io_port;
+    };
+
+    size_t size;
+    uint8_t flags;
+};
+
+struct pci_general_device_info {
+    struct pci_bar bar[6];
     uint8_t interrupt_line;
 };
 
@@ -60,9 +92,10 @@ struct pci_device {
     uint8_t type;
     uint8_t subtype;
     uint8_t prog_if;
+    uint8_t header_type;
 
     union {
-        struct pci_general_device_data general;
+        struct pci_general_device_info general;
     } data;
 } __attribute__((packed));
 
@@ -74,29 +107,13 @@ struct pci_device {
 int32_t pci_init();
 
 /**
- * Get a BAR value from a PCI device.
+ * Loads the BAR information for a PCI device. Only type 0 and type 1 headers are using
+ * BARs, so this function will only work for those types.
  * 
  * @param pci_device The PCI device.
- * @param bar The BAR number. Must be between 0 and 5.
- * @return The BAR value.
+ * @param bar_index The BAR index. Must be between 0 and 5.
+ * @return 0 if the BAR information was loaded successfully, -1 otherwise.
  */
-uint32_t pci_get_bar_address(pci_device_t* pci_device, uint8_t bar_index);
-
-/**
- * Get the size of a BAR from a PCI device.
- * 
- * @param pci_device The PCI device.
- * @param bar The BAR number. Must be between 0 and 5.
- * @return The size of the BAR.
- */
-size_t pci_get_bar_size(pci_device_t* pci_device, uint8_t bar_index);
-
-/**
- * Get the interrupt line of a PCI device.
- * 
- * @param pci_device The PCI device.
- * @return The interrupt line.
- */
-uint8_t pci_get_interrupt_line(pci_device_t* pci_device);
+int32_t pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_index);
 
 #endif // _KERNEL_DRIVERS_PCI_H
