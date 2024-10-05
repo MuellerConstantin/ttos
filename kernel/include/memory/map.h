@@ -25,6 +25,7 @@
  *              0xC00C0000 - 0xC00C7FFF : Video BIOS
  *          0xC0100000 - 0x???????? : Kernel (Code/Data/BSS)
  *      0xE0000000 - 0xE4000000 : Kernel Heap
+ *      0XF0000000 - 0xF0100000 : AHCI/SATA DMA Buffer
  */
 
 /** Virtual base address of the kernel space. */
@@ -50,6 +51,12 @@
 
 /** Size of kernel heap. */
 #define KERNEL_HEAP_VIRTUAL_SIZE 0x4000000
+
+/** Virtual base address of AHCI/SATA DMA buffer. */
+#define SATA_DMA_BUFFER_VIRTUAL_BASE 0xF0000000
+
+/** Size of AHCI/SATA DMA buffer. */
+#define SATA_DMA_BUFFER_VIRTUAL_SIZE 0x100000
 
 extern const uint32_t kernel_physical_start;
 extern const uint32_t kernel_physical_end;

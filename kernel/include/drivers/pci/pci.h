@@ -43,6 +43,12 @@
 #define PCI_H0_INTERRUPT_LINE   0x3C
 #define PCI_H0_SECONDARY_BUS    0x19
 
+struct pci_general_device_data {
+    uint32_t bar[6];
+    size_t bar_size[6];
+    uint8_t interrupt_line;
+};
+
 typedef struct pci_device pci_device_t;
 
 struct pci_device {
@@ -54,6 +60,10 @@ struct pci_device {
     uint8_t type;
     uint8_t subtype;
     uint8_t prog_if;
+
+    union {
+        struct pci_general_device_data general;
+    } data;
 } __attribute__((packed));
 
 /**

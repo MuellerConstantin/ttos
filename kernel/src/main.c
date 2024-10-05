@@ -21,6 +21,7 @@
 #include <drivers/input/ps2/keyboard.h>
 #include <drivers/storage/ata.h>
 #include <drivers/storage/initrd.h>
+#include <drivers/storage/sata.h>
 #include <io/tty.h>
 #include <io/shell.h>
 #include <sys/switch_usermode.h>
@@ -135,6 +136,7 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
     ps2_keyboard_init();
     pci_init();
     ata_init();
+    sata_init();
 }
 
 static void init_usermode() {
