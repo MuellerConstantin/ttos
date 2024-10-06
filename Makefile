@@ -21,7 +21,7 @@ HDA := hda.img
 SDA := sda.img
 IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
-QEMUFLAGS := -boot order=d -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 4G -d int -no-reboot
+QEMUFLAGS := -boot order=d -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 2G -d int -no-reboot
 
 all: boot/grub/grub.cfg $(INITRD) $(TARGET)
 

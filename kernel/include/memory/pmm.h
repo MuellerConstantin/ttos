@@ -15,6 +15,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <multiboot.h>
+#include <multiboot_util.h>
 
 #define PMM_FRAME_SIZE 4096
 #define PMM_FRAME_ALIGN 4096
@@ -23,9 +25,9 @@
 /**
  * Initialize the Physical Memory Manager.
  * 
- * @param mem_size The total memory size in bytes.
+ * @param multiboot_info The multiboot info structure.
  */
-void pmm_init(size_t mem_size);
+void pmm_init(multiboot_info_t* multiboot_info);
 
 /**
  * Unreserve a region of memory, hence marking it as available.

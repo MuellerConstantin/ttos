@@ -21,4 +21,12 @@
  */
 size_t multiboot_get_memory_size(multiboot_info_t *multiboot_info);
 
+/**
+ * Get the free memory size from the multiboot info structure.
+ * 
+ * @param multiboot_info The multiboot info structure.
+ * @return The free memory size in bytes.
+ */
+size_t multiboot_get_free_memory_size(multiboot_info_t *multiboot_info);
+
 #endif // _KERNEL_MULTIBOOT_UTIL_H

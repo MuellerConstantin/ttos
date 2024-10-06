@@ -14,9 +14,9 @@ static void pmm_unset_frame(uint32_t frame);
 static int pmm_find_free_frame();
 static int pmm_find_free_contiguous_frames(size_t n);
 
-void pmm_init(size_t memory_size) {
-    pmm_memory_size = memory_size;
-    pmm_num_memory_frames = memory_size / PMM_FRAME_SIZE;
+void pmm_init(multiboot_info_t *multiboot_info) {
+    pmm_memory_size = multiboot_get_memory_size(multiboot_info);
+    pmm_num_memory_frames = pmm_memory_size / PMM_FRAME_SIZE;
     pmm_num_memory_frames_used = 0;
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) kmalloc_a(pmm_bitmap_size);
@@ -34,6 +34,17 @@ void pmm_init(size_t memory_size) {
      */
     
     pmm_set_frame(0);
+
+    // Mark the used memory regions given by the multiboot info as reserved
+    for(uint32_t offset = 0;
+        offset < multiboot_info->mmap_length;
+        offset += sizeof(multiboot_memory_map_t)) {
+        multiboot_memory_map_t *mmap = (multiboot_memory_map_t *) (multiboot_info->mmap_addr + offset);
+
+        if(mmap->type == MULTIBOOT_MEMORY_RESERVED) {
+            pmm_mark_region_reserved((void*) mmap->addr, mmap->len);
+        }
+    }
 }
 
 size_t pmm_get_available_memory_size() {

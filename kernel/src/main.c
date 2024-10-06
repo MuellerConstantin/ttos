@@ -97,7 +97,7 @@ static void init_memory(multiboot_info_t *multiboot_info) {
     }
 
     // Initialize the physical memory manager
-    pmm_init(total_memory);
+    pmm_init(multiboot_info);
 
     // Enable paging
     paging_init();
