@@ -13,6 +13,7 @@
  */
 static uint8_t kheap_placement_memory[KHEAP_PLACEMENT_SIZE];
 static uint8_t* kheap_placement_memory_head = kheap_placement_memory;
+static size_t kheap_placement_memory_free_memory = KHEAP_PLACEMENT_SIZE;
 
 static bool kheap_enabled = false;
 
@@ -306,11 +307,12 @@ static void* kmalloc_placement(size_t size, bool align) {
     }
 
     // Prevent memory allocation beyond the heap placement memory
-    if(kheap_placement_memory_head + size > kheap_placement_memory + KHEAP_PLACEMENT_SIZE) {
+    if(size > kheap_placement_memory_free_memory) {
         return NULL;
     }
 
     kheap_placement_memory_head += size;
+    kheap_placement_memory_free_memory -= size;
 
     return addr;
 }

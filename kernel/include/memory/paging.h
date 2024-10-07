@@ -91,8 +91,9 @@ void paging_enable();
  * @param frame_address The physical address of the frame to allocate.
  * @param is_kernel Whether the memory is kernel memory.
  * @param is_writeable Whether the memory is writeable.
+ * @return 0 if the page was allocated successfully, -1 otherwise.
  */
-void paging_allocate_page(page_directory_t *const page_directory, void *const page_address, void* frame_address, bool is_kernel, bool is_writeable);
+int32_t paging_allocate_page(page_directory_t *const page_directory, void *const page_address, void* frame_address, bool is_kernel, bool is_writeable);
 
 /**
  * Free a page in the given page directory.
@@ -101,7 +102,7 @@ void paging_allocate_page(page_directory_t *const page_directory, void *const pa
  * @param page_address The virtual address of the page to free.
  * @return The physical address of the freed page.
  */
-void paging_free_page(page_directory_t *const page_directory, void *const page_address);
+void* paging_free_page(page_directory_t *const page_directory, void *const page_address);
 
 /**
  * Switch to the given page directory.

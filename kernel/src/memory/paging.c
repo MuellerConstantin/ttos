@@ -27,7 +27,7 @@ void paging_switch_page_directory(page_directory_t* current_page_directory, page
     __asm__ volatile("mov %0, %%cr3" : : "r" (physical_address));
 }
 
-void paging_allocate_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {
+int32_t paging_allocate_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {
     page_table_t *table = NULL;
     
     uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
@@ -58,27 +58,20 @@ void paging_allocate_page(page_directory_t *const page_directory, void *const vi
 
     // Allocate a new page if it does not exist
     if(!table->entries[page_table_index].present) {
-        // If no frame address is provided, allocate a new frame
-        if(!frame_address) {
-            frame_address = pmm_alloc_frame();
-
-            if(!frame_address) {
-                KPANIC(KPANIC_PMM_OUT_OF_MEMORY_CODE, KPANIC_PMM_OUT_OF_MEMORY_MESSAGE, NULL);
-            }
-        } else {
-            pmm_mark_region_reserved(frame_address, PAGE_SIZE);
-        }
-
         uint32_t frame_index = pmm_address_to_index(frame_address);
 
         table->entries[page_table_index].present = 1;
         table->entries[page_table_index].read_write = is_writeable ? 1 : 0;
         table->entries[page_table_index].user_supervisor = is_kernel ? 0 : 1;
         table->entries[page_table_index].page_base = frame_index;
+
+        return 0;
     }
+
+    return -1;
 }
 
-void paging_free_page(page_directory_t *const page_directory, void *const virtual_address) {
+void* paging_free_page(page_directory_t *const page_directory, void *const virtual_address) {
     uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
     uint32_t page_table_index = PAGE_TABLE_INDEX(virtual_address);
 
@@ -93,10 +86,11 @@ void paging_free_page(page_directory_t *const page_directory, void *const virtua
     }
 
     void* frame_address = pmm_index_to_address(table->entries[page_table_index].page_base);
-    pmm_free_frame(frame_address);
 
     table->entries[page_table_index].present = 0;
     table->entries[page_table_index].page_base = 0;
+
+    return frame_address;
 }
 
 void* paging_virtual_to_physical_address(const page_directory_t *const page_directory, void *const virtual_address) {

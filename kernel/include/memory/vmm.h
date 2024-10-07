@@ -83,8 +83,7 @@ int32_t vmm_map_memory(void *const virtual_address, size_t size, void* physical_
  * 
  * @param virtual_address The virtual address to unmap the memory from.
  * @param size The size of the memory region.
- * @return 0 if the memory was unmapped successfully, -1 otherwise.
  */
-int32_t vmm_unmap_memory(void *const virtual_address, size_t size);
+void vmm_unmap_memory(void *const virtual_address, size_t size);
 
 #endif // _KERNEL_MEMORY_VMM_H
