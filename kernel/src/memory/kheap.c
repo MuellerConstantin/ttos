@@ -1,4 +1,5 @@
 #include <memory/kheap.h>
+#include <sys/kpanic.h>
 
 /**
  * The placement memory (limited to 1MB) that is used as a fallback
@@ -16,6 +17,8 @@ static uint8_t* kheap_placement_memory_head = kheap_placement_memory;
 static size_t kheap_placement_memory_free_memory = KHEAP_PLACEMENT_SIZE;
 
 static bool kheap_enabled = false;
+
+static void* kheap_base = NULL;
 
 /**
  * Begin of memory allocated for the kernel heap. This is the first
@@ -35,13 +38,17 @@ static inline bool kheap_is_valid_heap_address(void* ptr);
 
 void kheap_init() {
     // Mapping the kernel heap's virtual address space
-    vmm_map_memory((void*) VMM_KERNEL_HEAP_BASE, VMM_KERNEL_HEAP_SIZE, NULL, true, true);
+    kheap_base = vmm_map_memory(NULL, KHEAP_HEAP_SIZE, NULL, true, true);
 
-    kheap_head = (kheap_block_t*) VMM_KERNEL_HEAP_BASE;
+    if(!kheap_base) {
+        KPANIC(KPANIC_VMM_OUT_OF_KERNEL_SPACE_CODE, KPANIC_VMM_OUT_OF_KERNEL_SPACE_MESSAGE, NULL);
+    }
+
+    kheap_head = (kheap_block_t*) kheap_base;
     kheap_head->prev = NULL;
     kheap_head->next = NULL;
     kheap_head->magic = KHEAP_MAGIC;
-    kheap_head->size = VMM_KERNEL_HEAP_SIZE - sizeof(kheap_block_t);
+    kheap_head->size = KHEAP_HEAP_SIZE - sizeof(kheap_block_t);
     kheap_head->free = true;
 
     kheap_tail = kheap_head;
@@ -50,7 +57,7 @@ void kheap_init() {
 }
 
 size_t kheap_get_total_memory_size() {
-    return VMM_KERNEL_HEAP_SIZE;
+    return KHEAP_HEAP_SIZE;
 }
 
 size_t kheap_get_available_memory_size() {
@@ -286,7 +293,7 @@ static inline bool kheap_is_valid_heap_address(void* ptr) {
 
     uintptr_t addr = (uintptr_t) ptr;
 
-    bool in_space = addr >= (uintptr_t) VMM_KERNEL_HEAP_BASE + sizeof(kheap_block_t) && addr < (uintptr_t) VMM_KERNEL_HEAP_BASE + VMM_KERNEL_HEAP_SIZE;
+    bool in_space = addr >= (uintptr_t) kheap_base + sizeof(kheap_block_t) && addr < (uintptr_t) kheap_base + KHEAP_HEAP_SIZE;
 
     kheap_block_t* block = (kheap_block_t*) ((uintptr_t) ptr - sizeof(kheap_block_t));
 

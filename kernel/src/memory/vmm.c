@@ -7,6 +7,7 @@ static page_directory_t *current_page_directory = NULL;
 
 static int32_t vmm_map_page(void *const virtual_address, void* physical_address, bool is_kernel, bool is_writeable);
 static void vmm_unmap_page(void *const virtual_address);
+static void* vmm_find_free_memory(size_t size, bool is_kernel);
 
 void vmm_init() {
     current_page_directory = prepaging_page_directory;
@@ -34,8 +35,16 @@ void vmm_init() {
     paging_enable();
 }
 
-int32_t vmm_map_memory(void *const virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable) {
+void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable) {
     uint32_t frame_address = (uint32_t) physical_address;
+
+    if(!virtual_address) {
+        virtual_address = vmm_find_free_memory(size, is_kernel);
+
+        if(!virtual_address) {
+            return NULL;
+        }
+    }
 
     for(uint32_t page_address = (uint32_t) virtual_address;
         page_address < (uint32_t) virtual_address + size;
@@ -49,7 +58,7 @@ int32_t vmm_map_memory(void *const virtual_address, size_t size, void* physical_
         }
     }
 
-    return 0;
+    return virtual_address;
 }
 
 static int32_t vmm_map_page(void *const virtual_address, void* physical_address, bool is_kernel, bool is_writeable) {
@@ -82,4 +91,31 @@ static void vmm_unmap_page(void *const virtual_address) {
     if(frame_address) {
         pmm_free_frame(frame_address);
     }
+}
+
+static void* vmm_find_free_memory(size_t size, bool is_kernel) {
+    uint32_t space_base_address = is_kernel ? VMM_KERNEL_SPACE_BASE : VMM_USER_SPACE_BASE;
+    uint32_t space_size = is_kernel ? VMM_KERNEL_SPACE_SIZE : VMM_USER_SPACE_SIZE;
+
+    for(uint32_t page_address = space_base_address;
+        page_address < space_base_address + space_size;
+        page_address += PAGE_SIZE) {
+        
+        if(!paging_is_page_used(current_page_directory, (void*) page_address)) {
+            bool is_free = true;
+
+            for(uint32_t index = 0; index < size; index += PAGE_SIZE) {
+                if(paging_is_page_used(current_page_directory, (void*) (page_address + index))) {
+                    is_free = false;
+                    break;
+                }
+            }
+
+            if(is_free) {
+                return (void*) page_address;
+            }
+        }
+    }
+
+    return NULL;
 }

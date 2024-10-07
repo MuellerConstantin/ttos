@@ -47,20 +47,6 @@ extern const uint32_t kernel_physical_end;
 extern const uint32_t kernel_virtual_start;
 extern const uint32_t kernel_virtual_end;
 
-// Addresses of fixed memory regions
-
-/** Virtual base address of kernel heap. */
-#define VMM_KERNEL_HEAP_BASE 0xE0000000
-
-/** Size of kernel heap. */
-#define VMM_KERNEL_HEAP_SIZE 0x4000000
-
-/** Virtual base address of AHCI/SATA DMA buffer. */
-#define VMM_SATA_DMA_BUFFER_BASE 0xF0000000
-
-/** Size of AHCI/SATA DMA buffer. */
-#define VMM_SATA_DMA_BUFFER_SIZE 0x100000
-
 /**
  * Initialize the Virtual Memory Manager.
  */
@@ -69,14 +55,14 @@ void vmm_init();
 /**
  * Map a memory region to a virtual address.
  * 
- * @param virtual_address The virtual address to map the memory to.
+ * @param virtual_address Optional virtual address to map the memory to. If NULL, the VMM will find a free memory region.
  * @param size The size of the memory region.
- * @param physical_address The physical address of the memory region.
- * @param is_kernel Whether the memory is kernel memory.
+ * @param physical_address Optional physical address to map the memory from. If NULL, the VMM will allocate a new frame(s).
+ * @param is_kernel Whether the memory is kernel memory and should be placed in virtual kernel space.
  * @param is_writeable Whether the memory is writeable.
- * @return 0 if the memory was mapped successfully, -1 otherwise.
+ * @return The virtual address of the mapped memory region, or NULL if the memory region could not be mapped.
  */
-int32_t vmm_map_memory(void *const virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable);
+void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable);
 
 /**
  * Unmap a memory region from a virtual address.
@@ -84,6 +70,6 @@ int32_t vmm_map_memory(void *const virtual_address, size_t size, void* physical_
  * @param virtual_address The virtual address to unmap the memory from.
  * @param size The size of the memory region.
  */
-void vmm_unmap_memory(void *const virtual_address, size_t size);
+void vmm_unmap_memory(void* virtual_address, size_t size);
 
 #endif // _KERNEL_MEMORY_VMM_H

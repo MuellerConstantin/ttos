@@ -17,11 +17,11 @@ int32_t sata_init() {
                 return -1;
             }
 
-            if(pci_device->data.general.bar[5].size > VMM_SATA_DMA_BUFFER_BASE) {
+            void* bar5_virtual_base = vmm_map_memory(NULL, pci_device->data.general.bar[5].size, (void*) pci_device->data.general.bar[5].base_address, true, true);
+
+            if(!bar5_virtual_base) {
                 return -1;
             }
-
-            vmm_map_memory((void*) VMM_SATA_DMA_BUFFER_SIZE, pci_device->data.general.bar[5].size, (void*) pci_device->data.general.bar[5].base_address, true, true);
 
             char* new_device_name = (char*) kmalloc(21);
 

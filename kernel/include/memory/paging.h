@@ -14,6 +14,10 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define PAGE_FLAG_FREE 0b000
+#define PAGE_FLAG_USED 0b010
+#define PAGE_FLAG_SWAP 0b100
+
 #define PAGE_SIZE 4096
 #define PAGE_TABLE_SIZE 1024
 #define PAGE_DIRECTORY_SIZE 1024
@@ -120,5 +124,14 @@ void paging_switch_page_directory(page_directory_t* current_page_directory, page
  * @return The physical address of the virtual address.
  */
 void* paging_virtual_to_physical_address(const page_directory_t *const page_directory, void *const virtual_address);
+
+/**
+ * Check whether a page is reserved/used in the given page directory.
+ * 
+ * @param page_directory The page directory to check.
+ * @param virtual_address The virtual address to check.
+ * @return true if the page is reserved, false otherwise.
+ */
+bool paging_is_page_used(const page_directory_t *const page_directory, void *const virtual_address);
 
 #endif // _KERNEL_MEMORY_PAGING_H
