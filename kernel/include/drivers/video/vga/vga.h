@@ -4,7 +4,7 @@
 #include <io/ports.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <memory/map.h>
+#include <memory/vmm.h>
 #include <stdbool.h>
 
 #define VGA_NUM_SEQ_REGISTERS   5
@@ -117,8 +117,8 @@
 #define VGA_DAC_DATA_REGISTER 0x3C9
 #define VGA_DAC_STATE_REGISTER 0x3C7
 
-#define VGA_GFX_VIDEO_MEMORY    (KERNEL_SPACE_VIRTUAL_BASE + 0xA0000)
-#define VGA_TM_VIDEO_MEMORY     (KERNEL_SPACE_VIRTUAL_BASE + 0xB8000)
+#define VGA_GFX_VIDEO_MEMORY    (VMM_LOWER_MEMORY_BASE + 0xA0000)
+#define VGA_TM_VIDEO_MEMORY     (VMM_LOWER_MEMORY_BASE + 0xB8000)
 
 #define VGA_NUM_VIDEO_MODES     20
 

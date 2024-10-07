@@ -2,7 +2,7 @@
 #include <sys/kpanic.h>
 #include <memory/kheap.h>
 #include <memory/pmm.h>
-#include <drivers/serial/uart/16550.h>
+#include <memory/vmm.h>
 
 static page_directory_t *kernel_page_directory = NULL;
 static page_directory_t *current_page_directory = NULL;
@@ -27,11 +27,11 @@ void paging_init() {
 
     memset(kernel_page_directory, 0, sizeof(page_directory_t));
 
-    // Mapping the kernel's virtual address space
-    for(uint32_t page_address = KERNEL_HIGHER_HALF_VIRTUAL_BASE;
-        page_address < KERNEL_HIGHER_HALF_VIRTUAL_BASE + KERNEL_HIGHER_HALF_VIRTUAL_SIZE;
+    // Mapping lower memory + higher half kernel (Physical: 0x00000000 - 0x0FFFFFFF)
+    for(uint32_t page_address = VMM_LOWER_MEMORY_BASE;
+        page_address < VMM_LOWER_MEMORY_BASE + VMM_LOWER_MEMORY_SIZE + VMM_HIGHER_HALF_SIZE;
         page_address += PAGE_SIZE) {
-        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - KERNEL_HIGHER_HALF_VIRTUAL_BASE), true, true);
+        paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - VMM_LOWER_MEMORY_BASE), true, true);
     }
 
     paging_switch_page_directory(kernel_page_directory);
@@ -88,7 +88,7 @@ void paging_unmap_memory(void *const virtual_address, size_t size) {
     }
 }
 
-static void paging_allocate_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {
+void paging_allocate_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {
     page_table_t *table = NULL;
     
     uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
@@ -166,7 +166,7 @@ static void* paging_virtual_to_physical_address(const page_directory_t *const pa
     uint32_t page_offset = PAGE_OFFSET(virtual_address);
 
     if(!paging_enabled) {
-        return (void*) (virtual_address - KERNEL_HIGHER_HALF_VIRTUAL_BASE);
+        return (void*) (virtual_address - VMM_KERNEL_SPACE_BASE);
     }
 
     if (!page_directory->tables[page_directory_index]) {

@@ -35,13 +35,13 @@ static inline bool kheap_is_valid_heap_address(void* ptr);
 
 void kheap_init() {
     // Mapping the kernel heap's virtual address space
-    paging_map_memory((void*) KERNEL_HEAP_VIRTUAL_BASE, KERNEL_HEAP_VIRTUAL_SIZE, NULL, true, true);
+    paging_map_memory((void*) VMM_KERNEL_HEAP_BASE, VMM_KERNEL_HEAP_SIZE, NULL, true, true);
 
-    kheap_head = (kheap_block_t*) KERNEL_HEAP_VIRTUAL_BASE;
+    kheap_head = (kheap_block_t*) VMM_KERNEL_HEAP_BASE;
     kheap_head->prev = NULL;
     kheap_head->next = NULL;
     kheap_head->magic = KHEAP_MAGIC;
-    kheap_head->size = KERNEL_HEAP_VIRTUAL_SIZE - sizeof(kheap_block_t);
+    kheap_head->size = VMM_KERNEL_HEAP_SIZE - sizeof(kheap_block_t);
     kheap_head->free = true;
 
     kheap_tail = kheap_head;
@@ -50,7 +50,7 @@ void kheap_init() {
 }
 
 size_t kheap_get_total_memory_size() {
-    return KERNEL_HEAP_VIRTUAL_SIZE;
+    return VMM_KERNEL_HEAP_SIZE;
 }
 
 size_t kheap_get_available_memory_size() {
@@ -286,7 +286,7 @@ static inline bool kheap_is_valid_heap_address(void* ptr) {
 
     uintptr_t addr = (uintptr_t) ptr;
 
-    bool in_space = addr >= (uintptr_t) KERNEL_HEAP_VIRTUAL_BASE + sizeof(kheap_block_t) && addr < (uintptr_t) KERNEL_HEAP_VIRTUAL_BASE + KERNEL_HEAP_VIRTUAL_SIZE;
+    bool in_space = addr >= (uintptr_t) VMM_KERNEL_HEAP_BASE + sizeof(kheap_block_t) && addr < (uintptr_t) VMM_KERNEL_HEAP_BASE + VMM_KERNEL_HEAP_SIZE;
 
     kheap_block_t* block = (kheap_block_t*) ((uintptr_t) ptr - sizeof(kheap_block_t));
 

@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <memory/map.h>
+#include <memory/vmm.h>
 
 /** Size of the placement memory. */
 #define KHEAP_PLACEMENT_SIZE 0x100000

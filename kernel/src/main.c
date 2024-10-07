@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <multiboot.h>
 #include <multiboot_util.h>
-#include <memory/map.h>
 #include <memory/pmm.h>
+#include <memory/vmm.h>
 #include <memory/paging.h>
 #include <memory/kheap.h>
 #include <descriptors/gdt.h>
@@ -92,7 +92,7 @@ static void init_cpu() {
 static void init_memory(multiboot_info_t *multiboot_info) {
     const size_t total_memory = multiboot_get_memory_size(multiboot_info);
 
-    if(total_memory < KERNEL_MINIMAL_PHYSICAL_RAM_SIZE) {
+    if(total_memory < PMM_KERNEL_MINIMAL_PHYSICAL_RAM_SIZE) {
         KPANIC(KPANIC_RAM_MINIMAL_SIZE_CODE, KPANIC_RAM_MINIMAL_SIZE_MESSAGE, NULL);
     }
 
@@ -115,16 +115,16 @@ static void init_management() {
 }
 
 static void init_drivers(multiboot_info_t *multiboot_info) {
-    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + KERNEL_HIGHER_HALF_VIRTUAL_BASE);
+    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_LOWER_MEMORY_BASE);
 
     // Check if an initial ramdisk is provided
     if(multiboot_info->mods_count > 0) {
-        multiboot_module_t *initrd_module = multiboot_info->mods_addr + KERNEL_HIGHER_HALF_VIRTUAL_BASE;
-        uint32_t initrd_start = (uint32_t) initrd_module->mod_start + KERNEL_HIGHER_HALF_VIRTUAL_BASE;
+        multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_LOWER_MEMORY_BASE;
+        uint32_t initrd_start = (uint32_t) initrd_module->mod_start + VMM_LOWER_MEMORY_BASE;
         size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
 
         // Map the initrd's virtual address space
-        paging_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - KERNEL_HIGHER_HALF_VIRTUAL_BASE, true, true);
+        paging_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - VMM_LOWER_MEMORY_BASE, true, true);
 
         initrd_init((void*) initrd_start, initrd_size);
     }

@@ -3,7 +3,7 @@
 #include <sys/kpanic.h>
 #include <device/device.h>
 #include <drivers/pci/pci.h>
-#include <memory/map.h>
+#include <memory/vmm.h>
 #include <memory/paging.h>
 
 int32_t sata_init() {
@@ -18,11 +18,11 @@ int32_t sata_init() {
                 return -1;
             }
 
-            if(pci_device->data.general.bar[5].size > SATA_DMA_BUFFER_VIRTUAL_SIZE) {
+            if(pci_device->data.general.bar[5].size > VMM_SATA_DMA_BUFFER_BASE) {
                 return -1;
             }
 
-            paging_map_memory((void*) SATA_DMA_BUFFER_VIRTUAL_BASE, pci_device->data.general.bar[5].size, (void*) pci_device->data.general.bar[5].base_address, true, true);
+            paging_map_memory((void*) VMM_SATA_DMA_BUFFER_SIZE, pci_device->data.general.bar[5].size, (void*) pci_device->data.general.bar[5].base_address, true, true);
 
             char* new_device_name = (char*) kmalloc(21);
 
