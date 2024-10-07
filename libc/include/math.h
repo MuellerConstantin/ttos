@@ -13,7 +13,7 @@ extern "C" {
  * @param x The value to compute the ceiling of.
  * @return The smallest integer value not less than `x`.
  */
-double ceil(double x);
+float ceil(float x);
 
 #ifdef __cplusplus
 }
