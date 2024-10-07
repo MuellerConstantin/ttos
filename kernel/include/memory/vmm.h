@@ -12,6 +12,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <memory/pmm.h>
 #include <memory/paging.h>
 
 #define VMM_VM_SIZE 0xFFFFFFFF
@@ -59,5 +60,31 @@ extern const uint32_t kernel_virtual_end;
 
 /** Size of AHCI/SATA DMA buffer. */
 #define VMM_SATA_DMA_BUFFER_SIZE 0x100000
+
+/**
+ * Initialize the Virtual Memory Manager.
+ */
+void vmm_init();
+
+/**
+ * Map a memory region to a virtual address.
+ * 
+ * @param virtual_address The virtual address to map the memory to.
+ * @param size The size of the memory region.
+ * @param physical_address The physical address of the memory region.
+ * @param is_kernel Whether the memory is kernel memory.
+ * @param is_writeable Whether the memory is writeable.
+ * @return 0 if the memory was mapped successfully, -1 otherwise.
+ */
+int32_t vmm_map_memory(void *const virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable);
+
+/**
+ * Unmap a memory region from a virtual address.
+ * 
+ * @param virtual_address The virtual address to unmap the memory from.
+ * @param size The size of the memory region.
+ * @return 0 if the memory was unmapped successfully, -1 otherwise.
+ */
+int32_t vmm_unmap_memory(void *const virtual_address, size_t size);
 
 #endif // _KERNEL_MEMORY_VMM_H

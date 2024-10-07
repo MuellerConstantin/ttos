@@ -79,49 +79,45 @@ typedef struct page_directory page_directory_t;
 extern const page_directory_t *const prepaging_page_directory;
 
 /**
- * Initialize the paging system.
+ * Enable paging.
  */
-void paging_init();
+void paging_enable();
 
 /**
- * Get the current page directory.
+ * Allocate a page in the given page directory.
  * 
- * @return The current page directory.
- */
-page_directory_t* paging_get_current_page_directory();
-
-/**
- * Map given virtual memory to some physical memory.
- * 
- * @param virtual_address The virtual address to map.
- * @param size The size of the memory to map.
- * @param physical_address Optional physical address to map to.
+ * @param page_directory The page directory to allocate the page in.
+ * @param page_address The virtual address to allocate the page at.
+ * @param frame_address The physical address of the frame to allocate.
  * @param is_kernel Whether the memory is kernel memory.
  * @param is_writeable Whether the memory is writeable.
  */
-void paging_map_memory(void *const virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable);
+void paging_allocate_page(page_directory_t *const page_directory, void *const page_address, void* frame_address, bool is_kernel, bool is_writeable);
 
 /**
- * Unmap given virtual memory.
+ * Free a page in the given page directory.
  * 
- * @param virtual_address The virtual address to unmap.
- * @param size The size of the memory to unmap.
+ * @param page_directory The page directory to free the page in.
+ * @param page_address The virtual address of the page to free.
+ * @return The physical address of the freed page.
  */
-void paging_unmap_memory(void *const virtual_address, size_t size);
+void paging_free_page(page_directory_t *const page_directory, void *const page_address);
 
 /**
  * Switch to the given page directory.
  * 
- * @param page_directory The page directory to switch to.
+ * @param current_page_directory The current page directory.
+ * @param new_page_directory The new page directory to switch to.
  */
-void paging_switch_page_directory(page_directory_t* page_directory);
+void paging_switch_page_directory(page_directory_t* current_page_directory, page_directory_t* new_page_directory);
 
 /**
- * Copy the given page directory.
+ * translate a virtual address to a physical address.
  * 
- * @param src_page_directory The page directory to copy.
- * @return The copied page directory.
+ * @param page_directory The page directory to use for translation.
+ * @param virtual_address The virtual address to translate.
+ * @return The physical address of the virtual address.
  */
-page_directory_t* paging_copy_page_directory(page_directory_t* src_page_directory);
+void* paging_virtual_to_physical_address(const page_directory_t *const page_directory, void *const virtual_address);
 
 #endif // _KERNEL_MEMORY_PAGING_H

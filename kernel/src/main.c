@@ -4,7 +4,6 @@
 #include <multiboot_util.h>
 #include <memory/pmm.h>
 #include <memory/vmm.h>
-#include <memory/paging.h>
 #include <memory/kheap.h>
 #include <descriptors/gdt.h>
 #include <descriptors/idt.h>
@@ -99,8 +98,8 @@ static void init_memory(multiboot_info_t *multiboot_info) {
     // Initialize the physical memory manager
     pmm_init(multiboot_info);
 
-    // Enable paging
-    paging_init();
+    // Initialize the virtual memory manager
+    vmm_init();
 
     // Initialize the kernel heap
     kheap_init();
@@ -124,7 +123,7 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
         size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
 
         // Map the initrd's virtual address space
-        paging_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - VMM_LOWER_MEMORY_BASE, true, true);
+        vmm_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - VMM_LOWER_MEMORY_BASE, true, true);
 
         initrd_init((void*) initrd_start, initrd_size);
     }

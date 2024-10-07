@@ -1,5 +1,4 @@
 #include <memory/kheap.h>
-#include <memory/paging.h>
 
 /**
  * The placement memory (limited to 1MB) that is used as a fallback
@@ -35,7 +34,7 @@ static inline bool kheap_is_valid_heap_address(void* ptr);
 
 void kheap_init() {
     // Mapping the kernel heap's virtual address space
-    paging_map_memory((void*) VMM_KERNEL_HEAP_BASE, VMM_KERNEL_HEAP_SIZE, NULL, true, true);
+    vmm_map_memory((void*) VMM_KERNEL_HEAP_BASE, VMM_KERNEL_HEAP_SIZE, NULL, true, true);
 
     kheap_head = (kheap_block_t*) VMM_KERNEL_HEAP_BASE;
     kheap_head->prev = NULL;
