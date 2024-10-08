@@ -44,14 +44,17 @@ static const uint32_t PS2_KEYBOARD_SET1_EXTENDED_KEYCODES[] = {
 };
 
 int32_t ps2_keyboard_init(void) {
-    // Test if the first PS/2 port is present
-    if(!ps2_8042_first_port_probe()) {
-        return -1;
-    }
+    /*
+     * Check for an 8042 PS/2 controller. The 8042 controller is a chip that is used to interface
+     * the PS/2 keyboard and mouse with the system. In modern systems, the 8042 controller is not
+     * present and the PS/2 controller is integrated into the Advanced Integrated Peripheral (AIP)
+     * chipset.
+     */
 
-    // Init and enable first PS/2 port
-    ps2_8042_init_first_port(true);
-    ps2_8042_enable_first_port();
+    if(ps2_8042_first_port_probe()) {
+        ps2_8042_init_first_port(true);
+        ps2_8042_enable_first_port();
+    }
 
     if(!ps2_keyboard_probe()) {
         return -1;
@@ -112,7 +115,9 @@ static bool ps2_keyboard_probe(void) {
     // Send self-test command
     outb(PS2_DATA_REGISTER, 0xFF);
 
-    return inb(PS2_DATA_REGISTER) == 0xFA;
+    uint8_t response = inb(PS2_DATA_REGISTER);
+
+    return response != 0xFC && response != 0xFD;
 }
 
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {

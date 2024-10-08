@@ -153,11 +153,11 @@ static void run_cli() {
     keyboard_device_t* keyboard_device = device_find_by_type(DEVICE_TYPE_KEYBOARD);
 
     if(!video_device) {
-        KPANIC(KPANIC_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
+        KPANIC(KPANIC_NO_OUTPUT_DEVICE_FOUND_CODE, KPANIC_NO_OUTPUT_DEVICE_FOUND_MESSAGE, NULL);
     }
 
     if(!keyboard_device) {
-        KPANIC(KPANIC_NO_OUTPUT_DEVICE_FOUND_CODE, KPANIC_NO_OUTPUT_DEVICE_FOUND_MESSAGE, NULL);
+        KPANIC(KPANIC_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
     }
 
     // init_usermode();
