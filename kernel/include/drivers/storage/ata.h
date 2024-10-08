@@ -1,10 +1,10 @@
 /**
  * @file ata.h
- * @brief A basic IDE/ATA driver.
+ * @brief A basic legacy IDE/ATA driver.
  * 
  * This file contains definitions for the ATA driver. The driver is capable of reading and writing
- * data from/to ATA drives. It requires an on-board IDE controller for detecting and accessing
- * ATA drives.
+ * data from/to ATA drives. It requires an on-board IDE controller in legacy mode for detecting and
+ * accessing ATA drives.
  */
 
 #ifndef _KERNEL_DRIVERS_STORAGE_ATA_H

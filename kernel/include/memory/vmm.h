@@ -12,6 +12,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <memory/pmm.h>
 #include <memory/paging.h>
 
@@ -71,5 +72,19 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
  * @param size The size of the memory region.
  */
 void vmm_unmap_memory(void* virtual_address, size_t size);
+
+/**
+ * Check if a virtual address is mapped. More precisely, it checks if the page related
+ * to the virtual address is mapped.
+ */
+bool vmm_is_mapped(void* virtual_address);
+
+/**
+ * Get the physical address of a mapped virtual address.
+ * 
+ * @param virtual_address The virtual address to get the physical address for.
+ * @return The physical address of the virtual address, or NULL if the virtual address is not mapped.
+ */
+void* vmm_get_mapped_address(void* virtual_address);
 
 #endif // _KERNEL_MEMORY_VMM_H

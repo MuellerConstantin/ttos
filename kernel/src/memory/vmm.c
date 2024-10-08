@@ -119,3 +119,11 @@ static void* vmm_find_free_memory(size_t size, bool is_kernel) {
 
     return NULL;
 }
+
+bool vmm_is_mapped(void* virtual_address) {
+    return paging_is_page_used(current_page_directory, virtual_address);
+}
+
+void* vmm_get_mapped_address(void* virtual_address) {
+    return paging_virtual_to_physical_address(current_page_directory, virtual_address);
+}

@@ -20,6 +20,16 @@ extern "C" {
 char *itoa(uint32_t n, char *buf, uint32_t base);
 
 /**
+ * Converts a double to a string.
+ * 
+ * @param n The double to convert.
+ * @param precision The number of decimal places to include.
+ * @param buf The buffer to store the string in.
+ * @return The string representation of the double.
+ */
+char *gcvt(double n, int precision, char *buf);
+
+/**
  * Initializes the random number generator with a seed.
  * 
  * @param seed The seed to initialize the random number generator with.
