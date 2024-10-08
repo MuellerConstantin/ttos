@@ -57,27 +57,29 @@ class InitfsFileHeader:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="mkinitrd", description="Generates a binary initrd image")
     parser.add_argument("-o", "--output", type=str, help="Binary output file.", default="initrd.img")
-    parser.add_argument("files", type=str, nargs="*", help="Files to include in the initrd.")
+    parser.add_argument("-i", "--input", type=str, help="Path to the input directory.")
 
     args = parser.parse_args()
+
+    input_files = [os.path.join(args.input, file) for file in os.listdir(args.input) if os.path.isfile(os.path.join(args.input, file))]
 
     with open(args.output, "wb") as image:
         initrd_header = InitrdHeader()
         image.write(initrd_header.pack())
 
-        initfs_header = InitfsHeader(len(args.files))
+        initfs_header = InitfsHeader(len(input_files))
         image.write(initfs_header.pack())
 
-        offset = InitfsHeader.size() + len(args.files) * InitfsFileHeader.size()
+        offset = InitfsHeader.size() + len(input_files) * InitfsFileHeader.size()
 
-        for file in args.files:
+        for file in input_files:
             file_size = os.path.getsize(file)
             file_header = InitfsFileHeader(os.path.basename(file), offset, file_size)
             image.write(file_header.pack())
 
             offset += file_size
 
-        for file in args.files:
+        for file in input_files:
             with open(file, "rb") as entry:
                 image.write(entry.read())
 

@@ -59,7 +59,7 @@ static bool _device_register_compare(void* node_data, void* compare_data) {
     return node_device == compare_device;
 }
 
-void device_register(device_t* parent, device_t* device) {
+int32_t device_register(device_t* parent, device_t* device) {
     generic_tree_node_t* parent_node = NULL;
 
     if(!parent) {
@@ -69,7 +69,7 @@ void device_register(device_t* parent, device_t* device) {
     }
 
     if(!parent_node) {
-        KPANIC(KPANIC_DEVICE_NOT_FOUND_CODE, KPANIC_DEVICE_NOT_FOUND_MESSAGE, NULL);
+        return -1;
     }
 
     generic_tree_node_t* new_node = generic_tree_create_node(device);
@@ -84,6 +84,8 @@ void device_register(device_t* parent, device_t* device) {
     if(device->type == DEVICE_TYPE_STORAGE) {
         volume_register_device((storage_device_t*) device);
     }
+
+    return 0;
 }
 
 static bool _device_unregister_compare(void* node_data, void* compare_data) {
@@ -93,11 +95,11 @@ static bool _device_unregister_compare(void* node_data, void* compare_data) {
     return node_device == compare_device;
 }
 
-void device_unregister(device_t* device) {
+int32_t device_unregister(device_t* device) {
     generic_tree_node_t* node = generic_tree_find(device_tree, _device_unregister_compare, device);
 
     if(!node) {
-        KPANIC(KPANIC_DEVICE_NOT_FOUND_CODE, KPANIC_DEVICE_NOT_FOUND_MESSAGE, NULL);
+        return -1;
     }
 
     generic_tree_remove(device_tree, node);
@@ -107,6 +109,8 @@ void device_unregister(device_t* device) {
     if(device->type == DEVICE_TYPE_STORAGE) {
         volume_unregister_device((storage_device_t*) device);
     }
+
+    return 0;
 }
 
 static bool _device_find_by_type_compare(void* node_data, void* compare_data) {

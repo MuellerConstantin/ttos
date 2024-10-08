@@ -34,19 +34,13 @@ size_t volume_register_device(storage_device_t* device) {
         }
 
         generate_uuid_v4(&volume->id);
-        volume->name = (char*) kmalloc(strlen(device->info.name) + 4);
+        volume->name = (char*) kmalloc(strlen(device->info.name));
 
         if(!volume->name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
         strcpy(volume->name, device->info.name);
-        strcpy(volume->name + strlen(device->info.name), " #");
-
-        char partition_number[2];
-        itoa(1, partition_number, 10);
-
-        strcpy(volume->name + strlen(device->info.name) + 2, partition_number);
 
         volume->offset = 0;
         volume->size = device->driver->total_size();

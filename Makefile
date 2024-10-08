@@ -57,7 +57,7 @@ $(TARGET):
 
 $(INITRD):
 
-	./scripts/mkinitrd.py -o $(INITRD)
+	./scripts/mkinitrd.py -o $(INITRD) -i initrd
 
 $(HDA):
 

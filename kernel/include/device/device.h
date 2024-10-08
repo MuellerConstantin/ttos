@@ -101,15 +101,17 @@ const generic_tree_t* device_get_all();
  * 
  * @param parent The parent device.
  * @param device The device to register.
+ * @return 0 if the device was registered successfully, -1 otherwise.
  */
-void device_register(device_t* parent, device_t* device);
+int32_t device_register(device_t* parent, device_t* device);
 
 /**
  * Unregister a device.
  * 
  * @param device The device to unregister.
+ * @return 0 if the device was unregistered successfully, -1 otherwise.
  */
-void device_unregister(device_t* device);
+int32_t device_unregister(device_t* device);
 
 /**
  * Find a device by ID.

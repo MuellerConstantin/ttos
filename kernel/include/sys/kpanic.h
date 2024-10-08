@@ -17,27 +17,55 @@
 
 #define KPANIC(code, message, info) kpanic(code, message, __FILE__, __LINE__, info)
 
-#define KPANIC_CPU_EXCEPTION_TYPE(code)             (0x100000 | (code))
-#define KPANIC_MULTIBOOT_EXCEPTION_TYPE(code)       (0x200000 | (code))
+#define KPANIC_CPU_EXCEPTION_TYPE(code)             (0x000000 | (code))
+#define KPANIC_MULTIBOOT_EXCEPTION_TYPE(code)       (0x100000 | (code))
+#define KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(code)  (0x200000 | (code))
 #define KPANIC_MEMORY_EXCEPTION_TYPE(code)          (0x300000 | (code))
-#define KPANIC_FILESYSTEM_EXCEPTION_TYPE(code)      (0x400000 | (code))
-#define KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(code)  (0x500000 | (code))
 
-// Multiboot exceptions
+/*
+ * Multiboot exceptions
+ *
+ * Multiboot exceptions are used if the bootloader does not provide the necessary information
+ * for the kernel to boot properly.
+ */
 
 #define KPANIC_INVALID_MULTIBOOT_SIGNATURE_CODE         KPANIC_MULTIBOOT_EXCEPTION_TYPE(0)
 #define KPANIC_INVALID_MULTIBOOT_SIGNATURE_MESSAGE      "Invalid Multiboot signature"
 
-#define KPANIC_NO_MEMORY_MAP_CODE       KPANIC_MULTIBOOT_EXCEPTION_TYPE(1)
-#define KPANIC_NO_MEMORY_MAP_MESSAGE    "No memory map provided by Multiboot"
+#define KPANIC_NO_MEMORY_MAP_CODE                       KPANIC_MULTIBOOT_EXCEPTION_TYPE(1)
+#define KPANIC_NO_MEMORY_MAP_MESSAGE                    "No memory map provided by Multiboot"
 
-#define KPANIC_NO_MODULES_PROVIDED_CODE         KPANIC_MULTIBOOT_EXCEPTION_TYPE(2)
-#define KPANIC_NO_MODULES_PROVIDED_MESSAGE      "No modules provided by Multiboot"
+#define KPANIC_NO_MODULES_PROVIDED_CODE                 KPANIC_MULTIBOOT_EXCEPTION_TYPE(2)
+#define KPANIC_NO_MODULES_PROVIDED_MESSAGE              "No module information provided by Multiboot"
 
-// Memory exceptions
+/*
+ * Infrastructure exceptions
+ *
+ * Infrastructure exceptions are used if a device, required by the kernel to function properly, or
+ * a required volume is not found. This can be an input or output device.
+ */
 
-#define KPANIC_RAM_MINIMAL_SIZE_CODE           KPANIC_MEMORY_EXCEPTION_TYPE(0)
-#define KPANIC_RAM_MINIMAL_SIZE_MESSAGE        "RAM size is less than the minimal required size"
+#define KPANIC_NO_INITRD_DEVICE_FOUND_CODE      KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(0)
+#define KPANIC_NO_INITRD_DEVICE_FOUND_MESSAGE   "No initial ramdisk device/volume found"
+
+#define KPANIC_INITRD_MOUNT_FAILED_CODE         KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(1)
+#define KPANIC_INITRD_MOUNT_FAILED_MESSAGE      "Failed to mount initial ramdisk"
+
+#define KPANIC_NO_INPUT_DEVICE_FOUND_CODE       KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(2)
+#define KPANIC_NO_INPUT_DEVICE_FOUND_MESSAGE    "No input device found"
+
+#define KPANIC_NO_OUTPUT_DEVICE_FOUND_CODE      KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(3)
+#define KPANIC_NO_OUTPUT_DEVICE_FOUND_MESSAGE   "No output device found"
+
+/*
+ * Memory exceptions
+ *
+ * Memory exceptions are used if the kernel runs out of memory or if the memory is not sufficient
+ * for the kernel to boot properly.
+ */
+
+#define KPANIC_RAM_MINIMAL_SIZE_CODE            KPANIC_MEMORY_EXCEPTION_TYPE(0)
+#define KPANIC_RAM_MINIMAL_SIZE_MESSAGE         "RAM size is less than the minimal required size"
 
 #define KPANIC_PMM_OUT_OF_MEMORY_CODE           KPANIC_MEMORY_EXCEPTION_TYPE(1)
 #define KPANIC_PMM_OUT_OF_MEMORY_MESSAGE        "Physical memory manager out of memory"
@@ -50,17 +78,6 @@
 
 #define KPANIC_VMM_OUT_OF_KERNEL_SPACE_CODE     KPANIC_MEMORY_EXCEPTION_TYPE(4)
 #define KPANIC_VMM_OUT_OF_KERNEL_SPACE_MESSAGE  "Out of kernel space memory"
-
-// Device Manager exceptions
-
-#define KPANIC_DEVICE_NOT_FOUND_CODE     KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(0)
-#define KPANIC_DEVICE_NOT_FOUND_MESSAGE  "Parent device not found"
-
-#define KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_CODE     KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(1)
-#define KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_MESSAGE  "No input device found"
-
-#define KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_CODE    KPANIC_DEVICE_MANAGER_EXCEPTION_TYPE(2)
-#define KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_MESSAGE "No output device found"
 
 /**
  * Panic handler for the kernel that displays a message on

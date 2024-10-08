@@ -21,6 +21,8 @@
 #include <drivers/storage/ata.h>
 #include <drivers/storage/initrd.h>
 #include <drivers/storage/sata.h>
+#include <fs/mount.h>
+#include <fs/file.h>
 #include <io/tty.h>
 #include <io/shell.h>
 #include <sys/switch_usermode.h>
@@ -30,6 +32,8 @@ static void init_memory(multiboot_info_t *multiboot_info);
 static void init_management();
 static void init_drivers(multiboot_info_t *multiboot_info);
 static void init_usermode();
+static void run_cli();
+static void display_banner(tty_t* tty0);
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
@@ -53,31 +57,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_sti();
 
-    // init_usermode();
-
-    video_device_t* video_device = device_find_by_type(DEVICE_TYPE_VIDEO);
-    keyboard_device_t* keyboard_device = device_find_by_type(DEVICE_TYPE_KEYBOARD);
-
-    if(!video_device) {
-        KPANIC(KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_CODE, KPANIC_DEVICE_NO_OUTPUT_DEVICE_FOUND_MESSAGE, NULL);
-    }
-
-    if(!keyboard_device) {
-        KPANIC(KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_DEVICE_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
-    }
-
-    tty_t* tty0 = tty_create(video_device, keyboard_device, &tty_keyboard_layout_de_DE);
-
-    tty_printf(tty0, " _____  _____  ____  ____ \n");
-    tty_printf(tty0, "/__ __\\/__ __\\/  _ \\/ ___\\\n");
-    tty_printf(tty0, "  / \\    / \\  | / \\||    \\\n");
-    tty_printf(tty0, "  | |    | |  | \\_/|\\___ |\n");
-    tty_printf(tty0, "  \\_/    \\_/  \\____/\\____/\n");
-    tty_printf(tty0, "Tiny Toy Operating System\n");
-    tty_printf(tty0, "-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n");
-
-    shell_t* shell = shell_create(tty0);
-    shell_execute(shell);
+    run_cli();
 
     while(1);
 }
@@ -152,4 +132,72 @@ static void init_usermode() {
     // TODO: Launch a user process with separate address space
 
     switch_usermode();
+}
+
+static void run_cli() {
+    // Temporary mount the initial ramdisk to setup the CLI
+
+    volume_t* initrd_volume = volume_find_by_name("Initial Ramdisk");
+
+    if(!initrd_volume) {
+        KPANIC(KPANIC_NO_INITRD_DEVICE_FOUND_CODE, KPANIC_NO_INITRD_DEVICE_FOUND_MESSAGE, NULL);
+    }
+
+    if(mnt_volume_mount(DRIVE_A, initrd_volume) != 0) {
+        KPANIC(KPANIC_INITRD_MOUNT_FAILED_CODE, KPANIC_INITRD_MOUNT_FAILED_MESSAGE, NULL);
+    }
+
+    // Ensure that io devices required for the CLI are available
+
+    video_device_t* video_device = device_find_by_type(DEVICE_TYPE_VIDEO);
+    keyboard_device_t* keyboard_device = device_find_by_type(DEVICE_TYPE_KEYBOARD);
+
+    if(!video_device) {
+        KPANIC(KPANIC_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
+    }
+
+    if(!keyboard_device) {
+        KPANIC(KPANIC_NO_OUTPUT_DEVICE_FOUND_CODE, KPANIC_NO_OUTPUT_DEVICE_FOUND_MESSAGE, NULL);
+    }
+
+    // init_usermode();
+
+    tty_t* tty0 = tty_create(video_device, keyboard_device, &tty_keyboard_layout_de_DE);
+
+    display_banner(tty0);
+
+    // Unmount the initial ramdisk
+
+    mnt_volume_unmount(DRIVE_A);
+
+    // Initialize the CLI
+
+    shell_t* shell = shell_create(tty0);
+    shell_execute(shell);
+}
+
+static void display_banner(tty_t* tty0) {
+    const char* PATH = "A:/banner.txt";
+
+    int32_t banner_fd = file_open(PATH, FILE_MODE_R);
+
+    if(banner_fd < 0) {
+        return;
+    }
+
+    char buffer[64];
+    int32_t bytes_read;
+
+    do {
+        bytes_read = file_read(banner_fd, buffer, sizeof(buffer));
+
+        if(bytes_read > 0) {
+            buffer[bytes_read] = '\0';
+            tty_printf(tty0, "%s", buffer);
+        }
+    } while(bytes_read > 0);
+
+    tty_printf(tty0, "\n\n");
+
+    file_close(banner_fd);
 }
