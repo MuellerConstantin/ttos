@@ -184,6 +184,11 @@ int tty_vprintf(tty_t* tty0, const char *format, va_list args) {
             format++;
 
             switch(*format) {
+                case '%': {
+                    tty_putchar(tty0, '%');
+                    count++;
+                    break;
+                }
                 case 'c': {
                     char ch = va_arg(args, int);
                     tty_putchar(tty0, ch);
@@ -263,7 +268,7 @@ int tty_vprintf(tty_t* tty0, const char *format, va_list args) {
                     double num = va_arg(args, double);
                     char num_str[32];
 
-                    gcvt(num, 4, num_str);
+                    gcvt(num, 2, num_str);
 
                     for(int i = 0; num_str[i] != '\0'; i++) {
                         tty_putchar(tty0, num_str[i]);
