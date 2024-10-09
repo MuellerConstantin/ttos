@@ -51,11 +51,6 @@ int32_t ps2_keyboard_init(void) {
      * chipset.
      */
 
-    if(ps2_8042_first_port_probe()) {
-        ps2_8042_init_first_port(true);
-        ps2_8042_enable_first_port();
-    }
-
     if(!ps2_keyboard_probe()) {
         return -1;
     }
@@ -121,8 +116,6 @@ static bool ps2_keyboard_probe(void) {
 }
 
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
-    ps2_8042_disable_first_port();
-
     // Check if data is available
     if(inb(PS2_STATUS_REGISTER) & 0x01) {
         uint8_t scancode = inb(PS2_DATA_REGISTER);
@@ -245,6 +238,4 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
             }
         }
     }
-
-    ps2_8042_enable_first_port();
 }

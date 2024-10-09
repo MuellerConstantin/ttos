@@ -56,12 +56,24 @@ void vmm_init();
 /**
  * Map a memory region to a virtual address.
  * 
+ * It is important to note that the VMM can only map whole pages, so the given
+ * virtual/physical address should be page aligned and the size should be a multiple
+ * of the page size. If that is not the case, the VMM will still reserve whole pages,
+ * even if the given virtual address starts in the middle of a page or the size is not
+ * a multiple of the page size.
+ * 
+ * This results in a always page aligned virtual address that is returned if no custom
+ * virtual address is specified, even if the given physical address is not page aligned.
+ * This means that the returned virtual address is the base address of the mapped memory
+ * region and not necessarily the virtual address related to the physical address.
+ * 
  * @param virtual_address Optional virtual address to map the memory to. If NULL, the VMM will find a free memory region.
+ *        If the address is given, it will be made page aligned.
  * @param size The size of the memory region.
  * @param physical_address Optional physical address to map the memory from. If NULL, the VMM will allocate a new frame(s).
  * @param is_kernel Whether the memory is kernel memory and should be placed in virtual kernel space.
  * @param is_writeable Whether the memory is writeable.
- * @return The virtual address of the mapped memory region, or NULL if the memory region could not be mapped.
+ * @return The page aligned virtual address of the mapped memory region, or NULL if the memory region could not be mapped.
  */
 void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable);
 

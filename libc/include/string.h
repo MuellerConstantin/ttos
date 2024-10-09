@@ -78,6 +78,17 @@ void *memsetw(void *dest, uint16_t value, size_t n);
 void *memcpy(void *dest, const void *src, size_t n);
 
 /**
+ * Compares the first n bytes of the objects pointed to by s1 and s2.
+ * 
+ * @param s1 The first object to compare.
+ * @param s2 The second object to compare.
+ * @param n The number of bytes to compare.
+ * @return An integer less than, equal to, or greater than zero if the first n bytes of s1 is found,
+ *         respectively, to be less than, to match, or be greater than the first n bytes of s2.
+ */
+int memcmp(const void *s1, const void *s2, size_t n);
+
+/**
  * Separates the string into tokens.
  * 
  * @param stringp The string to separate.
