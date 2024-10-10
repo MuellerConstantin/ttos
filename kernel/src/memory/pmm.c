@@ -31,16 +31,8 @@ void pmm_init(multiboot_info_t *multiboot_info) {
     pmm_memory_regions = pmm_get_memory_regions(multiboot_info);
     pmm_total_memory_size = pmm_fetch_total_memory_size(pmm_memory_regions);
 
-    if(pmm_total_memory_size < PMM_MIN_MEMORY_SIZE) {
-        KPANIC(KPANIC_RAM_MINIMAL_SIZE_CODE, KPANIC_RAM_MINIMAL_SIZE_MESSAGE, NULL);
-    }
-
-    // Calculate the number of memory frames
-
-    pmm_memory_region_t* last_region = (pmm_memory_region_t*) pmm_memory_regions->tail->data;
-    uint32_t pmm_address_space_end = last_region->base + last_region->length - 1;
-
-    pmm_num_memory_frames = pmm_address_space_end / PMM_FRAME_SIZE;
+    // Create bitmap for full physical address space
+    pmm_num_memory_frames = PMM_PAS_SIZE / PMM_FRAME_SIZE;
     pmm_num_memory_frames_used = pmm_num_memory_frames;
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) kmalloc_a(pmm_bitmap_size);

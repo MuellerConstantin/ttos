@@ -64,10 +64,7 @@
  * for the kernel to boot properly.
  */
 
-#define KPANIC_RAM_MINIMAL_SIZE_CODE            KPANIC_MEMORY_EXCEPTION_TYPE(0)
-#define KPANIC_RAM_MINIMAL_SIZE_MESSAGE         "RAM size is less than the minimal required size"
-
-#define KPANIC_PMM_OUT_OF_MEMORY_CODE           KPANIC_MEMORY_EXCEPTION_TYPE(1)
+#define KPANIC_PMM_OUT_OF_MEMORY_CODE           KPANIC_MEMORY_EXCEPTION_TYPE(0)
 #define KPANIC_PMM_OUT_OF_MEMORY_MESSAGE        "Physical memory manager out of memory"
 
 #define KPANIC_KHEAP_OUT_OF_MEMORY_CODE         KPANIC_MEMORY_EXCEPTION_TYPE(2)
