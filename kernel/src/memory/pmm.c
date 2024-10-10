@@ -12,7 +12,7 @@ struct pmm_memory_region {
 };
 
 static linked_list_t* pmm_memory_regions = NULL;
-static size_t pmm_memory_size = 0;
+static size_t pmm_total_memory_size = 0;
 static size_t pmm_num_memory_frames = 0;
 static size_t pmm_num_memory_frames_used = 0;
 static size_t pmm_bitmap_size = 0;
@@ -20,7 +20,7 @@ static uint8_t *pmm_bitmap = NULL;
 
 static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info);
 static int pmm_memory_region_compare(void* a, void* b);
-static size_t pmm_get_installed_memory_size(linked_list_t* memory_regions);
+static size_t pmm_fetch_total_memory_size(linked_list_t* memory_regions);
 static bool pmm_test_frame(uint32_t frame);
 static void pmm_set_frame(uint32_t frame);
 static void pmm_unset_frame(uint32_t frame);
@@ -29,14 +29,18 @@ static int pmm_find_free_contiguous_frames(size_t n);
 
 void pmm_init(multiboot_info_t *multiboot_info) {
     pmm_memory_regions = pmm_get_memory_regions(multiboot_info);
+    pmm_total_memory_size = pmm_fetch_total_memory_size(pmm_memory_regions);
 
-    pmm_memory_size = pmm_get_installed_memory_size(pmm_memory_regions);
-
-    if(pmm_memory_size < PMM_MIN_MEMORY_SIZE) {
+    if(pmm_total_memory_size < PMM_MIN_MEMORY_SIZE) {
         KPANIC(KPANIC_RAM_MINIMAL_SIZE_CODE, KPANIC_RAM_MINIMAL_SIZE_MESSAGE, NULL);
     }
 
-    pmm_num_memory_frames = pmm_memory_size / PMM_FRAME_SIZE;
+    // Calculate the number of memory frames
+
+    pmm_memory_region_t* last_region = (pmm_memory_region_t*) pmm_memory_regions->tail->data;
+    uint32_t pmm_address_space_end = last_region->base + last_region->length - 1;
+
+    pmm_num_memory_frames = pmm_address_space_end / PMM_FRAME_SIZE;
     pmm_num_memory_frames_used = pmm_num_memory_frames;
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) kmalloc_a(pmm_bitmap_size);
@@ -111,7 +115,7 @@ static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info) {
     return memory_regions;
 }
 
-static size_t pmm_get_installed_memory_size(linked_list_t* memory_regions) {
+static size_t pmm_fetch_total_memory_size(linked_list_t* memory_regions) {
     size_t installed_memory_size = 0;
 
     linked_list_foreach(memory_regions, node) {
@@ -128,7 +132,7 @@ size_t pmm_get_available_memory_size() {
 }
 
 size_t pmm_get_total_memory_size() {
-    return pmm_memory_size;
+    return pmm_total_memory_size;
 }
 
 void pmm_mark_region_available(void* base, size_t size) {

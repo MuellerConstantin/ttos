@@ -102,7 +102,8 @@ void pmm_free_frames(void *frame_addr, size_t n);
 size_t pmm_get_available_memory_size();
 
 /**
- * Get the total phyiscal memory size.
+ * Get the total phyiscal memory size available for the system. This is
+ * not necessarily the total installed memory size.
  * 
  * @return The total phyiscal memory size in bytes.
  */
