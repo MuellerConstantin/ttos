@@ -69,12 +69,6 @@ static void init_cpu() {
 }
 
 static void init_memory(multiboot_info_t *multiboot_info) {
-    const size_t total_memory = multiboot_get_memory_size(multiboot_info);
-
-    if(total_memory < PMM_KERNEL_MINIMAL_PHYSICAL_RAM_SIZE) {
-        KPANIC(KPANIC_RAM_MINIMAL_SIZE_CODE, KPANIC_RAM_MINIMAL_SIZE_MESSAGE, NULL);
-    }
-
     // Initialize the physical memory manager
     pmm_init(multiboot_info);
 

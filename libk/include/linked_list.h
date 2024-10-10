@@ -216,4 +216,23 @@ static inline linked_list_node_t* linked_list_find(linked_list_t* list, bool (*c
     return NULL;
 }
 
+/**
+ * Sort the list using the given comparison function.
+ * 
+ * @param list The list to sort.
+ * @param compare The comparison function.
+ * @return The sorted list.
+ */
+static inline void linked_list_sort(linked_list_t* list, int (*compare)(void* a, void* b)) {
+    for(linked_list_node_t* node = list->head; node != NULL; node = node->next) {
+        for(linked_list_node_t* next = node->next; next != NULL; next = next->next) {
+            if(compare(node->data, next->data) > 0) {
+                void* temp = node->data;
+                node->data = next->data;
+                next->data = temp;
+            }
+        }
+    }
+}
+
 #endif // _LIBK_LINKED_LIST_H

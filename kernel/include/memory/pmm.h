@@ -18,11 +18,12 @@
 #include <multiboot.h>
 #include <multiboot_util.h>
 
-#define PMM_KERNEL_MINIMAL_PHYSICAL_RAM_SIZE 0x40000000
-
 #define PMM_FRAME_SIZE 4096
 #define PMM_FRAME_ALIGN 4096
 #define PMM_FRAMES_PER_BITMAP_BYTE 8
+
+#define PMM_MAX_MEMORY_SIZE 0x40000000
+#define PMM_MIN_MEMORY_SIZE 0x1F400000
 
 /**
  * Initialize the Physical Memory Manager.

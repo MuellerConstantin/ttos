@@ -1,13 +1,26 @@
 #include <memory/pmm.h>
 #include <sys/kpanic.h>
 #include <memory/kheap.h>
+#include <linked_list.h>
 
+typedef struct pmm_memory_region pmm_memory_region_t;
+
+struct pmm_memory_region {
+    uint32_t base;
+    uint32_t length;
+    uint32_t type;
+};
+
+static linked_list_t* pmm_memory_regions = NULL;
 static size_t pmm_memory_size = 0;
 static size_t pmm_num_memory_frames = 0;
 static size_t pmm_num_memory_frames_used = 0;
 static size_t pmm_bitmap_size = 0;
 static uint8_t *pmm_bitmap = NULL;
 
+static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info);
+static int pmm_memory_region_compare(void* a, void* b);
+static size_t pmm_get_installed_memory_size(linked_list_t* memory_regions);
 static bool pmm_test_frame(uint32_t frame);
 static void pmm_set_frame(uint32_t frame);
 static void pmm_unset_frame(uint32_t frame);
@@ -15,9 +28,16 @@ static int pmm_find_free_frame();
 static int pmm_find_free_contiguous_frames(size_t n);
 
 void pmm_init(multiboot_info_t *multiboot_info) {
-    pmm_memory_size = multiboot_get_memory_size(multiboot_info);
+    pmm_memory_regions = pmm_get_memory_regions(multiboot_info);
+
+    pmm_memory_size = pmm_get_installed_memory_size(pmm_memory_regions);
+
+    if(pmm_memory_size < PMM_MIN_MEMORY_SIZE) {
+        KPANIC(KPANIC_RAM_MINIMAL_SIZE_CODE, KPANIC_RAM_MINIMAL_SIZE_MESSAGE, NULL);
+    }
+
     pmm_num_memory_frames = pmm_memory_size / PMM_FRAME_SIZE;
-    pmm_num_memory_frames_used = 0;
+    pmm_num_memory_frames_used = pmm_num_memory_frames;
     pmm_bitmap_size = ceil((double) pmm_num_memory_frames / (double) PMM_FRAMES_PER_BITMAP_BYTE);
     pmm_bitmap = (uint8_t *) kmalloc_a(pmm_bitmap_size);
 
@@ -25,26 +45,82 @@ void pmm_init(multiboot_info_t *multiboot_info) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    memset(pmm_bitmap, 0x00, pmm_bitmap_size);
+    // By default, all memory frames are used
+    memset(pmm_bitmap, 0xFF, pmm_bitmap_size);
 
-    /*
-     * Mark the first frame as used. This is because to be able to
-     * distinguish between a NULL pointer and a valid pointer, we need
-     * to reserve the first frame.
-     */
-    
-    pmm_set_frame(0);
+    linked_list_foreach(pmm_memory_regions, node) {
+        pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
 
-    // Mark the used memory regions given by the multiboot info as reserved
+        if(region->type == MULTIBOOT_MEMORY_AVAILABLE) {
+            pmm_mark_region_available((void*) region->base, region->length);
+        }
+    }
+}
+
+static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info) {
+    linked_list_t* memory_regions = linked_list_create();
+
+    if(!memory_regions) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    // Create a linked list of memory regions
     for(uint32_t offset = 0;
         offset < multiboot_info->mmap_length;
         offset += sizeof(multiboot_memory_map_t)) {
         multiboot_memory_map_t *mmap = (multiboot_memory_map_t *) (multiboot_info->mmap_addr + offset);
+        pmm_memory_region_t* region = (pmm_memory_region_t*) kmalloc(sizeof(pmm_memory_region_t));
 
-        if(mmap->type == MULTIBOOT_MEMORY_RESERVED) {
-            pmm_mark_region_reserved((void*) mmap->addr, mmap->len);
+        if(!region) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        region->base = mmap->addr;
+        region->length = mmap->len;
+        region->type = mmap->type;
+
+        linked_list_node_t* node = linked_list_create_node(region);
+
+        if(!node) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        linked_list_append(memory_regions, node);
+    }
+
+    // Sort the memory regions by base address
+    linked_list_sort(memory_regions, pmm_memory_region_compare);
+
+    // Clean up overlapping memory regions
+    for(linked_list_node_t* node = memory_regions->head; node != NULL; node = node->next) {
+        for(linked_list_node_t* next = node->next; next != NULL; next = next->next) {
+            pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
+            pmm_memory_region_t* next_region = (pmm_memory_region_t*) next->data;
+
+            // If the regions overlap, adjust the length of the region with the lower type
+            if(region->base + region->length > next_region->base) {
+                if(region->type < next_region->type) {
+                    region->length = next_region->base - region->base;
+                } else {
+                    next_region->length = region->base - next_region->base;
+                }
+            }
         }
     }
+
+    return memory_regions;
+}
+
+static size_t pmm_get_installed_memory_size(linked_list_t* memory_regions) {
+    size_t installed_memory_size = 0;
+
+    linked_list_foreach(memory_regions, node) {
+        pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
+
+        installed_memory_size += region->length;
+    }
+
+    return installed_memory_size;
 }
 
 size_t pmm_get_available_memory_size() {
@@ -81,6 +157,27 @@ uint32_t pmm_address_to_index(void* address) {
 
 void* pmm_index_to_address(uint32_t index) {
     return (void *) (index * PMM_FRAME_SIZE);
+}
+
+static int pmm_memory_region_compare(void* a, void* b) {
+    pmm_memory_region_t* region_a = (pmm_memory_region_t*) a;
+    pmm_memory_region_t* region_b = (pmm_memory_region_t*) b;
+
+    // Sort first by base address, then by end address
+
+    if(region_a->base < region_b->base) {
+        return -1;
+    } else if(region_a->base > region_b->base) {
+        return 1;
+    }
+
+    if(region_a->length < region_b->length) {
+        return -1;
+    } else if(region_a->length > region_b->length) {
+        return 1;
+    }
+
+    return 0;
 }
 
 static bool pmm_test_frame(uint32_t frame) {
