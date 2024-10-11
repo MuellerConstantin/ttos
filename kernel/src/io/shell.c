@@ -7,6 +7,7 @@
 static void shell_process_instruction(shell_t *shell, char *instruction);
 static void shell_echo(shell_t *shell, char *arguments);
 static void shell_memory_usage(shell_t *shell, char *arguments);
+static void shell_memory_map(shell_t *shell, char *arguments);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -47,6 +48,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_echo(shell, instruction_copy);
     } else if(strcmp(command, "memusage") == 0) {
         shell_memory_usage(shell, instruction_copy);
+    } else if(strcmp(command, "memmap") == 0) {
+        shell_memory_map(shell, instruction_copy);
     } else {
         tty_printf(shell->tty, "Unknown command: %s\n", command);
     }
@@ -66,4 +69,14 @@ static void shell_memory_usage(shell_t *shell, char *arguments) {
     double used_memory_percentage = (used_memory_mb / total_memory_mb) * 100;
 
     tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
+}
+
+static void shell_memory_map(shell_t *shell, char *arguments) {
+    const linked_list_t* pmm_memory_regions = pmm_get_memory_regions();
+
+    linked_list_foreach(pmm_memory_regions, node) {
+        pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
+
+        tty_printf(shell->tty, "Memory region: %x - %x (%d bytes) Type: %x\n", region->base, region->base + region->length - 1, region->length, region->type);
+    }
 }

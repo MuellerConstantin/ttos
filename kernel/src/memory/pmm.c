@@ -1,15 +1,6 @@
 #include <memory/pmm.h>
 #include <sys/kpanic.h>
 #include <memory/kheap.h>
-#include <linked_list.h>
-
-typedef struct pmm_memory_region pmm_memory_region_t;
-
-struct pmm_memory_region {
-    uint32_t base;
-    uint32_t length;
-    uint32_t type;
-};
 
 static linked_list_t* pmm_memory_regions = NULL;
 static size_t pmm_total_memory_size = 0;
@@ -18,7 +9,7 @@ static size_t pmm_num_memory_frames_used = 0;
 static size_t pmm_bitmap_size = 0;
 static uint8_t *pmm_bitmap = NULL;
 
-static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info);
+static linked_list_t* pmm_fetch_memory_regions(multiboot_info_t *multiboot_info);
 static int pmm_memory_region_compare(void* a, void* b);
 static size_t pmm_fetch_total_memory_size(linked_list_t* memory_regions);
 static bool pmm_test_frame(uint32_t frame);
@@ -28,7 +19,7 @@ static int pmm_find_free_frame();
 static int pmm_find_free_contiguous_frames(size_t n);
 
 void pmm_init(multiboot_info_t *multiboot_info) {
-    pmm_memory_regions = pmm_get_memory_regions(multiboot_info);
+    pmm_memory_regions = pmm_fetch_memory_regions(multiboot_info);
     pmm_total_memory_size = pmm_fetch_total_memory_size(pmm_memory_regions);
 
     // Create bitmap for full physical address space
@@ -48,12 +39,18 @@ void pmm_init(multiboot_info_t *multiboot_info) {
         pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
 
         if(region->type == MULTIBOOT_MEMORY_AVAILABLE) {
-            pmm_mark_region_available((void*) region->base, region->length);
+            uint32_t region_start_frame = pmm_address_to_index((void*) region->base);
+            uint32_t region_end_frame = pmm_address_to_index((void*) (region->base + region->length - 1));
+
+            // Mark the memory region as available
+            for(uint32_t frame = region_start_frame; frame <= region_end_frame; frame++) {
+                pmm_unset_frame(frame);
+            }
         }
     }
 }
 
-static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info) {
+static linked_list_t* pmm_fetch_memory_regions(multiboot_info_t *multiboot_info) {
     linked_list_t* memory_regions = linked_list_create();
 
     if(!memory_regions) {
@@ -107,54 +104,6 @@ static linked_list_t* pmm_get_memory_regions(multiboot_info_t *multiboot_info) {
     return memory_regions;
 }
 
-static size_t pmm_fetch_total_memory_size(linked_list_t* memory_regions) {
-    size_t installed_memory_size = 0;
-
-    linked_list_foreach(memory_regions, node) {
-        pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
-
-        installed_memory_size += region->length;
-    }
-
-    return installed_memory_size;
-}
-
-size_t pmm_get_available_memory_size() {
-    return (pmm_num_memory_frames - pmm_num_memory_frames_used) * PMM_FRAME_SIZE;
-}
-
-size_t pmm_get_total_memory_size() {
-    return pmm_total_memory_size;
-}
-
-void pmm_mark_region_available(void* base, size_t size) {
-    int align = (uint32_t) base / PMM_FRAME_SIZE;
-    int frames = ceil((double) size / (double) PMM_FRAME_SIZE);
-
-    for (; frames > 0; frames--) {
-        pmm_unset_frame(align++);
-        pmm_num_memory_frames_used--;
-    }
-}
-
-void pmm_mark_region_reserved(void* base, size_t size) {
-    int align = (uint32_t) base / PMM_FRAME_SIZE;
-    int frames = ceil((double) size / (double) PMM_FRAME_SIZE);
-
-    for (; frames > 0; frames--) {
-        pmm_set_frame(align++);
-        pmm_num_memory_frames_used++;
-    }
-}
-
-uint32_t pmm_address_to_index(void* address) {
-    return (uint32_t) address / PMM_FRAME_SIZE;
-}
-
-void* pmm_index_to_address(uint32_t index) {
-    return (void *) (index * PMM_FRAME_SIZE);
-}
-
 static int pmm_memory_region_compare(void* a, void* b) {
     pmm_memory_region_t* region_a = (pmm_memory_region_t*) a;
     pmm_memory_region_t* region_b = (pmm_memory_region_t*) b;
@@ -176,16 +125,62 @@ static int pmm_memory_region_compare(void* a, void* b) {
     return 0;
 }
 
+static size_t pmm_fetch_total_memory_size(linked_list_t* memory_regions) {
+    size_t installed_memory_size = 0;
+
+    linked_list_foreach(memory_regions, node) {
+        pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
+
+        installed_memory_size += region->length;
+    }
+
+    return installed_memory_size;
+}
+
+const linked_list_t* pmm_get_memory_regions() {
+    return pmm_memory_regions;
+}
+
+size_t pmm_get_total_memory_size() {
+    return pmm_total_memory_size;
+}
+
+size_t pmm_get_available_memory_size() {
+    return (pmm_num_memory_frames - pmm_num_memory_frames_used) * PMM_FRAME_SIZE;
+}
+
+uint32_t pmm_address_to_index(void* address) {
+    return (uint32_t) address / PMM_FRAME_SIZE;
+}
+
+void* pmm_index_to_address(uint32_t index) {
+    return (void *) (index * PMM_FRAME_SIZE);
+}
+
 static bool pmm_test_frame(uint32_t frame) {
     return pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] & 1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE);
 }
 
 static void pmm_set_frame(uint32_t frame) {
     pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] |= (1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE));
+    pmm_num_memory_frames_used++;
 }
 
 static void pmm_unset_frame(uint32_t frame) {
     pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] &= ~(1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE));
+    pmm_num_memory_frames_used--;
+}
+
+void pmm_mark_frame_reserved(void* frame_addr) {
+    uint32_t frame = pmm_address_to_index(frame_addr);
+
+    pmm_set_frame(frame);
+}
+
+void pmm_mark_frame_available(void* frame_addr) {
+    uint32_t frame = pmm_address_to_index(frame_addr);
+
+    pmm_unset_frame(frame);
 }
 
 static int pmm_find_free_frame() {
@@ -241,7 +236,6 @@ void* pmm_alloc_frame() {
     }
 
     pmm_set_frame(frame);
-    pmm_num_memory_frames_used++;
 
     return pmm_index_to_address(frame);
 }
@@ -261,24 +255,19 @@ void* pmm_alloc_frames(size_t n) {
         pmm_set_frame(frame + i);
     }
 
-    pmm_num_memory_frames_used += n;
-
     return pmm_index_to_address(frame);
 }
 
 void pmm_free_frame(void *frame_addr) {
-    int frame = (int) frame_addr / PMM_FRAME_SIZE;
+    int frame = pmm_address_to_index(frame_addr);
 
     pmm_unset_frame(frame);
-    pmm_num_memory_frames_used--;
 }
 
 void pmm_free_frames(void *frame_addr, size_t n) {
-    int frame = (int) frame_addr / PMM_FRAME_SIZE;
+    int frame = pmm_address_to_index(frame_addr);
 
     for(size_t i = 0; i < n; i++) {
         pmm_unset_frame(frame + i);
     }
-
-    pmm_num_memory_frames_used -= n;
 }

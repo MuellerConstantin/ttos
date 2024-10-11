@@ -1,4 +1,6 @@
 #include <memory/vmm.h>
+#include <memory/pmm.h>
+#include <memory/paging.h>
 #include <sys/kpanic.h>
 #include <memory/kheap.h>
 
@@ -25,7 +27,7 @@ void vmm_init() {
         page_address < VMM_LOWER_MEMORY_BASE + VMM_LOWER_MEMORY_SIZE + VMM_HIGHER_HALF_SIZE;
         page_address += PAGE_SIZE) {
         paging_allocate_page(kernel_page_directory, (void*) page_address, (void*) (page_address - VMM_LOWER_MEMORY_BASE), true, true);
-        pmm_mark_region_reserved((void*) (page_address - VMM_LOWER_MEMORY_BASE), PAGE_SIZE);
+        pmm_mark_frame_reserved((void*) (page_address - VMM_LOWER_MEMORY_BASE));
     }
 
     paging_switch_page_directory(current_page_directory, kernel_page_directory);
@@ -45,6 +47,9 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
             return NULL;
         }
     }
+
+    // Page align the virtual address
+    virtual_address = VMM_ALIGN(virtual_address);
 
     for(uint32_t page_address = (uint32_t) virtual_address;
         page_address < (uint32_t) virtual_address + size;
@@ -70,7 +75,7 @@ static int32_t vmm_map_page(void *const virtual_address, void* physical_address,
             KPANIC(KPANIC_PMM_OUT_OF_MEMORY_CODE, KPANIC_PMM_OUT_OF_MEMORY_MESSAGE, NULL);
         }
     } else {
-        pmm_mark_region_reserved(physical_address, PAGE_SIZE);
+        pmm_mark_frame_reserved(physical_address);
     }
 
     return paging_allocate_page(current_page_directory, virtual_address, physical_address, is_kernel, is_writeable);
@@ -89,7 +94,7 @@ static void vmm_unmap_page(void *const virtual_address) {
     void* frame_address = paging_free_page(current_page_directory, virtual_address);
 
     if(frame_address) {
-        pmm_free_frame(frame_address);
+        pmm_mark_frame_available(frame_address);
     }
 }
 

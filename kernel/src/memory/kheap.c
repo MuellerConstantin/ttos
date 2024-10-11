@@ -1,5 +1,6 @@
 #include <memory/kheap.h>
 #include <sys/kpanic.h>
+#include <memory/paging.h>
 
 /**
  * The placement memory (limited to 1MB) that is used as a fallback

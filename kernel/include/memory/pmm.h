@@ -16,13 +16,20 @@
 #include <stdbool.h>
 #include <math.h>
 #include <multiboot.h>
-#include <multiboot_util.h>
-
-#define PMM_FRAME_SIZE 4096
-#define PMM_FRAME_ALIGN 4096
-#define PMM_FRAMES_PER_BITMAP_BYTE 8
+#include <linked_list.h>
 
 #define PMM_PAS_SIZE 0xFFFFFFFF
+
+#define PMM_FRAME_SIZE 4096
+#define PMM_FRAMES_PER_BITMAP_BYTE 8
+
+typedef struct pmm_memory_region pmm_memory_region_t;
+
+struct pmm_memory_region {
+    uint32_t base;
+    uint32_t length;
+    uint32_t type;
+};
 
 /**
  * Initialize the Physical Memory Manager.
@@ -32,20 +39,11 @@
 void pmm_init(multiboot_info_t* multiboot_info);
 
 /**
- * Unreserve a region of memory, hence marking it as available.
+ * Get the memory regions detected by the BIOS.
  * 
- * @param base The phyiscal base address of the region.
- * @param size The size of the region.
+ * @return The memory regions detected by the BIOS.
  */
-void pmm_mark_region_available(void* base, size_t size);
-
-/**
- * Reserve a region of memory, hence marking it as unavailable.
- * 
- * @param base The phyiscal base address of the region.
- * @param size The size of the region.
- */
-void pmm_mark_region_reserved(void* base, size_t size);
+const linked_list_t* pmm_get_memory_regions();
 
 /**
  * Convert a physical address to a frame index.
@@ -64,7 +62,21 @@ uint32_t pmm_address_to_index(void* address);
 void* pmm_index_to_address(uint32_t index);
 
 /**
- * Allocate a block of memory.
+ * Mark a frame as reserved.
+ * 
+ * @param frame_addr The physical address of the frame to mark as reserved.
+ */
+void pmm_mark_frame_reserved(void* frame_addr);
+
+/**
+ * Mark a region as available.
+ * 
+ * @param frame_addr The physical address of the first frame in the region.
+ */
+void pmm_mark_frame_available(void* frame_addr);
+
+/**
+ * Allocate a single frame.
  * 
  * @return The phyiscal address of the allocated frame or NULL if failed.
  */
@@ -74,31 +86,24 @@ void* pmm_alloc_frame();
  * Allocate a number of contiguous frames.
  * 
  * @param n The number of frames to allocate.
- * @return The phyiscal address of the first of the allocated frames or NULL if failed.
+ * @return The phyiscal address of the allocated frames or NULL if failed.
  */
 void* pmm_alloc_frames(size_t n);
 
 /**
- * Free a block of memory.
+ * Free a single frame.
  * 
- * @param frame_addr The phyiscal address of the block to free.
+ * @param address The phyiscal address of the frame to free.
  */
-void pmm_free_frame(void *frame_addr);
+void pmm_free_frame(void* address);
 
 /**
  * Free a number of contiguous frames.
  * 
- * @param frame_addr The phyiscal address of the first of the frames to free.
+ * @param frame_addr The phyiscal address of the first frame to free.
  * @param n The number of frames to free.
  */
 void pmm_free_frames(void *frame_addr, size_t n);
-
-/**
- * Get the size of the phyiscal free memory.
- * 
- * @return The size of the available/free phyiscal memory in bytes.
- */
-size_t pmm_get_available_memory_size();
 
 /**
  * Get the total phyiscal memory size available for the system. This is
@@ -107,5 +112,12 @@ size_t pmm_get_available_memory_size();
  * @return The total phyiscal memory size in bytes.
  */
 size_t pmm_get_total_memory_size();
+
+/**
+ * Get the size of the phyiscal free memory.
+ * 
+ * @return The size of the available/free phyiscal memory in bytes.
+ */
+size_t pmm_get_available_memory_size();
 
 #endif // _KERNEL_MEMORY_PMM_H

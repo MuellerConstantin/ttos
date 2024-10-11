@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <multiboot.h>
-#include <multiboot_util.h>
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <memory/kheap.h>

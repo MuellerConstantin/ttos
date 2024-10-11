@@ -13,10 +13,13 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <memory/pmm.h>
 #include <memory/paging.h>
 
-#define VMM_VM_SIZE 0xFFFFFFFF
+#define VMM_VAS_SIZE 0xFFFFFFFF
+
+#define VMM_IS_ALIGNED(address) (((uintptr_t) address % PAGE_SIZE) == 0)
+#define VMM_ALIGN(address) ((void*) ((uintptr_t) address & ~(PAGE_SIZE - 1)))
+#define VMM_OFFSET(address) ((uintptr_t) address % PAGE_SIZE)
 
 /*
  * The kernel's virtual memory layout:
