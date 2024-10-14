@@ -3,11 +3,13 @@
 #include <memory/kheap.h>
 #include <sys/kpanic.h>
 #include <memory/pmm.h>
+#include <sys/acpi.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
 static void shell_echo(shell_t *shell, char *arguments);
 static void shell_memory_usage(shell_t *shell, char *arguments);
 static void shell_memory_map(shell_t *shell, char *arguments);
+static void shell_poweroff(shell_t *shell, char *arguments);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -50,6 +52,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_memory_usage(shell, instruction_copy);
     } else if(strcmp(command, "memmap") == 0) {
         shell_memory_map(shell, instruction_copy);
+    } else if(strcmp(command, "poweroff") == 0) {
+        shell_poweroff(shell, instruction_copy);
     } else {
         tty_printf(shell->tty, "Unknown command: %s\n", command);
     }
@@ -79,4 +83,12 @@ static void shell_memory_map(shell_t *shell, char *arguments) {
 
         tty_printf(shell->tty, "Memory region: %x - %x (%d bytes) Type: %x\n", region->base, region->base + region->length - 1, region->length, region->type);
     }
+}
+
+static void shell_poweroff(shell_t *shell, char *arguments) {
+    if(acpi_poweroff() != 0) {
+        tty_printf(shell->tty, "Failed to power off the system, ACPI might not be supported\n");
+    }
+
+    tty_printf(shell->tty, "Shutting down the system...\n");
 }
