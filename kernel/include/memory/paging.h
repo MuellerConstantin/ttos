@@ -14,9 +14,10 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define PAGE_FLAG_FREE 0b000
-#define PAGE_FLAG_USED 0b010
-#define PAGE_FLAG_SWAP 0b100
+#define PAGE_FLAG_FREE      0b000
+#define PAGE_FLAG_USED      0b001
+#define PAGE_FLAG_PRESENT   0b000
+#define PAGE_FLAG_SWAPPED   0b010
 
 #define PAGE_SIZE 4096
 #define PAGE_TABLE_SIZE 1024
@@ -88,16 +89,15 @@ extern const page_directory_t *const prepaging_page_directory;
 void paging_enable();
 
 /**
- * Allocate a page in the given page directory.
+ * Map a page in the given page directory.
  * 
  * @param page_directory The page directory to allocate the page in.
  * @param page_address The virtual address to allocate the page at.
  * @param frame_address The physical address of the frame to allocate.
  * @param is_kernel Whether the memory is kernel memory.
  * @param is_writeable Whether the memory is writeable.
- * @return 0 if the page was allocated successfully, -1 otherwise.
  */
-int32_t paging_allocate_page(page_directory_t *const page_directory, void *const page_address, void* frame_address, bool is_kernel, bool is_writeable);
+void paging_map_page(page_directory_t *const page_directory, void *const page_address, void* frame_address, bool is_kernel, bool is_writeable);
 
 /**
  * Free a page in the given page directory.
@@ -106,7 +106,7 @@ int32_t paging_allocate_page(page_directory_t *const page_directory, void *const
  * @param page_address The virtual address of the page to free.
  * @return The physical address of the freed page.
  */
-void* paging_free_page(page_directory_t *const page_directory, void *const page_address);
+void* paging_unmap_page(page_directory_t *const page_directory, void *const page_address);
 
 /**
  * Switch to the given page directory.

@@ -6,6 +6,8 @@
 
 static bool paging_enabled = false;
 
+static void paging_invalidate_page(void* address);
+
 void paging_enable() {
     uint32_t cr4;
     uint32_t cr0;
@@ -22,12 +24,16 @@ void paging_enable() {
     paging_enabled = true;
 }
 
+static void paging_invalidate_page(void* address) {
+    __asm__ volatile("invlpg (%0)" : : "r" (address) : "memory");
+}
+
 void paging_switch_page_directory(page_directory_t* current_page_directory, page_directory_t* new_page_directory) {
     uintptr_t physical_address = (uintptr_t) paging_virtual_to_physical_address(current_page_directory, new_page_directory);
     __asm__ volatile("mov %0, %%cr3" : : "r" (physical_address));
 }
 
-int32_t paging_allocate_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {
+void paging_map_page(page_directory_t *const page_directory, void *const virtual_address, void* frame_address, bool is_kernel, bool is_writeable) {
     page_table_t *table = NULL;
     
     uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
@@ -56,23 +62,20 @@ int32_t paging_allocate_page(page_directory_t *const page_directory, void *const
         table = page_directory->tables[page_directory_index];
     }
 
-    // Allocate a new page if it does not exist
-    if(!table->entries[page_table_index].present) {
-        uint32_t frame_index = pmm_address_to_index(frame_address);
-
-        table->entries[page_table_index].present = 1;
-        table->entries[page_table_index].read_write = is_writeable ? 1 : 0;
-        table->entries[page_table_index].user_supervisor = is_kernel ? 0 : 1;
-        table->entries[page_table_index].available = PAGE_FLAG_USED;
-        table->entries[page_table_index].page_base = frame_index;
-
-        return 0;
+    if(table->entries[page_table_index].present) {
+        paging_invalidate_page(virtual_address);
     }
 
-    return -1;
+    uint32_t frame_index = pmm_address_to_index(frame_address);
+
+    table->entries[page_table_index].present = 1;
+    table->entries[page_table_index].read_write = is_writeable ? 1 : 0;
+    table->entries[page_table_index].user_supervisor = is_kernel ? 0 : 1;
+    table->entries[page_table_index].available = PAGE_FLAG_USED | PAGE_FLAG_PRESENT;
+    table->entries[page_table_index].page_base = frame_index;
 }
 
-void* paging_free_page(page_directory_t *const page_directory, void *const virtual_address) {
+void* paging_unmap_page(page_directory_t *const page_directory, void *const virtual_address) {
     uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
     uint32_t page_table_index = PAGE_TABLE_INDEX(virtual_address);
 
@@ -82,14 +85,16 @@ void* paging_free_page(page_directory_t *const page_directory, void *const virtu
 
     page_table_t *table = page_directory->tables[page_directory_index];
 
-    if(!table->entries[page_table_index].present) {
+    if((table->entries[page_table_index].available & PAGE_FLAG_USED) == 0) {
         return;
     }
+
+    paging_invalidate_page(virtual_address);
 
     void* frame_address = pmm_index_to_address(table->entries[page_table_index].page_base);
 
     table->entries[page_table_index].present = 0;
-    table->entries[page_table_index].available = PAGE_FLAG_FREE;
+    table->entries[page_table_index].available &= ~PAGE_FLAG_USED;
     table->entries[page_table_index].page_base = 0;
 
     return frame_address;
@@ -127,5 +132,5 @@ bool paging_is_page_used(const page_directory_t *const page_directory, void *con
 
     page_table_t *table = page_directory->tables[page_directory_index];
 
-    return table->entries[page_table_index].available == PAGE_FLAG_USED;
+    return (table->entries[page_table_index].available & PAGE_FLAG_USED) != 0;
 }

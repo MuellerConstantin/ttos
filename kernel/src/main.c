@@ -9,6 +9,7 @@
 #include <descriptors/tss.h>
 #include <sys/kpanic.h>
 #include <sys/isr.h>
+#include <sys/acpi.h>
 #include <device/device.h>
 #include <device/volume.h>
 #include <drivers/pci/pci.h>
@@ -26,12 +27,12 @@
 #include <io/shell.h>
 #include <sys/switch_usermode.h>
 
-static void init_cpu();
-static void init_memory(multiboot_info_t *multiboot_info);
-static void init_management();
-static void init_drivers(multiboot_info_t *multiboot_info);
+static void init_system(multiboot_info_t *multiboot_info);
+static void init_platform();
+static void init_kernel(multiboot_info_t *multiboot_info);
+static void init_drivers();
 static void init_usermode();
-static void run_cli();
+static void init_console();
 static void display_banner(tty_t* tty0);
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
@@ -49,44 +50,45 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_cli();
 
-    init_cpu();
-    init_memory(multiboot_info);
-    init_management();
-    init_drivers(multiboot_info);
+    init_system(multiboot_info);
+    init_platform();
+    init_kernel(multiboot_info);
+    init_drivers();
 
     isr_sti();
 
-    run_cli();
+    // init_usermode();
+
+    init_console();
 
     while(1);
 }
 
-static void init_cpu() {
+static void init_system(multiboot_info_t *multiboot_info) {
     gdt_init();
     idt_init();
     tss_init(0x10, 0x0);
+    pmm_init(multiboot_info);
+    vmm_init();
 }
 
-static void init_memory(multiboot_info_t *multiboot_info) {
-    // Initialize the physical memory manager
-    pmm_init(multiboot_info);
+static void init_platform() {
+    acpi_init();
+    pic_8259_init();
+    pit_8253_init(PIT_8253_COUNTER_0, 1000);
+    uart_16550_init(UART_16550_COM1, 115200);
+}
 
-    // Initialize the virtual memory manager
-    vmm_init();
-
+static void init_kernel(multiboot_info_t *multiboot_info) {
     // Initialize the kernel heap
     kheap_init();
-}
 
-static void init_management() {
     // Initialize the device manager
     device_init();
 
     // Initialize the volume manager
     volume_init();
-}
 
-static void init_drivers(multiboot_info_t *multiboot_info) {
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_LOWER_MEMORY_BASE);
 
     // Check if an initial ramdisk is provided
@@ -100,11 +102,10 @@ static void init_drivers(multiboot_info_t *multiboot_info) {
 
         initrd_init((void*) initrd_start, initrd_size);
     }
+}
 
-    pic_8259_init();
+static void init_drivers() {
     vga_init(VGA_80x25_16_TEXT, true);
-    pit_8253_init(PIT_8253_COUNTER_0, 1000);
-    uart_16550_init(UART_16550_COM1, 115200);
     ps2_keyboard_init();
     pci_init();
     ata_init();
@@ -127,7 +128,7 @@ static void init_usermode() {
     switch_usermode();
 }
 
-static void run_cli() {
+static void init_console() {
     // Temporary mount the initial ramdisk to setup the CLI
 
     volume_t* initrd_volume = volume_find_by_name("Initial Ramdisk");
