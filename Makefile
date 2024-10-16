@@ -34,6 +34,9 @@ all: boot/grub/grub.cfg $(INITRD) $(TARGET)
 	grub-mkrescue --output=$(IMAGE) $(ISODIR)
 	rm -rf $(ISODIR)
 
+.PHONY: kernel
+kernel: $(TARGET)
+
 clean:
 
 	$(MAKE) -C kernel clean

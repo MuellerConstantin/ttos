@@ -9,6 +9,9 @@
 ---
 
 - [Introduction](#introduction)
+- [Build Instructions](#build-instructions)
+  - [Requirements](#requirements)
+  - [Build Process](#build-process)
 - [License](#license)
   - [Forbidden](#forbidden)
 
@@ -37,8 +40,40 @@ The project itself is divided into three main parts:
   used by the TTOS kernel. It is an extension of the C standard library.
   See [here](libk/README.md) for more information.
 
-All three components are ultimately combined with [GRUB](https://www.gnu.org/software/grub/)
-to form a bootable image.
+## Build Instructions
+
+The TTOS Project is intended to be built using the GNU toolchain with the GNU Compiler
+Collection (GCC) and the Netwide Assembler (NASM) on a Unix-like system, but similar
+configurations might also work. In addition, [GRUB](https://www.gnu.org/software/grub/)
+is used to boot the operating system and create a bootable image. The build process
+is automated using a GNU Make and corresponding Makefiles.
+
+### Requirements
+
+- **GNU Make**: The GNU Make utility is used to build the TTOS project. It is
+  required to run the build process using `make`.
+- **GCC**: The GNU Compiler Collection is a collection of compilers for various
+  programming languages. It is the default compiler for the TTOS project.
+- **NASM**: The Netwide Assembler is an assembler and disassembler for the Intel
+  x86 architecture. It is used to compile the assembly code of the TTOS project.
+- **GRUB**: The GNU GRUB (GRand Unified Bootloader) is a multiboot compliant
+  bootloader that is used to boot the TTOS kernel. For creating a bootable image,
+  GRUB command line tools, especially `grub-mkrescue`, are required.
+
+### Build Process
+
+As mentioned before, the build process is automated using a GNU Make and
+corresponding Makefiles. Hence, building the TTOS project is as simple as
+running the `make` command in the root directory of the project. The following
+commands are available:
+
+- **`make all`**: Builds the TTOS project, this includes building the kernel,
+  the libc, and the libk library, and creating a bootable image. This results
+  in a bootable image that is placed at `<ROOTDIR>/ttos-<VERSION>-intel-x86.iso`.
+- **`make kernel`**: Builds the kernel of the TTOS project without creating a
+  bootable image. This results in a kernel binary that is placed at
+  `<ROOTDIR>/kernel/kernel.elf`.
+- **`make clean`**: Cleans the build directory and removes all generated files.
 
 ## License
 
