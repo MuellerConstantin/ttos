@@ -1,7 +1,7 @@
 #ifndef _KERNEL_DRIVERS_VIDEO_VGA_VGA_H
 #define _KERNEL_DRIVERS_VIDEO_VGA_VGA_H
 
-#include <io/ports.h>
+#include <system/ports.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <memory/vmm.h>

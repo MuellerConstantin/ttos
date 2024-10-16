@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <io/ports.h>
+#include <system/ports.h>
 
 #define PIT_8253_COUNTER_0 0
 #define PIT_8253_COUNTER_1 1

@@ -1,10 +1,10 @@
 #include <drivers/input/ps2/keyboard.h>
 #include <circular_buffer.h>
-#include <io/ports.h>
-#include <sys/isr.h>
+#include <system/ports.h>
+#include <arch/i386/isr.h>
 #include <device/device.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 static circular_buffer_t* ps2_keyboard_buffer;
 

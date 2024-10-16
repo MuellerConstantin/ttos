@@ -1,6 +1,6 @@
 #include <fs/vfs.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 static vfs_node_t* vfs_findpath_recursive(vfs_node_t* node, char* path);
 

@@ -1,5 +1,5 @@
 #include <drivers/input/ps2/8042.h>
-#include <io/ports.h>
+#include <system/ports.h>
 
 bool ps2_8042_first_port_probe() {
     // Send controller self-test command

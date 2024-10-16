@@ -3,7 +3,7 @@
 #include <drivers/video/vga/gfx.h>
 #include <device/device.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 uint16_t *const vga_tm_video_memory = (uint16_t *const) VGA_TM_VIDEO_MEMORY;
 uint8_t *const vga_gfx_video_memory = (uint8_t *const) VGA_GFX_VIDEO_MEMORY;

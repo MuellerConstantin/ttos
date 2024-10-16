@@ -1,6 +1,6 @@
 #include <device/device.h>
 #include <device/volume.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 generic_tree_t* device_tree;
 

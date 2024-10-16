@@ -1,5 +1,5 @@
-#include <memory/paging.h>
-#include <sys/kpanic.h>
+#include <arch/i386/paging.h>
+#include <system/kpanic.h>
 #include <memory/kheap.h>
 #include <memory/pmm.h>
 #include <memory/vmm.h>

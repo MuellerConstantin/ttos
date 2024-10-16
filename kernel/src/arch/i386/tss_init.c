@@ -1,4 +1,4 @@
-#include <descriptors/tss.h>
+#include <arch/i386/tss.h>
 
 static tss_segment_descriptor_t tss;
 

@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <io/ports.h>
+#include <system/ports.h>
 
 #define ATA_PRIMARY_IO_BASE 0x1F0
 #define ATA_PRIMARY_CONTROL_BASE 0x3F6

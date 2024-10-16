@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define ACPI_RSDP_SIGNATURE "RSD PTR "
 #define ACPI_RSDT_SIGNATURE "RSDT"
@@ -35,6 +36,7 @@ struct acpi_poweroff_information {
 typedef struct acpi_rsdp acpi_rsdp_t;
 typedef struct acpi_sdt acpi_sdt_t;
 typedef struct acpi_rsdt acpi_rsdt_t;
+typedef struct acpi_fadt_generic_address_structure acpi_fadt_generic_address_structure_t;
 typedef struct acpi_fadt acpi_fadt_t;
 typedef struct acpi_dsdt acpi_dsdt_t;
 

@@ -1,6 +1,6 @@
 #include <drivers/storage/ata.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 #include <device/device.h>
 
 static ata_device_t ata_devices[4] = {

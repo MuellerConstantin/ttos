@@ -1,6 +1,6 @@
 #include <drivers/storage/sata.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 #include <device/device.h>
 #include <drivers/pci/pci.h>
 #include <memory/vmm.h>

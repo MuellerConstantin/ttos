@@ -2,7 +2,7 @@
 #define _KERNEL_DRIVERS_PCI_H
 
 #include <stdint.h>
-#include <io/ports.h>
+#include <system/ports.h>
 #include <device/device.h>
 #include <drivers/pci/types.h>
 

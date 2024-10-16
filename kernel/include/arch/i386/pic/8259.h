@@ -1,5 +1,5 @@
-#ifndef _KERNEL_DRIVERS_PIC_8259_H
-#define _KERNEL_DRIVERS_PIC_8259_H
+#ifndef _KERNEL_ARCH_I386_PIC_8259_H
+#define _KERNEL_ARCH_I386_PIC_8259_H
 
 #include <stdint.h>
 
@@ -49,4 +49,4 @@ void pic_8259_mask_irq(uint8_t irq);
  */
 void pic_8259_unmask_irq(uint8_t irq);
 
-#endif // _KERNEL_DRIVERS_PIC_8259_H
+#endif // _KERNEL_ARCH_I386_PIC_8259_H

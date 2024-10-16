@@ -8,12 +8,12 @@
  * levels during context switches.
  */
 
-#ifndef _KERNEL_DESCRIPTORS_TSS_H
-#define _KERNEL_DESCRIPTORS_TSS_H
+#ifndef _KERNEL_ARCH_I386_TSS_H
+#define _KERNEL_ARCH_I386_TSS_H
 
 #include <stdint.h>
 #include <string.h>
-#include <descriptors/gdt.h>
+#include <arch/i386/gdt.h>
 
 struct tss_segment_descriptor {
     uint16_t link;
@@ -75,4 +75,4 @@ void tss_init(uint16_t ss0, uintptr_t esp0);
  */
 void tss_update_ring0_stack(uint16_t ss0, uintptr_t esp0);
 
-#endif // _KERNEL_DESCRIPTORS_TSS_H
+#endif // _KERNEL_ARCH_I386_TSS_H

@@ -1,5 +1,5 @@
-#include <descriptors/idt.h>
-#include <sys/isr.h>
+#include <arch/i386/idt.h>
+#include <arch/i386/isr.h>
 
 static idt_table_t idt;
 static idt_gate_descriptor_t descriptors[IDT_SIZE];

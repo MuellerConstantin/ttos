@@ -1,9 +1,9 @@
 #include <io/shell.h>
 #include <string.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 #include <memory/pmm.h>
-#include <sys/acpi.h>
+#include <arch/i386/acpi.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
 static void shell_echo(shell_t *shell, char *arguments);

@@ -1,5 +1,5 @@
 #include <drivers/serial/uart/16550.h>
-#include <io/ports.h>
+#include <system/ports.h>
 #include <stdbool.h>
 
 static bool uart_16550_probe(uint16_t port);

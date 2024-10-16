@@ -1,5 +1,5 @@
 #include <drivers/pit/8253.h>
-#include <sys/isr.h>
+#include <arch/i386/isr.h>
 
 static volatile size_t pit_8253_ticks;
 

@@ -1,5 +1,5 @@
-#include <drivers/pic/8259.h>
-#include <io/ports.h>
+#include <arch/i386/pic/8259.h>
+#include <system/ports.h>
 
 void pic_8259_init() {
     uint8_t mask1 = inb(PIC_8259_MASTER_DATA_REGISTER);

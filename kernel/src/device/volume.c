@@ -1,7 +1,7 @@
 #include <device/volume.h>
 #include <string.h>
 #include <fs/mbr.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 static linked_list_t* volumes;
 

@@ -1,7 +1,7 @@
 #include <drivers/storage/initrd.h>
 #include <device/device.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 static void* initrd_base;
 static size_t initrd_size;

@@ -1,6 +1,6 @@
 #include <fs/mbr.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 bool mbr_probe(storage_device_t* device) {
     mbr_t mbr;

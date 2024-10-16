@@ -6,12 +6,12 @@
  * display a message on the screen and halt the system when a critical error occurs.
  */
 
-#ifndef _KERNEL_SYS_KPANIC_H
-#define _KERNEL_SYS_KPANIC_H
+#ifndef _KERNEL_SYSTEM_KPANIC_H
+#define _KERNEL_SYSTEM_KPANIC_H
 
 #include <stdint.h>
 #include <stddef.h>
-#include <sys/isr.h>
+#include <arch/i386/isr.h>
 #include <drivers/video/vga/vga.h>
 #include <drivers/video/vga/tm.h>
 
@@ -88,4 +88,4 @@
  */
 void kpanic(uint32_t code, const char *message, const char* file, uint32_t line, isr_cpu_state_t *state);
 
-#endif // _KERNEL_SYS_KPANIC_H
+#endif // _KERNEL_SYSTEM_KPANIC_H

@@ -1,5 +1,5 @@
 #include <memory/pmm.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 #include <memory/kheap.h>
 
 static linked_list_t* pmm_memory_regions = NULL;

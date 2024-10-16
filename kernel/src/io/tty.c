@@ -1,6 +1,6 @@
 #include <io/tty.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 static char tty_keycode_to_char(tty_t* tty0, uint32_t keycode, bool shifted);
 

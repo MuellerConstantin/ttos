@@ -7,8 +7,8 @@
  * definitions of the GDT and its descriptors.
  */
 
-#ifndef _KERNEL_DESCRIPTORS_GDT_H
-#define _KERNEL_DESCRIPTORS_GDT_H
+#ifndef _KERNEL_ARCH_I386_GDT_H
+#define _KERNEL_ARCH_I386_GDT_H
 
 #include <stdint.h>
 
@@ -131,4 +131,4 @@ void gdt_init();
  */
 void gdt_init_descriptor(gdt_selector_t selector, uint32_t base, uint32_t limit, uint8_t access, uint8_t flags);
 
-#endif // _KERNEL_DESCRIPTORS_GDT_H
+#endif // _KERNEL_ARCH_I386_GDT_H

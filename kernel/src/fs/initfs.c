@@ -1,6 +1,6 @@
 #include <fs/initfs.h>
 #include <memory/kheap.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 #include <string.h>
 
 static int32_t initfs_unmount(mnt_mountpoint_t* volume);

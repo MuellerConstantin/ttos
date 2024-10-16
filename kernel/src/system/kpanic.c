@@ -1,4 +1,4 @@
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 #include <stdlib.h>
 #include <string.h>
 

@@ -1,4 +1,4 @@
-#include <descriptors/gdt.h>
+#include <arch/i386/gdt.h>
 
 static gdt_table_t gdt;
 static gdt_segment_descriptor_t descriptors[GDT_SIZE];

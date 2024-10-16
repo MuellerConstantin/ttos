@@ -1,7 +1,7 @@
-#include <sys/acpi.h>
+#include <arch/i386/acpi.h>
 #include <memory/vmm.h>
 #include <memory/kheap.h>
-#include <io/ports.h>
+#include <system/ports.h>
 
 static acpi_poweroff_information_t acpi_poweroff_info;
 
@@ -66,6 +66,14 @@ int32_t acpi_poweroff() {
     if(acpi_poweroff_info.pm1b_cnt != 0) {
         outw(acpi_poweroff_info.pm1b_cnt, acpi_poweroff_info.slp_type_b | ACPI_SLP_EN_CODE);
     }
+}
+
+uint16_t acpi_vga_is_available() {
+    if(acpi_fadt == NULL) {
+        return 0;
+    }
+
+    return acpi_fadt->iapc_boot_arch;
 }
 
 static acpi_rsdp_t* acpi_find_rsdp() {

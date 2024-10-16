@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <memory/paging.h>
+#include <arch/i386/paging.h>
 
 #define VMM_VAS_SIZE 0xFFFFFFFF
 

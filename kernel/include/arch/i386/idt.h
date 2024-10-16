@@ -7,8 +7,8 @@
  * descriptors as well as the functions to initialize the IDT.
  */
 
-#ifndef _KERNEL_DESCRIPTORS_IDT_H
-#define _KERNEL_DESCRIPTORS_IDT_H
+#ifndef _KERNEL_ARCH_I386_IDT_H
+#define _KERNEL_ARCH_I386_IDT_H
 
 #include <stdint.h>
 
@@ -74,4 +74,4 @@ typedef struct idt_table idt_table_t;
  */
 void idt_init();
 
-#endif // _KERNEL_DESCRIPTORS_IDT_H
+#endif // _KERNEL_ARCH_I386_IDT_H

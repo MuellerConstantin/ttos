@@ -1,5 +1,5 @@
 #include <drivers/pci/pci.h>
-#include <sys/kpanic.h>
+#include <system/kpanic.h>
 
 static char* pci_get_device_name(pci_device_t* pci_device);
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);

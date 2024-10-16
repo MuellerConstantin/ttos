@@ -4,16 +4,17 @@
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <memory/kheap.h>
-#include <descriptors/gdt.h>
-#include <descriptors/idt.h>
-#include <descriptors/tss.h>
-#include <sys/kpanic.h>
-#include <sys/isr.h>
-#include <sys/acpi.h>
+#include <arch/i386/gdt.h>
+#include <arch/i386/idt.h>
+#include <arch/i386/tss.h>
+#include <arch/i386/isr.h>
+#include <arch/i386/acpi.h>
+#include <arch/i386/pic/8259.h>
+#include <system/kpanic.h>
+#include <system/switch_usermode.h>
 #include <device/device.h>
 #include <device/volume.h>
 #include <drivers/pci/pci.h>
-#include <drivers/pic/8259.h>
 #include <drivers/pit/8253.h>
 #include <drivers/video/vga/vga.h>
 #include <drivers/serial/uart/16550.h>
@@ -25,10 +26,8 @@
 #include <fs/file.h>
 #include <io/tty.h>
 #include <io/shell.h>
-#include <sys/switch_usermode.h>
 
-static void init_system(multiboot_info_t *multiboot_info);
-static void init_platform();
+static void init_platform(multiboot_info_t *multiboot_info);
 static void init_kernel(multiboot_info_t *multiboot_info);
 static void init_drivers();
 static void init_usermode();
@@ -50,8 +49,7 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     isr_cli();
 
-    init_system(multiboot_info);
-    init_platform();
+    init_platform(multiboot_info);
     init_kernel(multiboot_info);
     init_drivers();
 
@@ -64,19 +62,14 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     while(1);
 }
 
-static void init_system(multiboot_info_t *multiboot_info) {
+static void init_platform(multiboot_info_t *multiboot_info) {
     gdt_init();
     idt_init();
     tss_init(0x10, 0x0);
     pmm_init(multiboot_info);
     vmm_init();
-}
-
-static void init_platform() {
     acpi_init();
     pic_8259_init();
-    pit_8253_init(PIT_8253_COUNTER_0, 1000);
-    uart_16550_init(UART_16550_COM1, 115200);
 }
 
 static void init_kernel(multiboot_info_t *multiboot_info) {
@@ -105,6 +98,8 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
 }
 
 static void init_drivers() {
+    pit_8253_init(PIT_8253_COUNTER_0, 1000);
+    uart_16550_init(UART_16550_COM1, 115200);
     vga_init(VGA_80x25_16_TEXT, true);
     ps2_keyboard_init();
     pci_init();

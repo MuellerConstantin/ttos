@@ -5,8 +5,8 @@
  * This file contains definitions for I/O ports and functions to read and write to them.
  */
 
-#ifndef _KERNEL_IO_PORTS_H
-#define _KERNEL_IO_PORTS_H
+#ifndef _KERNEL_SYSTEM_PORTS_H
+#define _KERNEL_SYSTEM_PORTS_H
 
 #include <stdint.h>
 
@@ -58,4 +58,4 @@ void outl(uint16_t port, uint32_t data);
  */
 uint32_t inl(uint16_t port);
 
-#endif // _KERNEL_IO_PORTS_H
+#endif // _KERNEL_SYSTEM_PORTS_H
