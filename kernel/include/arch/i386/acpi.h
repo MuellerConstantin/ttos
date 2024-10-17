@@ -11,6 +11,8 @@
 #define ACPI_FADT_SIGNATURE "FACP"
 #define ACPI_DSDT_SIGNATURE "DSDT"
 
+#define ACPI_SCI_ENABLE  (1)
+
 // Poweroff definitions
 
 #define ACPI_SLP_EN_CODE                            (1 << 13)
@@ -19,7 +21,8 @@
 #define ACPI_AML_BYTE_PREFIX_CODE                   (0xA)
 #define ACPI_AMI_PACKAGE_LENGTH_ENCODING_BITS_MASK  (0xC0)
 #define ACPI_AMI_PACKAGE_LENGTH_ENCODING_BITS_SHIFT (6)
-#define ACPI_AML_MIN_PACKAGE_LENGTH                 (2)
+#define ACPI_AML_MIN_PACKAGE_LENGTH                 (1)
+#define ACPI_AML_NUM_ELEMENTS_LENGTH                (1)
 #define ACPI_AML_S5_PACKET_LENGTH_OFFSET            (5)
 #define ACPI_AML_SLP_TYPA_SHIFT                     (10)
 #define ACPI_AML_SLP_TYPB_SHIFT                     (10)

@@ -128,4 +128,18 @@ void tty_set_fgcolor(tty_t* tty0, uint8_t fgcolor);
  */
 void tty_set_bgcolor(tty_t* tty0, uint8_t bgcolor);
 
+/**
+ * Disables the cursor of the TTY.
+ * 
+ * @param tty The TTY.
+ */
+void tty_disable_cursor(tty_t* tty0);
+
+/**
+ * Enables the cursor of the TTY.
+ * 
+ * @param tty The TTY.
+ */
+void tty_enable_cursor(tty_t* tty0);
+
 #endif // _KERNEL_IO_TTY_H

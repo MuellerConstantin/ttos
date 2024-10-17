@@ -299,3 +299,11 @@ void tty_set_fgcolor(tty_t* tty0, uint8_t fgcolor) {
 void tty_set_bgcolor(tty_t* tty0, uint8_t bgcolor) {
     tty0->bgcolor = bgcolor;
 }
+
+void tty_disable_cursor(tty_t* tty0) {
+    tty0->video->driver->tm.disable_cursor();
+}
+
+void tty_enable_cursor(tty_t* tty0) {
+    tty0->video->driver->tm.enable_cursor(0, 15);
+}

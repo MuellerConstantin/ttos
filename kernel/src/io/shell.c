@@ -4,6 +4,7 @@
 #include <system/kpanic.h>
 #include <memory/pmm.h>
 #include <arch/i386/acpi.h>
+#include <arch/i386/isr.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
 static void shell_echo(shell_t *shell, char *arguments);
@@ -86,9 +87,12 @@ static void shell_memory_map(shell_t *shell, char *arguments) {
 }
 
 static void shell_poweroff(shell_t *shell, char *arguments) {
-    if(acpi_poweroff() != 0) {
-        tty_printf(shell->tty, "Failed to power off the system, ACPI might not be supported\n");
-    }
+    acpi_poweroff();
 
-    tty_printf(shell->tty, "Shutting down the system...\n");
+    tty_printf(shell->tty, "It is now safe to turn off your computer...\n");
+    tty_disable_cursor(shell->tty);
+
+    isr_cli();
+    
+    while(1);
 }

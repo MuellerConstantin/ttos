@@ -68,14 +68,6 @@ int32_t acpi_poweroff() {
     }
 }
 
-uint16_t acpi_vga_is_available() {
-    if(acpi_fadt == NULL) {
-        return 0;
-    }
-
-    return acpi_fadt->iapc_boot_arch;
-}
-
 static acpi_rsdp_t* acpi_find_rsdp() {
     acpi_rsdp_t* rsdp = NULL;
 
@@ -163,13 +155,13 @@ static void acpi_init_poweroff() {
         // Skip NameOp, Name and PackageOp
         aml_pointer += ACPI_AML_S5_PACKET_LENGTH_OFFSET;
         // Skip Package length
-		aml_pointer += ((*aml_pointer & ACPI_AMI_PACKAGE_LENGTH_ENCODING_BITS_MASK) >> ACPI_AMI_PACKAGE_LENGTH_ENCODING_BITS_SHIFT) + ACPI_AML_MIN_PACKAGE_LENGTH;
+		aml_pointer += ((*aml_pointer & ACPI_AMI_PACKAGE_LENGTH_ENCODING_BITS_MASK) >> ACPI_AMI_PACKAGE_LENGTH_ENCODING_BITS_SHIFT) + ACPI_AML_MIN_PACKAGE_LENGTH + ACPI_AML_NUM_ELEMENTS_LENGTH;
 
         if(*aml_pointer == ACPI_AML_BYTE_PREFIX_CODE) {
             aml_pointer++;
         }
 
-        acpi_poweroff_info.slp_type_a = *aml_pointer << ACPI_AML_SLP_TYPA_SHIFT;
+        acpi_poweroff_info.slp_type_a = (*aml_pointer) << ACPI_AML_SLP_TYPA_SHIFT;
 
         aml_pointer++;
 
@@ -177,6 +169,6 @@ static void acpi_init_poweroff() {
             aml_pointer++;
         }
 
-        acpi_poweroff_info.slp_type_b = *aml_pointer << ACPI_AML_SLP_TYPB_SHIFT;
+        acpi_poweroff_info.slp_type_b = (*aml_pointer) << ACPI_AML_SLP_TYPB_SHIFT;
     }
 }
