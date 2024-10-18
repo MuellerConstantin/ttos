@@ -11,15 +11,15 @@
 #include <uuid.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
-static void shell_help(shell_t *shell, char *arguments);
-static void shell_clear(shell_t *shell, char *arguments);
-static void shell_echo(shell_t *shell, char *arguments);
-static void shell_memory_usage(shell_t *shell, char *arguments);
-static void shell_memory_map(shell_t *shell, char *arguments);
-static void shell_poweroff(shell_t *shell, char *arguments);
-static void shell_dmesg(shell_t *shell, char *arguments);
-static void shell_lsdev(shell_t *shell, char *arguments);
-static void shell_lsvol(shell_t *shell, char *arguments);
+static void shell_help(shell_t *shell, size_t argc, char **argv);
+static void shell_clear(shell_t *shell, size_t argc, char **argv);
+static void shell_echo(shell_t *shell, size_t argc, char **argv);
+static void shell_memory_usage(shell_t *shell, size_t argc, char **argv);
+static void shell_memory_map(shell_t *shell, size_t argc, char **argv);
+static void shell_poweroff(shell_t *shell, size_t argc, char **argv);
+static void shell_dmesg(shell_t *shell, size_t argc, char **argv);
+static void shell_lsdev(shell_t *shell, size_t argc, char **argv);
+static void shell_lsvol(shell_t *shell, size_t argc, char **argv);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -57,30 +57,69 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
 
     char *command = strsep(&instruction_copy, " ");
 
+    size_t argc = 1;
+    char **argv = kmalloc(sizeof(char*));
+
+    if(argv == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+    }
+
+    argv[0] = command;
+
+    char *argument;
+    char *rest = instruction_copy;
+    
+    while (rest != NULL) {
+        // Check for quoted arguments
+        if (*rest == '"') {
+            rest++;
+            argument = strsep(&rest, "\"");
+
+            if(*argument != '\0') {
+                argc++;
+                argv = krealloc(argv, argc * sizeof(char*));
+                argv[argc - 1] = argument;
+            }
+        } else {
+            argument = strsep(&rest, " ");
+
+            if (*argument != '\0') {
+                argc++;
+                argv = krealloc(argv, argc * sizeof(char*));
+                argv[argc - 1] = argument;
+            }
+        }
+
+        // Skip additional spaces
+        while (rest != NULL && *rest == ' ') {
+            rest++;
+        }
+    }
+
     if(strcmp(command, "help") == 0) {
-        shell_help(shell, instruction_copy);
+        shell_help(shell, argc, argv);
     } else if(strcmp(command, "clear") == 0) {
-        shell_clear(shell, instruction_copy); 
+        shell_clear(shell, argc, argv);
     } else if(strcmp(command, "echo") == 0) {
-        shell_echo(shell, instruction_copy);
+        shell_echo(shell, argc, argv);
     } else if(strcmp(command, "memusage") == 0) {
-        shell_memory_usage(shell, instruction_copy);
+        shell_memory_usage(shell, argc, argv);
     } else if(strcmp(command, "memmap") == 0) {
-        shell_memory_map(shell, instruction_copy);
+        shell_memory_map(shell, argc, argv);
     } else if(strcmp(command, "poweroff") == 0) {
-        shell_poweroff(shell, instruction_copy);
+        shell_poweroff(shell, argc, argv);
     } else if(strcmp(command, "dmesg") == 0) {
-        shell_dmesg(shell, instruction_copy);
+        shell_dmesg(shell, argc, argv);
     } else if(strcmp(command, "lsdev") == 0) {
-        shell_lsdev(shell, instruction_copy);
+        shell_lsdev(shell, argc, argv);
     } else if(strcmp(command, "lsvol") == 0) {
-        shell_lsvol(shell, instruction_copy);
+        shell_lsvol(shell, argc, argv);
     } else {
         tty_printf(shell->tty, "Unknown command: %s\n", command);
     }
 }
 
-static void shell_help(shell_t *shell, char *arguments) {
+static void shell_help(shell_t *shell, size_t argc, char **argv) {
     const char* help_message = "Available commands:\n\n"
         "help - Display this help message\n"
         "clear - Clear the screen\n"
@@ -95,15 +134,20 @@ static void shell_help(shell_t *shell, char *arguments) {
     tty_paging(shell->tty, help_message);
 }
 
-static void shell_clear(shell_t *shell, char *arguments) {
+static void shell_clear(shell_t *shell, size_t argc, char **argv) {
     tty_clear(shell->tty);
 }
 
-static void shell_echo(shell_t *shell, char *arguments) {
-    tty_printf(shell->tty, "%s\n", arguments);
+static void shell_echo(shell_t *shell, size_t argc, char **argv) {
+    if(argc < 2) {
+        tty_printf(shell->tty, "Usage: echo <text>\n");
+        return;
+    }
+
+    tty_printf(shell->tty, "%s\n", argv[1]);
 }
 
-static void shell_memory_usage(shell_t *shell, char *arguments) {
+static void shell_memory_usage(shell_t *shell, size_t argc, char **argv) {
     size_t total_memory = pmm_get_total_memory_size();
     size_t free_memory = pmm_get_available_memory_size();
 
@@ -115,7 +159,7 @@ static void shell_memory_usage(shell_t *shell, char *arguments) {
     tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
 }
 
-static void shell_memory_map(shell_t *shell, char *arguments) {
+static void shell_memory_map(shell_t *shell, size_t argc, char **argv) {
     const linked_list_t* pmm_memory_regions = pmm_get_memory_regions();
 
     linked_list_foreach(pmm_memory_regions, node) {
@@ -125,7 +169,7 @@ static void shell_memory_map(shell_t *shell, char *arguments) {
     }
 }
 
-static void shell_poweroff(shell_t *shell, char *arguments) {
+static void shell_poweroff(shell_t *shell, size_t argc, char **argv) {
     acpi_poweroff();
 
     tty_printf(shell->tty, "It is now safe to turn off your computer...\n");
@@ -136,7 +180,7 @@ static void shell_poweroff(shell_t *shell, char *arguments) {
     while(1);
 }
 
-static void shell_dmesg(shell_t *shell, char *arguments) {
+static void shell_dmesg(shell_t *shell, size_t argc, char **argv) {
     const linked_list_t* messages = kmessage_get_messages();
 
     size_t message_buffer_size = 1;
@@ -188,12 +232,17 @@ static void shell_lsdev_append_callback(generic_tree_node_t* node, void* data) {
     strcat(message_buffer, ")\n");
 }
 
-static void shell_lsdev(shell_t *shell, char *arguments) {
+static void shell_lsdev(shell_t *shell, size_t argc, char **argv) {
     const generic_tree_t* devices = device_get_all();
 
     size_t message_buffer_size = 21;
 
     generic_tree_foreach(devices, shell_lsdev_count_callback, &message_buffer_size);
+
+    if(message_buffer_size == 21) {
+        tty_printf(shell->tty, "No devices found\n");
+        return;
+    }
 
     char* message_buffer = kmalloc(message_buffer_size);
 
@@ -212,7 +261,7 @@ static void shell_lsdev(shell_t *shell, char *arguments) {
     kfree(message_buffer);
 }
 
-static void shell_lsvol(shell_t *shell, char *arguments) {
+static void shell_lsvol(shell_t *shell, size_t argc, char **argv) {
     const linked_list_t* volumes = volume_get_all();
 
     size_t message_buffer_size = 21;
@@ -220,6 +269,11 @@ static void shell_lsvol(shell_t *shell, char *arguments) {
     linked_list_foreach(volumes, node) {
         volume_t* volume = (volume_t*) node->data;
         message_buffer_size += strlen(volume->name) + 36 + 4;
+    }
+
+    if(message_buffer_size == 21) {
+        tty_printf(shell->tty, "No volumes found\n");
+        return;
     }
 
     char* message_buffer = kmalloc(message_buffer_size);

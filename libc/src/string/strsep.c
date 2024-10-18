@@ -9,6 +9,7 @@ char *strsep(char **stringp, const char *delim) {
     }
 
     p = strpbrk(start, delim);
+
     if (p == NULL) {
         *stringp = NULL;
     } else {
