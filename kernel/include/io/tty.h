@@ -65,6 +65,13 @@ extern tty_keyboard_layout_t tty_keyboard_layout_de_DE;
 tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout);
 
 /**
+ * Clears the TTY.
+ * 
+ * @param tty The TTY.
+ */
+void tty_clear(tty_t* tty0);
+
+/**
  * Writes a character to the TTY.
  * 
  * @param tty The TTY.

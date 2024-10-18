@@ -28,6 +28,18 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     return tty0;
 }
 
+void tty_clear(tty_t* tty0) {
+    for(size_t y = 0; y < tty0->rows; y++) {
+        for(size_t x = 0; x < tty0->columns; x++) {
+            tty0->video->driver->tm.write(y * tty0->columns + x, ' ', tty0->fgcolor, tty0->bgcolor);
+        }
+    }
+
+    tty0->cursor_x = 0;
+    tty0->cursor_y = 0;
+    tty0->video->driver->tm.move_cursor(tty0->cursor_y * tty0->columns + tty0->cursor_x);
+}
+
 void tty_putchar(tty_t* tty0, char ch) {
     switch(ch) {
         case '\n':
