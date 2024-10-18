@@ -80,4 +80,12 @@ int32_t mnt_volume_unmount(char drive);
  */
 const mnt_mountpoint_t* mnt_get_mountpoint(char* path);
 
+/**
+ * Get the mounted volume for a drive.
+ * 
+ * @param drive The drive letter to get the mounted volume for.
+ * @return The mounted volume or NULL if not found.
+ */
+const mnt_mountpoint_t* mnt_get_drive(char drive);
+
 #endif // _KERNEL_FS_MOUNT_H

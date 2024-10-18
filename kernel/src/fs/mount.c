@@ -58,6 +58,16 @@ const mnt_mountpoint_t* mnt_get_mountpoint(char* path) {
     return mnt_mountpoints[index];
 }
 
+const mnt_mountpoint_t* mnt_get_drive(char drive) {
+    int32_t index = mnt_get_drive_index(drive);
+
+    if(index == -1) {
+        return NULL;
+    }
+
+    return mnt_mountpoints[index];
+}
+
 static int32_t mnt_get_drive_index(char drive) {
     if(drive >= 'a' && drive <= 'z') {
         return drive - 'a';

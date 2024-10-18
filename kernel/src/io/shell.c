@@ -8,18 +8,22 @@
 #include <system/kmessage.h>
 #include <device/device.h>
 #include <device/volume.h>
+#include <fs/mount.h>
 #include <uuid.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
-static void shell_help(shell_t *shell, size_t argc, char **argv);
-static void shell_clear(shell_t *shell, size_t argc, char **argv);
-static void shell_echo(shell_t *shell, size_t argc, char **argv);
-static void shell_memory_usage(shell_t *shell, size_t argc, char **argv);
-static void shell_memory_map(shell_t *shell, size_t argc, char **argv);
-static void shell_poweroff(shell_t *shell, size_t argc, char **argv);
-static void shell_dmesg(shell_t *shell, size_t argc, char **argv);
-static void shell_lsdev(shell_t *shell, size_t argc, char **argv);
-static void shell_lsvol(shell_t *shell, size_t argc, char **argv);
+static void shell_help(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_clear(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_echo(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_memory_usage(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_memory_map(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_poweroff(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_dmesg(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_lsdev(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_mount(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -114,12 +118,21 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_lsdev(shell, argc, argv);
     } else if(strcmp(command, "lsvol") == 0) {
         shell_lsvol(shell, argc, argv);
+    } else if(strcmp(command, "lsmnt") == 0) {
+        shell_lsmnt(shell, argc, argv);
+    } else if(strcmp(command, "mount") == 0) {
+        shell_mount(shell, argc, argv);
+    } else if(strcmp(command, "unmount") == 0) {
+        shell_unmount(shell, argc, argv);
     } else {
         tty_printf(shell->tty, "Unknown command: %s\n", command);
     }
+
+    kfree(argv);
+    kfree(instruction_copy);
 }
 
-static void shell_help(shell_t *shell, size_t argc, char **argv) {
+static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
     const char* help_message = "Available commands:\n\n"
         "help - Display this help message\n"
         "clear - Clear the screen\n"
@@ -129,16 +142,19 @@ static void shell_help(shell_t *shell, size_t argc, char **argv) {
         "poweroff - Power off the system\n"
         "dmesg - Display kernel messages\n"
         "lsdev - List available devices\n"
-        "lsvol - List available volumes\n";
+        "lsvol - List available volumes\n"
+        "lsmnt - List available mount points\n"
+        "mount <drive> <volume> - Mount a volume to a drive\n"
+        "unmount <drive> - Unmount a volume from a drive\n";
 
     tty_paging(shell->tty, help_message);
 }
 
-static void shell_clear(shell_t *shell, size_t argc, char **argv) {
+static void shell_clear(shell_t *shell, size_t argc, const char *argv[]) {
     tty_clear(shell->tty);
 }
 
-static void shell_echo(shell_t *shell, size_t argc, char **argv) {
+static void shell_echo(shell_t *shell, size_t argc, const char *argv[]) {
     if(argc < 2) {
         tty_printf(shell->tty, "Usage: echo <text>\n");
         return;
@@ -147,7 +163,7 @@ static void shell_echo(shell_t *shell, size_t argc, char **argv) {
     tty_printf(shell->tty, "%s\n", argv[1]);
 }
 
-static void shell_memory_usage(shell_t *shell, size_t argc, char **argv) {
+static void shell_memory_usage(shell_t *shell, size_t argc, const char *argv[]) {
     size_t total_memory = pmm_get_total_memory_size();
     size_t free_memory = pmm_get_available_memory_size();
 
@@ -159,7 +175,7 @@ static void shell_memory_usage(shell_t *shell, size_t argc, char **argv) {
     tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
 }
 
-static void shell_memory_map(shell_t *shell, size_t argc, char **argv) {
+static void shell_memory_map(shell_t *shell, size_t argc, const char *argv[]) {
     const linked_list_t* pmm_memory_regions = pmm_get_memory_regions();
 
     linked_list_foreach(pmm_memory_regions, node) {
@@ -169,7 +185,7 @@ static void shell_memory_map(shell_t *shell, size_t argc, char **argv) {
     }
 }
 
-static void shell_poweroff(shell_t *shell, size_t argc, char **argv) {
+static void shell_poweroff(shell_t *shell, size_t argc, const char *argv[]) {
     acpi_poweroff();
 
     tty_printf(shell->tty, "It is now safe to turn off your computer...\n");
@@ -180,7 +196,7 @@ static void shell_poweroff(shell_t *shell, size_t argc, char **argv) {
     while(1);
 }
 
-static void shell_dmesg(shell_t *shell, size_t argc, char **argv) {
+static void shell_dmesg(shell_t *shell, size_t argc, const char *argv[]) {
     const linked_list_t* messages = kmessage_get_messages();
 
     size_t message_buffer_size = 1;
@@ -232,7 +248,7 @@ static void shell_lsdev_append_callback(generic_tree_node_t* node, void* data) {
     strcat(message_buffer, ")\n");
 }
 
-static void shell_lsdev(shell_t *shell, size_t argc, char **argv) {
+static void shell_lsdev(shell_t *shell, size_t argc, const char *argv[]) {
     const generic_tree_t* devices = device_get_all();
 
     size_t message_buffer_size = 21;
@@ -261,7 +277,7 @@ static void shell_lsdev(shell_t *shell, size_t argc, char **argv) {
     kfree(message_buffer);
 }
 
-static void shell_lsvol(shell_t *shell, size_t argc, char **argv) {
+static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]) {
     const linked_list_t* volumes = volume_get_all();
 
     size_t message_buffer_size = 21;
@@ -301,4 +317,89 @@ static void shell_lsvol(shell_t *shell, size_t argc, char **argv) {
     tty_paging(shell->tty, message_buffer);
 
     kfree(message_buffer);
+}
+
+static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]) {
+    size_t message_buffer_size = 26;
+
+    for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
+        if(mnt_get_drive(drive) != NULL) {
+            message_buffer_size += 3;
+        }
+    }
+
+    if(message_buffer_size == 26) {
+        tty_printf(shell->tty, "No mount points found\n");
+        return;
+    }
+
+    char* message_buffer = kmalloc(message_buffer_size);
+
+    if(message_buffer == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+    }
+
+    message_buffer[0] = '\0';
+
+    strcpy(message_buffer, "Available mount points:\n\n");
+
+    for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
+        if(mnt_get_drive(drive) != NULL) {
+            message_buffer[strlen(message_buffer)] = drive;
+            message_buffer[strlen(message_buffer) + 1] = '\0';
+            strcat(message_buffer, ":\n");
+        }
+    }
+
+    tty_paging(shell->tty, message_buffer);
+
+    kfree(message_buffer);
+}
+
+static void shell_mount(shell_t *shell, size_t argc, const char *argv[]) {
+    if(argc < 3) {
+        tty_printf(shell->tty, "Usage: mount <drive> <volume>\n");
+        return;
+    }
+
+    char drive = argv[1][0];
+    volume_t* volume = volume_find_by_name(argv[2]);
+
+    if(volume == NULL) {
+        tty_printf(shell->tty, "Volume not found\n");
+        return;
+    }
+
+    if(mnt_get_drive(drive) != NULL) {
+        tty_printf(shell->tty, "Drive already mounted\n");
+        return;
+    }
+
+    if(mnt_volume_mount(drive, volume) != 0) {
+        tty_printf(shell->tty, "Failed to mount volume, file system may not be supported\n");
+        return;
+    }
+
+    tty_printf(shell->tty, "Volume mounted\n");
+}
+
+static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]) {
+    if(argc < 2) {
+        tty_printf(shell->tty, "Usage: unmount <drive>\n");
+        return;
+    }
+
+    char drive = argv[1][0];
+
+    if(mnt_get_drive(drive) == NULL) {
+        tty_printf(shell->tty, "Drive not mounted\n");
+        return;
+    }
+
+    if(mnt_volume_unmount(drive) != 0) {
+        tty_printf(shell->tty, "Failed to unmount volume\n");
+        return;
+    }
+
+    tty_printf(shell->tty, "Volume unmounted\n");
 }
