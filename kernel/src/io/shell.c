@@ -5,12 +5,14 @@
 #include <memory/pmm.h>
 #include <arch/i386/acpi.h>
 #include <arch/i386/isr.h>
+#include <system/kmessage.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
 static void shell_echo(shell_t *shell, char *arguments);
 static void shell_memory_usage(shell_t *shell, char *arguments);
 static void shell_memory_map(shell_t *shell, char *arguments);
 static void shell_poweroff(shell_t *shell, char *arguments);
+static void shell_dmesg(shell_t *shell, char *arguments);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -55,6 +57,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_memory_map(shell, instruction_copy);
     } else if(strcmp(command, "poweroff") == 0) {
         shell_poweroff(shell, instruction_copy);
+    } else if(strcmp(command, "dmesg") == 0) {
+        shell_dmesg(shell, instruction_copy);
     } else {
         tty_printf(shell->tty, "Unknown command: %s\n", command);
     }
@@ -95,4 +99,37 @@ static void shell_poweroff(shell_t *shell, char *arguments) {
     isr_cli();
     
     while(1);
+}
+
+static void shell_dmesg(shell_t *shell, char *arguments) {
+    const linked_list_t* messages = kmessage_get_messages();
+
+    size_t message_buffer_size = 1;
+
+    linked_list_foreach(messages, node) {
+        kmessage_message_t* message = (kmessage_message_t*) node->data;
+        message_buffer_size += strlen(message->level) + strlen(message->message) + 4;
+    }
+
+    char* message_buffer = kmalloc(message_buffer_size);
+
+    if(message_buffer == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+    }
+
+    message_buffer[0] = '\0';
+
+    linked_list_foreach(messages, node) {
+        kmessage_message_t* message = (kmessage_message_t*) node->data;
+
+        strcat(message_buffer, "[");
+        strcat(message_buffer, message->level);
+        strcat(message_buffer, "] ");
+        strcat(message_buffer, message->message);
+        strcat(message_buffer, "\n");
+    }
+
+    tty_paging(shell->tty, message_buffer);
+
+    kfree(message_buffer);
 }

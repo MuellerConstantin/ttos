@@ -45,6 +45,15 @@ char* strcpy(char* dest, const char* src);
 int strcmp(const char* str1, const char* str2);
 
 /**
+ * Appends the string pointed to by src to the end of the string pointed to by dest.
+ * 
+ * @param dest The destination to append the string to.
+ * @param src The source to append the string from.
+ * @return A pointer to the destination.
+ */
+char* strcat(char* dest, const char* src);
+
+/**
  * Copies the given value into each of the first n characters
  * of the object pointed to by dest.
  * 

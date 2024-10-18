@@ -66,7 +66,7 @@ void tty_putchar(tty_t* tty0, char ch) {
         tty0->video->driver->tm.move_cursor(tty0->cursor_y * tty0->columns + tty0->cursor_x);
     }
 
-    vga_tm_move_cursor(tty0->cursor_y * tty0->columns + tty0->cursor_x);
+    tty0->video->driver->tm.move_cursor(tty0->cursor_y * tty0->columns + tty0->cursor_x);
 }
 
 char tty_getchar(tty_t* tty0) {
@@ -306,4 +306,39 @@ void tty_disable_cursor(tty_t* tty0) {
 
 void tty_enable_cursor(tty_t* tty0) {
     tty0->video->driver->tm.enable_cursor(0, 15);
+}
+
+void tty_paging(tty_t* tty0, const char* buffer) {
+    char* buffer_pointer = (char*) buffer;
+
+    while(*buffer_pointer) {
+        // Check if last row has been reached
+        if(tty0->cursor_y == tty0->rows - 1 && tty0->cursor_x == 0) {
+            // Display : (less) prompt
+            tty0->video->driver->tm.write((tty0->rows - 1) * tty0->columns, ':', tty0->fgcolor, tty0->bgcolor);
+
+            char ch;
+
+            do {
+                ch = tty_getchar(tty0);
+
+                if(ch == 'q') {
+                    return;
+                }
+            } while(ch != 'n');
+        }
+
+        tty_putchar(tty0, *buffer_pointer);
+
+        buffer_pointer++;
+    }
+
+    // Display exit message
+    tty0->video->driver->tm.write(tty0->cursor_y * tty0->columns, '!', tty0->fgcolor, tty0->bgcolor);
+
+    char ch;
+
+    do {
+        ch = tty_getchar(tty0);
+    } while(ch != 'q');
 }

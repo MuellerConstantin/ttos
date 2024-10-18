@@ -63,13 +63,53 @@ static inline void circular_buffer_dequeue(circular_buffer_t* buffer, void* elem
         return;
     }
 
-    void* source = (uint8_t*) buffer->buffer + buffer->tail * buffer->element_size;
-    memcpy(element, source, buffer->element_size);
+    if(element) {
+        void* source = (uint8_t*) buffer->buffer + buffer->tail * buffer->element_size;
+        memcpy(element, source, buffer->element_size);
+    }
 
     buffer->tail = (buffer->tail + 1) % buffer->capacity;
     buffer->full = false;
+}
 
-    return element;
+static inline size_t circular_buffer_size(circular_buffer_t* buffer) {
+    if(buffer->full) {
+        return buffer->capacity;
+    }
+
+    if(buffer->head >= buffer->tail) {
+        return buffer->head - buffer->tail;
+    }
+
+    return buffer->capacity + buffer->head - buffer->tail;
+}
+
+static inline void circular_buffer_get(circular_buffer_t* buffer, size_t index, void* element) {
+    if(index >= buffer->capacity) {
+        return;
+    }
+
+    if(index >= circular_buffer_size(buffer)) {
+        return;
+    }
+
+    size_t position = (buffer->tail + index) % buffer->capacity;
+    void* source = (uint8_t*) buffer->buffer + position * buffer->element_size;
+    memcpy(element, source, buffer->element_size);
+}
+
+static inline void circular_buffer_set(circular_buffer_t* buffer, size_t index, void* element) {
+    if(index >= buffer->capacity) {
+        return;
+    }
+
+    if(index >= circular_buffer_size(buffer)) {
+        return;
+    }
+
+    size_t position = (buffer->tail + index) % buffer->capacity;
+    void* destination = (uint8_t*) buffer->buffer + position * buffer->element_size;
+    memcpy(destination, element, buffer->element_size);
 }
 
 static inline bool circular_buffer_empty(circular_buffer_t* buffer) {

@@ -12,6 +12,7 @@
 #include <arch/i386/pic/8259.h>
 #include <system/kpanic.h>
 #include <system/switch_usermode.h>
+#include <system/kmessage.h>
 #include <device/device.h>
 #include <device/volume.h>
 #include <drivers/pci/pci.h>
@@ -48,6 +49,13 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     }
 
     isr_cli();
+
+    kmessage_init();
+
+    kmessage(KMESSAGE_LEVEL_INFO, "Booting kernel...");
+    kmessage(KMESSAGE_LEVEL_INFO, "multiboot: Booted by a Multiboot-compliant bootloader");
+    kmessage(KMESSAGE_LEVEL_INFO, "multiboot: Memory map provided by bootloader");
+    kmessage(KMESSAGE_LEVEL_INFO, "multiboot: Modules provided by bootloader");
 
     init_platform(multiboot_info);
     init_kernel(multiboot_info);

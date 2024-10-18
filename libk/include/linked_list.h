@@ -65,6 +65,24 @@ static inline void linked_list_destroy(linked_list_t* list, bool free_data) {
     kfree(list);
 }
 
+static inline void linked_list_clear(linked_list_t* list, bool free_data) {
+    linked_list_node_t* node = list->head;
+
+    while(node) {
+        linked_list_node_t* next = node->next;
+
+        if(free_data) {
+            kfree(node->data);
+        }
+
+        kfree(node);
+        node = next;
+    }
+
+    list->head = NULL;
+    list->tail = NULL;
+}
+
 /**
  * Create a new linked list node.
  * 
