@@ -1,5 +1,6 @@
 #include <arch/i386/idt.h>
 #include <arch/i386/isr.h>
+#include <system/kmessage.h>
 
 static idt_table_t idt;
 static idt_gate_descriptor_t descriptors[IDT_SIZE];
@@ -62,6 +63,8 @@ void idt_init() {
     idt.limit = sizeof(descriptors) - 1;
 
     idt_flush((uint32_t) &idt);
+
+    kmessage(KMESSAGE_LEVEL_INFO, "cpu: IDT initialized");
 }
 
 static void idt_init_descriptor(isr_interrupt_t index, uint32_t offset, uint16_t selector, uint8_t flags) {

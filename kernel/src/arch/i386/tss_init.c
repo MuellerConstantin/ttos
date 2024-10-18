@@ -1,4 +1,5 @@
 #include <arch/i386/tss.h>
+#include <system/kmessage.h>
 
 static tss_segment_descriptor_t tss;
 
@@ -32,6 +33,8 @@ void tss_init(uint16_t ss0, uintptr_t esp0) {
     tss.gs = 0x13;
 
     tss_flush();
+
+    kmessage(KMESSAGE_LEVEL_INFO, "cpu: TSS initialized");
 }
 
 void tss_update_ring0_stack(uint16_t ss0, uintptr_t esp0) {

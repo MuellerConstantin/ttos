@@ -2,6 +2,8 @@
 #include <memory/vmm.h>
 #include <memory/kheap.h>
 #include <system/ports.h>
+#include <system/kpanic.h>
+#include <system/kmessage.h>
 
 static acpi_poweroff_information_t acpi_poweroff_info;
 
@@ -16,9 +18,12 @@ static acpi_rsdp_t* acpi_find_rsdp();
 static void acpi_init_poweroff();
 
 int32_t acpi_init(void) {
+    kmessage(KMESSAGE_LEVEL_INFO, "acpi: Initializing ACPI...");
+
     acpi_rsdp = acpi_find_rsdp();
 
     if(acpi_rsdp == NULL) {
+        kmessage(KMESSAGE_LEVEL_WARN, "acpi: RSDP not found, ACPI is not supported");
         return -1;
     }
 
@@ -26,8 +31,19 @@ int32_t acpi_init(void) {
     acpi_rsdt = (acpi_rsdt_t*) ((uintptr_t) acpi_rsdt_base + VMM_OFFSET(acpi_rsdp->rsdt_address));
 
     if(memcmp(acpi_rsdt->sdt.signature, ACPI_RSDT_SIGNATURE, 4) != 0) {
+        kmessage(KMESSAGE_LEVEL_WARN, "acpi: RSDT signature is invalid, ACPI is not supported");
         return -1;
     }
+
+    char* kernel_message = kmalloc(64);
+
+    if(!kernel_message) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    sprintf(kernel_message, "acpi: ACPI supported with Version %d", acpi_rsdp->revision);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 
     acpi_sdts_count = (acpi_rsdt->sdt.length - sizeof(acpi_sdt_t)) / sizeof(uint32_t);
     acpi_sdts = kcalloc(acpi_sdts_count, sizeof(acpi_rsdt_t*));
@@ -50,6 +66,8 @@ int32_t acpi_init(void) {
             acpi_dsdt = (acpi_dsdt_t*) ((uintptr_t) acpi_dsdt_base + VMM_OFFSET(acpi_fadt->dsdt));
         }
     }
+
+    kmessage(KMESSAGE_LEVEL_INFO, "acpi: Initializing poweroff...");
 
     acpi_init_poweroff();
 
@@ -134,6 +152,7 @@ static acpi_rsdp_t* acpi_find_rsdp() {
 
 static void acpi_init_poweroff() {
     if(acpi_dsdt == NULL || acpi_fadt == NULL) {
+        kmessage(KMESSAGE_LEVEL_WARN, "acpi: DSDT or FADT not found, poweroff is not supported");
         return;
     }
 
@@ -171,4 +190,25 @@ static void acpi_init_poweroff() {
 
         acpi_poweroff_info.slp_type_b = (*aml_pointer) << ACPI_AML_SLP_TYPB_SHIFT;
     }
+
+    kmessage(KMESSAGE_LEVEL_INFO, "acpi: Poweroff initialized");
+
+    char* kernel_message_pm1 = kmalloc(64);
+    char* kernel_message_pm2 = kmalloc(64);
+
+    if(!kernel_message_pm1) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    if(!kernel_message_pm2) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    sprintf(kernel_message_pm1, "acpi: PM1A_CNT: %x SLP_TYP_A: %x", acpi_poweroff_info.pm1a_cnt, acpi_poweroff_info.slp_type_a);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message_pm1);
+
+    sprintf(kernel_message_pm2, "acpi: PM1B_CNT: %x SLP_TYP_B: %x", acpi_poweroff_info.pm1b_cnt, acpi_poweroff_info.slp_type_b);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message_pm2);
 }

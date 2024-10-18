@@ -94,7 +94,6 @@ char* tty_readline(tty_t* tty0, bool echo);
  * Naive printf implementation that writes to a stream. This function does not
  * support all the features of the standard printf function.
  * 
- * @param putchar The function to write a character to the stream.
  * @param format The format string.
  * @param ... The arguments to format.
  * @return The number of characters written.

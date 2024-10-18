@@ -1,6 +1,8 @@
 #include <memory/pmm.h>
 #include <system/kpanic.h>
 #include <memory/kheap.h>
+#include <system/kmessage.h>
+#include <stdio.h>
 
 static linked_list_t* pmm_memory_regions = NULL;
 static size_t pmm_total_memory_size = 0;
@@ -48,6 +50,16 @@ void pmm_init(multiboot_info_t *multiboot_info) {
             }
         }
     }
+
+    char* kernel_message = kmalloc(96);
+
+    if(!kernel_message) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    sprintf(kernel_message, "memory: PMM initialized with %d (%f MB) memory frames", pmm_num_memory_frames, pmm_total_memory_size / 1024.0 / 1024.0);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 }
 
 static linked_list_t* pmm_fetch_memory_regions(multiboot_info_t *multiboot_info) {

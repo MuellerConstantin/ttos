@@ -3,6 +3,7 @@
 #include <arch/i386/paging.h>
 #include <system/kpanic.h>
 #include <memory/kheap.h>
+#include <system/kmessage.h>
 
 static page_directory_t *kernel_page_directory = NULL;
 static page_directory_t *current_page_directory = NULL;
@@ -35,6 +36,8 @@ void vmm_init() {
     current_page_directory = kernel_page_directory;
 
     paging_enable();
+
+    kmessage(KMESSAGE_LEVEL_INFO, "memory: VMM initialized");
 }
 
 void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable) {

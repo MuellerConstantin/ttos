@@ -1,5 +1,6 @@
 #include <memory/kheap.h>
 #include <system/kpanic.h>
+#include <system/kmessage.h>
 
 /**
  * The placement memory (limited to 1MB) that is used as a fallback
@@ -54,6 +55,8 @@ void kheap_init() {
     kheap_tail = kheap_head;
 
     kheap_enabled = true;
+
+    kmessage(KMESSAGE_LEVEL_INFO, "memory: Kernel heap initialized");
 }
 
 size_t kheap_get_total_memory_size() {

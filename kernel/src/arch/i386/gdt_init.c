@@ -1,4 +1,5 @@
 #include <arch/i386/gdt.h>
+#include <system/kmessage.h>
 
 static gdt_table_t gdt;
 static gdt_segment_descriptor_t descriptors[GDT_SIZE];
@@ -50,6 +51,8 @@ void gdt_init() {
     gdt.limit = sizeof(descriptors) - 1;
 
     gdt_flush((uint32_t) &gdt);
+
+    kmessage(KMESSAGE_LEVEL_INFO, "cpu: GDT initialized");
 }
 
 void gdt_init_descriptor(gdt_selector_t selector, uint32_t base, uint32_t limit, uint8_t access, uint8_t flags) {

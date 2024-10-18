@@ -1,5 +1,8 @@
 #include <drivers/pci/pci.h>
 #include <system/kpanic.h>
+#include <memory/kheap.h>
+#include <system/kmessage.h>
+#include <stdio.h>
 
 static char* pci_get_device_name(pci_device_t* pci_device);
 static pci_device_t* pci_probe_device(uint8_t bus, uint8_t slot, uint8_t function);
@@ -41,6 +44,16 @@ int32_t pci_init() {
                 } else {
                     device_register(slot_device, device);
                 }
+
+                char* kernel_message = (char*) kmalloc(64);
+
+                if(!kernel_message) {
+                    KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+                }
+
+                sprintf(kernel_message, "pci: Found device Vendor ID: %x, Device ID: %x at %d:%d.%d", pci_device->vendor_id, pci_device->device_id, bus, slot, function);
+
+                kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 
                 // Skip function scanning if the device is a single function device
                 if(function == 0 && (pci_device->header_type & PIC_HEADER_TYPE_MULTIFUNCTION) == 0) {
