@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include <device/volume.h>
 
@@ -65,6 +66,14 @@ struct vfs_dirent {
     char name[128];
     uint32_t inode;
 } __attribute__((packed));
+
+/**
+ * Check if a path is an absolute path.
+ * 
+ * @param path The path to check.
+ * @return True if the path is an absolute path, false otherwise.
+ */
+bool vfs_is_abs_path(char* path);
 
 /**
  * Read data from a file.

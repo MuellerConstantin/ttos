@@ -105,7 +105,7 @@ static int32_t initfs_unmount(mnt_mountpoint_t* mount) {
 }
 
 static int32_t initfs_open(vfs_node_t* node) {
-    if(node->type & VFS_DIRECTORY) {
+    if(node->type == VFS_DIRECTORY) {
         return -1;
     }
 
@@ -134,7 +134,7 @@ static int32_t initfs_open(vfs_node_t* node) {
 }
 
 static int32_t initfs_close(vfs_node_t* node) {
-    if(node->type & VFS_DIRECTORY) {
+    if(node->type == VFS_DIRECTORY) {
         return 0;
     }
 
@@ -146,7 +146,7 @@ static int32_t initfs_close(vfs_node_t* node) {
 }
 
 static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    if(node->type & VFS_DIRECTORY) {
+    if(node->type == VFS_DIRECTORY) {
         return -1;
     }
 

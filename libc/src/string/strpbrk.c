@@ -11,5 +11,6 @@ char *strpbrk(const char *s, const char *accept) {
         }
         s++;
     }
+
     return NULL;
 }

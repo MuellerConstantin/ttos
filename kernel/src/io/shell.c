@@ -9,6 +9,7 @@
 #include <device/device.h>
 #include <device/volume.h>
 #include <fs/mount.h>
+#include <io/dir.h>
 #include <uuid.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
@@ -24,6 +25,7 @@ static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_mount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -124,6 +126,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_mount(shell, argc, argv);
     } else if(strcmp(command, "unmount") == 0) {
         shell_unmount(shell, argc, argv);
+    } else if(strcmp(command, "lsdir") == 0) {
+        shell_lsdir(shell, argc, argv);
     } else {
         tty_printf(shell->tty, "Unknown command: %s\n", command);
     }
@@ -145,7 +149,8 @@ static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
         "lsvol - List available volumes\n"
         "lsmnt - List available mount points\n"
         "mount <drive> <volume> - Mount a volume to a drive\n"
-        "unmount <drive> - Unmount a volume from a drive\n";
+        "unmount <drive> - Unmount a volume from a drive\n"
+        "lsdir <path> - List directory contents\n";
 
     tty_paging(shell->tty, help_message);
 }
@@ -402,4 +407,72 @@ static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]) {
     }
 
     tty_printf(shell->tty, "Volume unmounted\n");
+}
+
+static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]) {
+    if(argc < 2) {
+        tty_printf(shell->tty, "Usage: lsdir <path>\n");
+        return;
+    }
+
+    int32_t dd = dir_open(argv[1]);
+
+    if(dd < 0) {
+        tty_printf(shell->tty, "Invalid path\n");
+        return;
+    }
+
+    uint32_t message_buffer_size = 22;
+
+    const dir_dirent_t* dirent = NULL;
+
+    do {
+        dirent = dir_read(dd);
+
+        if(dirent != NULL) {
+            message_buffer_size += strlen(dirent->name) + 1;
+            kfree(dirent);
+        }
+    } while(dirent != NULL);
+
+    dir_close(dd);
+
+    if(message_buffer_size == 22) {
+        tty_printf(shell->tty, "No directory contents found\n");
+        return;
+    }
+
+    char* message_buffer = kmalloc(message_buffer_size);
+
+    if(message_buffer == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+    }
+
+    message_buffer[0] = '\0';
+
+    strcpy(message_buffer, "Directory contents:\n\n");
+
+    dd = dir_open(argv[1]);
+
+    if(dd < 0) {
+        tty_printf(shell->tty, "Reading directory failed\n");
+        kfree(message_buffer);
+        return;
+    }
+
+    do {
+        dirent = dir_read(dd);
+
+        if(dirent != NULL) {
+            strcat(message_buffer, dirent->name);
+            strcat(message_buffer, "\n");
+            kfree(dirent);
+        }
+    } while(dirent != NULL);
+
+    dir_close(dd);
+
+    tty_paging(shell->tty, message_buffer);
+
+    kfree(message_buffer);
 }

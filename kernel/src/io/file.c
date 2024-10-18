@@ -5,22 +5,8 @@ file_descriptor_t file_descriptors[MAX_FILE_DESCRIPTORS];
 
 static int32_t file_get_free_descriptor();
 
-bool file_is_abs_path(char* path) {
-    if(strlen(path) < 3) {
-        return false;
-    }
-
-    if((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) {
-        if(path[1] == ':' && path[2] == '/') {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 int32_t file_open(char* path, uint32_t flags) {
-    if(!file_is_abs_path(path)) {
+    if(!vfs_is_abs_path(path)) {
         return -1;
     }
 
@@ -35,12 +21,14 @@ int32_t file_open(char* path, uint32_t flags) {
     vfs_node_t* node = vfs_findpath(mountpoint->root, relative_path);
 
     if(!node) {
+        kfree(node);
         return -1;
     }
 
     int32_t fd = file_get_free_descriptor();
 
     if(fd < 0) {
+        kfree(node);
         return -1;
     }
 
@@ -51,6 +39,7 @@ int32_t file_open(char* path, uint32_t flags) {
 
     if(vfs_open(node) != 0) {
         file_descriptors[fd].node = NULL;
+        kfree(node);
         return -1;
     }
 
@@ -70,6 +59,7 @@ int32_t file_close(int32_t fd) {
         return -1;
     }
 
+    kfree(file_descriptors[fd].node);
     file_descriptors[fd].node = NULL;
 
     return 0;

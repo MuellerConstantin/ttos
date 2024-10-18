@@ -32,14 +32,6 @@ struct file_descriptor {
 };
 
 /**
- * Check if a file is an absolute path.
- * 
- * @param path The path to the file.
- * @return True if the file is an absolute path, false otherwise.
- */
-bool file_is_abs_path(char* path);
-
-/**
  * Open a file.
  * 
  * @param path The path to the file.
