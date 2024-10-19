@@ -329,9 +329,7 @@ static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]) {
             message_buffer = krealloc(message_buffer, strlen(message_buffer) + 3);
 
             message_buffer[strlen(message_buffer)] = drive;
-            message_buffer[strlen(message_buffer) + 1] = ':';
-            message_buffer[strlen(message_buffer) + 2] = '\n';
-            message_buffer[strlen(message_buffer) + 3] = '\0';
+            strcat(message_buffer, ":\n");
         }
     }
 
