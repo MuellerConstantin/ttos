@@ -26,6 +26,7 @@ static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_mount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]);
 
 shell_t* shell_create(tty_t *tty0) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -110,6 +111,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_echo(shell, argc, argv);
     } else if(strcmp(command, "memusage") == 0) {
         shell_memory_usage(shell, argc, argv);
+    } else if(strcmp(command, "kheapusage") == 0) {
+        shell_kheap_usage(shell, argc, argv);
     } else if(strcmp(command, "memmap") == 0) {
         shell_memory_map(shell, argc, argv);
     } else if(strcmp(command, "poweroff") == 0) {
@@ -142,6 +145,7 @@ static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
         "clear - Clear the screen\n"
         "echo <text> - Echo the text\n"
         "memusage - Display memory usage\n"
+        "kheapusage - Display kernel heap usage\n"
         "memmap - Display memory map\n"
         "poweroff - Power off the system\n"
         "dmesg - Display kernel messages\n"
@@ -180,6 +184,18 @@ static void shell_memory_usage(shell_t *shell, size_t argc, const char *argv[]) 
     tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
 }
 
+static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]) {
+    size_t total_memory = kheap_get_total_memory_size();
+    size_t free_memory = kheap_get_available_memory_size();
+
+    double total_memory_mb = total_memory / 1024 / 1024;
+    double free_memory_mb = free_memory / 1024 / 1024;
+    double used_memory_mb = total_memory_mb - free_memory_mb;
+    double used_memory_percentage = (used_memory_mb / total_memory_mb) * 100;
+
+    tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
+}
+
 static void shell_memory_map(shell_t *shell, size_t argc, const char *argv[]) {
     const linked_list_t* pmm_memory_regions = pmm_get_memory_regions();
 
@@ -203,15 +219,8 @@ static void shell_poweroff(shell_t *shell, size_t argc, const char *argv[]) {
 
 static void shell_dmesg(shell_t *shell, size_t argc, const char *argv[]) {
     const linked_list_t* messages = kmessage_get_messages();
-
-    size_t message_buffer_size = 1;
-
-    linked_list_foreach(messages, node) {
-        kmessage_message_t* message = (kmessage_message_t*) node->data;
-        message_buffer_size += strlen(message->level) + strlen(message->message) + 4;
-    }
-
-    char* message_buffer = kmalloc(message_buffer_size);
+    
+    char* message_buffer = kmalloc(1024);
 
     if(message_buffer == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
@@ -221,6 +230,12 @@ static void shell_dmesg(shell_t *shell, size_t argc, const char *argv[]) {
 
     linked_list_foreach(messages, node) {
         kmessage_message_t* message = (kmessage_message_t*) node->data;
+
+        message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(message->level) + strlen(message->message) + 5);
+
+        if(message_buffer == NULL) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+        }
 
         strcat(message_buffer, "[");
         strcat(message_buffer, message->level);
@@ -234,15 +249,12 @@ static void shell_dmesg(shell_t *shell, size_t argc, const char *argv[]) {
     kfree(message_buffer);
 }
 
-static void shell_lsdev_count_callback(generic_tree_node_t* node, void* data) {
-    device_t* device = (device_t*) node->data;
-    size_t* count = (size_t*) data;
-    *count += strlen(device->name) + 36 + 4;
-}
-
 static void shell_lsdev_append_callback(generic_tree_node_t* node, void* data) {
     device_t* device = (device_t*) node->data;
-    char* message_buffer = (char*) data;
+    char** message_buffer_pointer = (char**) data;
+    char* message_buffer = *message_buffer_pointer;
+
+    message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(device->name) + 36 + 4);
 
     char uuid_buffer[37];
     uuid_v4_to_string(&device->id, uuid_buffer);
@@ -251,21 +263,14 @@ static void shell_lsdev_append_callback(generic_tree_node_t* node, void* data) {
     strcat(message_buffer, " (");
     strcat(message_buffer, uuid_buffer);
     strcat(message_buffer, ")\n");
+
+    *message_buffer_pointer = message_buffer;
 }
 
 static void shell_lsdev(shell_t *shell, size_t argc, const char *argv[]) {
     const generic_tree_t* devices = device_get_all();
 
-    size_t message_buffer_size = 21;
-
-    generic_tree_foreach(devices, shell_lsdev_count_callback, &message_buffer_size);
-
-    if(message_buffer_size == 21) {
-        tty_printf(shell->tty, "No devices found\n");
-        return;
-    }
-
-    char* message_buffer = kmalloc(message_buffer_size);
+    char* message_buffer = kmalloc(1024);
 
     if(message_buffer == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
@@ -273,9 +278,7 @@ static void shell_lsdev(shell_t *shell, size_t argc, const char *argv[]) {
 
     message_buffer[0] = '\0';
 
-    strcpy(message_buffer, "Available devices:\n\n");
-
-    generic_tree_foreach(devices, shell_lsdev_append_callback, message_buffer);
+    generic_tree_foreach(devices, shell_lsdev_append_callback, &message_buffer);
 
     tty_paging(shell->tty, message_buffer);
 
@@ -285,19 +288,7 @@ static void shell_lsdev(shell_t *shell, size_t argc, const char *argv[]) {
 static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]) {
     const linked_list_t* volumes = volume_get_all();
 
-    size_t message_buffer_size = 21;
-
-    linked_list_foreach(volumes, node) {
-        volume_t* volume = (volume_t*) node->data;
-        message_buffer_size += strlen(volume->name) + 36 + 4;
-    }
-
-    if(message_buffer_size == 21) {
-        tty_printf(shell->tty, "No volumes found\n");
-        return;
-    }
-
-    char* message_buffer = kmalloc(message_buffer_size);
+    char* message_buffer = kmalloc(512);
 
     if(message_buffer == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
@@ -305,10 +296,10 @@ static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]) {
 
     message_buffer[0] = '\0';
 
-    strcpy(message_buffer, "Available volumes:\n\n");
-
     linked_list_foreach(volumes, node) {
         volume_t* volume = (volume_t*) node->data;
+
+        message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(volume->name) + 36 + 4);
 
         char uuid_buffer[37];
         uuid_v4_to_string(&volume->id, uuid_buffer);
@@ -325,20 +316,7 @@ static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]) {
 }
 
 static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]) {
-    size_t message_buffer_size = 26;
-
-    for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
-        if(mnt_get_drive(drive) != NULL) {
-            message_buffer_size += 3;
-        }
-    }
-
-    if(message_buffer_size == 26) {
-        tty_printf(shell->tty, "No mount points found\n");
-        return;
-    }
-
-    char* message_buffer = kmalloc(message_buffer_size);
+    char* message_buffer = kmalloc(512);
 
     if(message_buffer == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
@@ -346,13 +324,14 @@ static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]) {
 
     message_buffer[0] = '\0';
 
-    strcpy(message_buffer, "Available mount points:\n\n");
-
     for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
         if(mnt_get_drive(drive) != NULL) {
+            message_buffer = krealloc(message_buffer, strlen(message_buffer) + 3);
+
             message_buffer[strlen(message_buffer)] = drive;
-            message_buffer[strlen(message_buffer) + 1] = '\0';
-            strcat(message_buffer, ":\n");
+            message_buffer[strlen(message_buffer) + 1] = ':';
+            message_buffer[strlen(message_buffer) + 2] = '\n';
+            message_buffer[strlen(message_buffer) + 3] = '\0';
         }
     }
 
@@ -422,27 +401,7 @@ static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]) {
         return;
     }
 
-    uint32_t message_buffer_size = 22;
-
-    const dir_dirent_t* dirent = NULL;
-
-    do {
-        dirent = dir_read(dd);
-
-        if(dirent != NULL) {
-            message_buffer_size += strlen(dirent->name) + 1;
-            kfree(dirent);
-        }
-    } while(dirent != NULL);
-
-    dir_close(dd);
-
-    if(message_buffer_size == 22) {
-        tty_printf(shell->tty, "No directory contents found\n");
-        return;
-    }
-
-    char* message_buffer = kmalloc(message_buffer_size);
+    char* message_buffer = kmalloc(64);
 
     if(message_buffer == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
@@ -450,22 +409,17 @@ static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]) {
 
     message_buffer[0] = '\0';
 
-    strcpy(message_buffer, "Directory contents:\n\n");
-
-    dd = dir_open(argv[1]);
-
-    if(dd < 0) {
-        tty_printf(shell->tty, "Reading directory failed\n");
-        kfree(message_buffer);
-        return;
-    }
+    const dir_dirent_t* dirent = NULL;
 
     do {
         dirent = dir_read(dd);
 
         if(dirent != NULL) {
+            message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(dirent->name) + 1);
+
             strcat(message_buffer, dirent->name);
             strcat(message_buffer, "\n");
+
             kfree(dirent);
         }
     } while(dirent != NULL);
