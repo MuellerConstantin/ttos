@@ -222,3 +222,7 @@ tags
 
 # IDE files
 .vscode/*
+
+# Assets
+!initrd/*
+!hdd/*

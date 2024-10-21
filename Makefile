@@ -70,34 +70,38 @@ $(INITRD):
 
 $(HDA):
 
-	dd if=/dev/zero of=$(HDA) bs=1M count=500
-	echo "2,,83;" | sfdisk $(HDA)
+	dd if=/dev/zero of=$(HDA) bs=1M count=50
+	sudo losetup -P /dev/loop1 $(HDA)
 
-	sudo losetup /dev/loop1 $(HDA) -o 1048576
-
-	sudo mkfs.ext2 /dev/loop1
+	sudo mkfs -t ext2 -F /dev/loop1
 
 	mkdir -p mnt
 
 	sudo mount /dev/loop1 mnt
 
+	sudo cp -r hdd/* mnt
+
 	sudo umount mnt
 
 	sudo losetup -d /dev/loop1
+
+	rm -rf mnt
 
 $(SDA):
 
-	dd if=/dev/zero of=$(SDA) bs=1M count=500
-	echo "2,,83;" | sfdisk $(SDA)
+	dd if=/dev/zero of=$(SDA) bs=1M count=50
+	sudo losetup -P /dev/loop1 $(SDA)
 
-	sudo losetup /dev/loop1 $(SDA) -o 1048576
-
-	sudo mkfs.ext2 /dev/loop1
+	sudo mkfs -t ext2 -F /dev/loop1
 
 	mkdir -p mnt
 
 	sudo mount /dev/loop1 mnt
 
+	sudo cp -r hdd/* mnt
+
 	sudo umount mnt
 
 	sudo losetup -d /dev/loop1
+
+	rm -rf mnt
