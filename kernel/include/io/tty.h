@@ -148,13 +148,4 @@ void tty_disable_cursor(tty_t* tty0);
  */
 void tty_enable_cursor(tty_t* tty0);
 
-/**
- * Prints a buffer to the TTY with paging support. It is intended to be used for
- * long outputs that do not fit on a single screen.
- * 
- * @param tty The TTY.
- * @param buffer The buffer to print.
- */
-void tty_paging(tty_t* tty0, const char* buffer);
-
 #endif // _KERNEL_IO_TTY_H

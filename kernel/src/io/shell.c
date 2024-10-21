@@ -13,6 +13,7 @@
 #include <uuid.h>
 
 static void shell_process_instruction(shell_t *shell, char *instruction);
+static void shell_paging(shell_t* shell, const char* buffer);
 static void shell_help(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_clear(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_echo(shell_t *shell, size_t argc, const char *argv[]);
@@ -139,6 +140,47 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
     kfree(instruction_copy);
 }
 
+static void shell_paging(shell_t* shell, const char* buffer) {
+    char* buffer_pointer = (char*) buffer;
+
+    while(*buffer_pointer) {
+        // Check if last row has been reached
+        if(shell->tty->cursor_y == shell->tty->rows - 1 && shell->tty->cursor_x == 0) {
+            // Display : (less) prompt
+            tty_putchar(shell->tty, ':');
+
+            char ch;
+
+            do {
+                ch = tty_getchar(shell->tty);
+
+                if(ch == 'q') {
+                    return;
+                }
+            } while(ch != 'n');
+
+            tty_putchar(shell->tty, '\b');
+        }
+
+        // Clear : (less) prompt
+        tty_putchar(shell->tty, *buffer_pointer);
+
+        buffer_pointer++;
+    }
+
+    // Display exit message
+    tty_putchar(shell->tty, '!');
+
+    char ch;
+
+    do {
+        ch = tty_getchar(shell->tty);
+    } while(ch != 'q');
+
+    // Clear exit message
+    tty_putchar(shell->tty, '\b');
+}
+
 static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
     const char* help_message = "Available commands:\n\n"
         "help - Display this help message\n"
@@ -156,7 +198,7 @@ static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
         "unmount <drive> - Unmount a volume from a drive\n"
         "lsdir <path> - List directory contents\n";
 
-    tty_paging(shell->tty, help_message);
+    shell_paging(shell, help_message);
 }
 
 static void shell_clear(shell_t *shell, size_t argc, const char *argv[]) {
@@ -244,7 +286,7 @@ static void shell_dmesg(shell_t *shell, size_t argc, const char *argv[]) {
         strcat(message_buffer, "\n");
     }
 
-    tty_paging(shell->tty, message_buffer);
+    shell_paging(shell, message_buffer);
 
     kfree(message_buffer);
 }
@@ -280,7 +322,7 @@ static void shell_lsdev(shell_t *shell, size_t argc, const char *argv[]) {
 
     generic_tree_foreach(devices, shell_lsdev_append_callback, &message_buffer);
 
-    tty_paging(shell->tty, message_buffer);
+    shell_paging(shell, message_buffer);
 
     kfree(message_buffer);
 }
@@ -310,7 +352,7 @@ static void shell_lsvol(shell_t *shell, size_t argc, const char *argv[]) {
         strcat(message_buffer, ")\n");
     }
 
-    tty_paging(shell->tty, message_buffer);
+    shell_paging(shell, message_buffer);
 
     kfree(message_buffer);
 }
@@ -333,7 +375,7 @@ static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]) {
         }
     }
 
-    tty_paging(shell->tty, message_buffer);
+    shell_paging(shell, message_buffer);
 
     kfree(message_buffer);
 }
@@ -424,7 +466,7 @@ static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]) {
 
     dir_close(dd);
 
-    tty_paging(shell->tty, message_buffer);
+    shell_paging(shell, message_buffer);
 
     kfree(message_buffer);
 }
