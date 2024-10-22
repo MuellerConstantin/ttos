@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <device/device.h>
+#include <io/stream.h>
 
 #define TTY_BLACK			0x00
 #define TTY_BLUE            0x01
@@ -65,6 +66,30 @@ extern tty_keyboard_layout_t tty_keyboard_layout_de_DE;
 tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout);
 
 /**
+ * Gets the output stream of the TTY.
+ * 
+ * @param tty The TTY.
+ * @return The output stream.
+ */
+stream_t* tty_get_out_stream(tty_t* tty);
+
+/**
+ * Gets the input stream of the TTY.
+ * 
+ * @param tty The TTY.
+ * @return The input stream.
+ */
+stream_t* tty_get_in_stream(tty_t* tty);
+
+/**
+ * Gets the error stream of the TTY.
+ * 
+ * @param tty The TTY.
+ * @return The error stream.
+ */
+stream_t* tty_get_err_stream(tty_t* tty);
+
+/**
  * Clears the TTY.
  * 
  * @param tty The TTY.
@@ -88,35 +113,20 @@ void tty_putchar(tty_t* tty0, char c);
 char tty_getchar(tty_t* tty0);
 
 /**
- * Reads a line from a stream.
+ * Writes a string to the TTY.
  * 
- * @param putchar The function to write a character to the stream, used for echo.
- * @param getchar The function to read a character from the stream.
- * @param echo Whether to echo the input.
- * @return The line read from the stream.
+ * @param tty The TTY.
+ * @param str The string to write.
  */
-char* tty_readline(tty_t* tty0, bool echo);
+void tty_puts(tty_t* tty, const char* str);
 
 /**
- * Naive printf implementation that writes to a stream. This function does not
- * support all the features of the standard printf function.
+ * Reads a line from the TTY.
  * 
- * @param format The format string.
- * @param ... The arguments to format.
- * @return The number of characters written.
+ * @param tty The TTY.
+ * @return The line read.
  */
-int tty_printf(tty_t* tty0, const char *format, ...);
-
-/**
- * Naive vprintf implementation that writes to a stream. This function does not
- * support all the features of the standard vprintf function.
- * 
- * @param putchar The function to write a character to the stream.
- * @param format The format string.
- * @param args The arguments to format.
- * @return The number of characters written.
- */
-int tty_vprintf(tty_t* tty0, const char *format, va_list args);
+char* tty_gets(tty_t* tty);
 
 /**
  * Changes the foreground color of the TTY.

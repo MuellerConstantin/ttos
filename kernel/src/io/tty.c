@@ -2,6 +2,11 @@
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 
+static tty_stream_putchar(stream_t* stream, char ch);
+static char tty_stream_getchar(stream_t* stream);
+static void tty_stream_puts(stream_t* stream, const char* str);
+static char* tty_stream_gets(stream_t* stream);
+
 static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted);
 
 tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout) {
@@ -26,6 +31,58 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     tty->layout = layout;
 
     return tty;
+}
+
+stream_t* tty_get_out_stream(tty_t* tty) {
+    stream_t *stream = (stream_t*) kmalloc(sizeof(stream_t));
+
+    if(stream == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+    }
+
+    stream->putchar = tty_stream_putchar;
+    stream->getchar = NULL;
+    stream->puts = tty_stream_puts;
+    stream->gets = NULL;
+    stream->data = tty;
+
+    return stream;
+}
+
+stream_t* tty_get_in_stream(tty_t* tty) {
+    stream_t *stream = (stream_t*) kmalloc(sizeof(stream_t));
+
+    if(stream == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
+    }
+
+    stream->putchar = NULL;
+    stream->getchar = tty_stream_getchar;
+    stream->puts = NULL;
+    stream->gets = tty_stream_gets;
+    stream->data = tty;
+
+    return stream;
+}
+
+stream_t* tty_get_err_stream(tty_t* tty) {
+    return tty_get_out_stream(tty);
+}
+
+static tty_stream_putchar(stream_t* stream, char ch) {
+    tty_putchar((tty_t*) stream->data, ch);
+}
+
+static char tty_stream_getchar(stream_t* stream) {
+    return tty_getchar((tty_t*) stream->data);
+}
+
+static void tty_stream_puts(stream_t* stream, const char* str) {
+    tty_puts((tty_t*) stream->data, str);
+}
+
+static char* tty_stream_gets(stream_t* stream) {
+    return tty_gets((tty_t*) stream->data);
 }
 
 void tty_clear(tty_t* tty) {
@@ -137,7 +194,13 @@ static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted) {
     return 0;
 }
 
-char* tty_readline(tty_t* tty, bool echo) {
+void tty_puts(tty_t* tty, const char* str) {
+    for(size_t i = 0; str[i] != '\0'; i++) {
+        tty_putchar(tty, str[i]);
+    }
+}
+
+char* tty_gets(tty_t* tty) {
     char *buffer = kmalloc(1);
     size_t buffer_size = 1;
     size_t buffer_index = 0;
@@ -161,9 +224,7 @@ char* tty_readline(tty_t* tty, bool echo) {
             continue;
         }
 
-        if(echo) {
-            tty_putchar(tty, ch);
-        }
+        tty_putchar(tty, ch);
 
         if(buffer_index == buffer_size) {
             buffer_size *= 2;
@@ -177,131 +238,6 @@ char* tty_readline(tty_t* tty, bool echo) {
     buffer[buffer_index] = '\0';
 
     return buffer;
-}
-
-int tty_printf(tty_t* tty, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    int value = tty_vprintf(tty, format, args);
-    va_end(args);
-
-    return value;
-}
-
-int tty_vprintf(tty_t* tty, const char *format, va_list args) {
-    int count = 0;
-
-    while(*format != '\0') {
-        if(*format == '%') {
-            format++;
-
-            switch(*format) {
-                case '%': {
-                    tty_putchar(tty, '%');
-                    count++;
-                    break;
-                }
-                case 'c': {
-                    char ch = va_arg(args, int);
-                    tty_putchar(tty, ch);
-                    count++;
-                    break;
-                }
-                case 's': {
-                    const char *str = va_arg(args, const char*);
-
-                    while(*str != '\0') {
-                        tty_putchar(tty, *str);
-                        str++;
-                        count++;
-                    }
-
-                    break;
-                }
-                case 'd': {
-                    int num = va_arg(args, int);
-                    char num_str[32];
-
-                    itoa(num, num_str, 10);
-
-                    for(int i = 0; num_str[i] != '\0'; i++) {
-                        tty_putchar(tty, num_str[i]);
-                        count++;
-                    }
-
-                    break;
-                }
-                case 'x': {
-                    int num = va_arg(args, int);
-                    char num_str[32];
-
-                    tty_putchar(tty, '0');
-                    tty_putchar(tty, 'x');
-
-                    itoa(num, num_str, 16);
-
-                    for(int i = 0; num_str[i] != '\0'; i++) {
-                        tty_putchar(tty, num_str[i]);
-                        count++;
-                    }
-
-                    break;
-                }
-                case 'p': {
-                    void *ptr = va_arg(args, void*);
-                    char ptr_str[32];
-
-                    itoa((uintptr_t) ptr, ptr_str, 16);
-
-                    for(int i = 0; ptr_str[i] != '\0'; i++) {
-                        tty_putchar(tty, ptr_str[i]);
-                        count++;
-                    }
-
-                    break;
-                }
-                case 'b': {
-                    int num = va_arg(args, int);
-                    char num_str[32];
-
-                    tty_putchar(tty, '0');
-                    tty_putchar(tty, 'b');
-
-                    itoa(num, num_str, 2);
-
-                    for(int i = 0; num_str[i] != '\0'; i++) {
-                        tty_putchar(tty, num_str[i]);
-                        count++;
-                    }
-
-                    break;
-                }
-                case 'f': {
-                    double num = va_arg(args, double);
-                    char num_str[32];
-
-                    gcvt(num, 2, num_str);
-
-                    for(int i = 0; num_str[i] != '\0'; i++) {
-                        tty_putchar(tty, num_str[i]);
-                        count++;
-                    }
-
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
-        } else {
-            tty_putchar(tty, *format);
-            count++;
-        }
-
-        format++;
-    }
-
-    return count;
 }
 
 void tty_set_fgcolor(tty_t* tty, uint8_t fgcolor) {

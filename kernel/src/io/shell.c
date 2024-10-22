@@ -9,9 +9,12 @@
 #include <device/device.h>
 #include <device/volume.h>
 #include <fs/mount.h>
+#include <io/file.h>
 #include <io/dir.h>
 #include <uuid.h>
+#include <io/tty.h>
 
+static void shell_display_banner(shell_t* shell);
 static void shell_process_instruction(shell_t *shell, char *instruction);
 static void shell_paging(shell_t* shell, const char* buffer);
 static void shell_help(shell_t *shell, size_t argc, const char *argv[]);
@@ -29,29 +32,58 @@ static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]);
 
-shell_t* shell_create(tty_t *tty0) {
+shell_t* shell_create(stream_t* out, stream_t* in, stream_t* err) {
     shell_t *shell = kmalloc(sizeof(shell_t));
 
     if(shell == NULL) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
     }
 
-    shell->tty = tty0;
+    shell->out = out;
+    shell->in = in;
+    shell->err = err;
 
     return shell;
 }
 
 void shell_execute(shell_t *shell) {
-    while(1) {
-        tty_putchar(shell->tty, '>');
-        tty_putchar(shell->tty, ' ');
+    shell_display_banner(shell);
 
-        char *instruction = tty_readline(shell->tty, true);
+    while(1) {
+        stream_puts(shell->out, "> ");
+
+        char *instruction = stream_gets(shell->in);
 
         shell_process_instruction(shell, instruction);
 
         kfree(instruction);
     }
+}
+
+static void shell_display_banner(shell_t* shell) {
+    const char* PATH = "A:/banner.txt";
+
+    int32_t banner_fd = file_open(PATH, FILE_MODE_R);
+
+    if(banner_fd < 0) {
+        return;
+    }
+
+    char buffer[64];
+    int32_t bytes_read;
+
+    do {
+        bytes_read = file_read(banner_fd, buffer, sizeof(buffer));
+
+        if(bytes_read > 0) {
+            buffer[bytes_read] = '\0';
+            stream_printf(shell->out, "%s", buffer);
+        }
+    } while(bytes_read > 0);
+
+    stream_printf(shell->out, "\n\n");
+
+    file_close(banner_fd);
 }
 
 static void shell_process_instruction(shell_t *shell, char *instruction) {
@@ -133,7 +165,7 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
     } else if(strcmp(command, "lsdir") == 0) {
         shell_lsdir(shell, argc, argv);
     } else {
-        tty_printf(shell->tty, "Unknown command: %s\n", command);
+        stream_printf(shell->out, "Unknown command: %s\n", command);
     }
 
     kfree(argv);
@@ -141,44 +173,45 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
 }
 
 static void shell_paging(shell_t* shell, const char* buffer) {
+    tty_t* tty = shell->out->data;
     char* buffer_pointer = (char*) buffer;
 
     while(*buffer_pointer) {
         // Check if last row has been reached
-        if(shell->tty->cursor_y == shell->tty->rows - 1 && shell->tty->cursor_x == 0) {
+        if(tty->cursor_y == tty->rows - 1 && tty->cursor_x == 0) {
             // Display : (less) prompt
-            tty_putchar(shell->tty, ':');
+            stream_putchar(shell->out, ':');
 
             char ch;
 
             do {
-                ch = tty_getchar(shell->tty);
+                ch = stream_getchar(shell->in);
 
                 if(ch == 'q') {
                     return;
                 }
             } while(ch != 'n');
 
-            tty_putchar(shell->tty, '\b');
+            stream_putchar(shell->out, '\b');
         }
 
         // Clear : (less) prompt
-        tty_putchar(shell->tty, *buffer_pointer);
+        stream_putchar(shell->out, *buffer_pointer);
 
         buffer_pointer++;
     }
 
     // Display exit message
-    tty_putchar(shell->tty, '!');
+    stream_putchar(shell->out, '!');
 
     char ch;
 
     do {
-        ch = tty_getchar(shell->tty);
+        ch = stream_getchar(shell->in);
     } while(ch != 'q');
 
     // Clear exit message
-    tty_putchar(shell->tty, '\b');
+    stream_putchar(shell->out, '\b');
 }
 
 static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
@@ -202,16 +235,17 @@ static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
 }
 
 static void shell_clear(shell_t *shell, size_t argc, const char *argv[]) {
-    tty_clear(shell->tty);
+    tty_t* tty = shell->out->data;
+    tty_clear(tty);
 }
 
 static void shell_echo(shell_t *shell, size_t argc, const char *argv[]) {
     if(argc < 2) {
-        tty_printf(shell->tty, "Usage: echo <text>\n");
+        stream_printf(shell->out, "Usage: echo <text>\n");
         return;
     }
 
-    tty_printf(shell->tty, "%s\n", argv[1]);
+    stream_printf(shell->out, "%s\n", argv[1]);
 }
 
 static void shell_memory_usage(shell_t *shell, size_t argc, const char *argv[]) {
@@ -223,7 +257,7 @@ static void shell_memory_usage(shell_t *shell, size_t argc, const char *argv[]) 
     double used_memory_mb = total_memory_mb - free_memory_mb;
     double used_memory_percentage = (used_memory_mb / total_memory_mb) * 100;
 
-    tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
+    stream_printf(shell->out, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
 }
 
 static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]) {
@@ -235,7 +269,7 @@ static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]) {
     double used_memory_mb = total_memory_mb - free_memory_mb;
     double used_memory_percentage = (used_memory_mb / total_memory_mb) * 100;
 
-    tty_printf(shell->tty, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
+    stream_printf(shell->out, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
 }
 
 static void shell_memory_map(shell_t *shell, size_t argc, const char *argv[]) {
@@ -244,15 +278,17 @@ static void shell_memory_map(shell_t *shell, size_t argc, const char *argv[]) {
     linked_list_foreach(pmm_memory_regions, node) {
         pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
 
-        tty_printf(shell->tty, "Memory region: %x - %x (%d bytes) Type: %x\n", region->base, region->base + region->length - 1, region->length, region->type);
+        stream_printf(shell->out, "Memory region: %x - %x (%d bytes) Type: %x\n", region->base, region->base + region->length - 1, region->length, region->type);
     }
 }
 
 static void shell_poweroff(shell_t *shell, size_t argc, const char *argv[]) {
+    tty_t* tty = shell->out->data;
+
     acpi_poweroff();
 
-    tty_printf(shell->tty, "It is now safe to turn off your computer...\n");
-    tty_disable_cursor(shell->tty);
+    stream_printf(shell->out, "It is now safe to turn off your computer...\n");
+    tty_disable_cursor(tty);
 
     isr_cli();
     
@@ -382,7 +418,7 @@ static void shell_lsmnt(shell_t *shell, size_t argc, const char *argv[]) {
 
 static void shell_mount(shell_t *shell, size_t argc, const char *argv[]) {
     if(argc < 3) {
-        tty_printf(shell->tty, "Usage: mount <drive> <volume>\n");
+        stream_printf(shell->out, "Usage: mount <drive> <volume>\n");
         return;
     }
 
@@ -390,54 +426,54 @@ static void shell_mount(shell_t *shell, size_t argc, const char *argv[]) {
     volume_t* volume = volume_find_by_name(argv[2]);
 
     if(volume == NULL) {
-        tty_printf(shell->tty, "Volume not found\n");
+        stream_printf(shell->out, "Volume not found\n");
         return;
     }
 
     if(mnt_get_drive(drive) != NULL) {
-        tty_printf(shell->tty, "Drive already mounted\n");
+        stream_printf(shell->out, "Drive already mounted\n");
         return;
     }
 
     if(mnt_volume_mount(drive, volume) != 0) {
-        tty_printf(shell->tty, "Failed to mount volume, file system may not be supported\n");
+        stream_printf(shell->out, "Failed to mount volume, file system may not be supported\n");
         return;
     }
 
-    tty_printf(shell->tty, "Volume mounted\n");
+    stream_printf(shell->out, "Volume mounted\n");
 }
 
 static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]) {
     if(argc < 2) {
-        tty_printf(shell->tty, "Usage: unmount <drive>\n");
+        stream_printf(shell->out, "Usage: unmount <drive>\n");
         return;
     }
 
     char drive = argv[1][0];
 
     if(mnt_get_drive(drive) == NULL) {
-        tty_printf(shell->tty, "Drive not mounted\n");
+        stream_printf(shell->out, "Drive not mounted\n");
         return;
     }
 
     if(mnt_volume_unmount(drive) != 0) {
-        tty_printf(shell->tty, "Failed to unmount volume\n");
+        stream_printf(shell->out, "Failed to unmount volume\n");
         return;
     }
 
-    tty_printf(shell->tty, "Volume unmounted\n");
+    stream_printf(shell->out, "Volume unmounted\n");
 }
 
 static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]) {
     if(argc < 2) {
-        tty_printf(shell->tty, "Usage: lsdir <path>\n");
+        stream_printf(shell->out, "Usage: lsdir <path>\n");
         return;
     }
 
     int32_t dd = dir_open(argv[1]);
 
     if(dd < 0) {
-        tty_printf(shell->tty, "Invalid path\n");
+        stream_printf(shell->out, "Invalid path\n");
         return;
     }
 

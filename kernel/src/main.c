@@ -24,8 +24,8 @@
 #include <drivers/storage/initrd.h>
 #include <drivers/storage/sata.h>
 #include <fs/mount.h>
-#include <fs/file.h>
 #include <io/tty.h>
+#include <io/stream.h>
 #include <io/shell.h>
 
 static void init_platform(multiboot_info_t *multiboot_info);
@@ -33,7 +33,6 @@ static void init_kernel(multiboot_info_t *multiboot_info);
 static void init_drivers();
 static void init_usermode();
 static void init_console();
-static void display_banner(tty_t* tty0);
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
@@ -160,41 +159,12 @@ static void init_console() {
     // init_usermode();
 
     tty_t* tty0 = tty_create(video_device, keyboard_device, &tty_keyboard_layout_de_DE);
-
-    display_banner(tty0);
-
-    // Unmount the initial ramdisk
-
-    mnt_volume_unmount(DRIVE_A);
+    stream_t* out_stream = tty_get_out_stream(tty0);
+    stream_t* in_stream = tty_get_in_stream(tty0);
+    stream_t* err_stream = tty_get_err_stream(tty0);
 
     // Initialize the CLI
 
-    shell_t* shell = shell_create(tty0);
+    shell_t* shell = shell_create(out_stream, in_stream, err_stream);
     shell_execute(shell);
-}
-
-static void display_banner(tty_t* tty0) {
-    const char* PATH = "A:/banner.txt";
-
-    int32_t banner_fd = file_open(PATH, FILE_MODE_R);
-
-    if(banner_fd < 0) {
-        return;
-    }
-
-    char buffer[64];
-    int32_t bytes_read;
-
-    do {
-        bytes_read = file_read(banner_fd, buffer, sizeof(buffer));
-
-        if(bytes_read > 0) {
-            buffer[bytes_read] = '\0';
-            tty_printf(tty0, "%s", buffer);
-        }
-    } while(bytes_read > 0);
-
-    tty_printf(tty0, "\n\n");
-
-    file_close(banner_fd);
 }
