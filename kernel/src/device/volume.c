@@ -211,5 +211,5 @@ static size_t volume_write(volume_t* volume, size_t offset, size_t size, char* b
         size = volume->size - offset;
     }
 
-    return volume->device->driver->write(volume->offset * MBR_SECTION_SIZE + offset, size, buffer);
+    return volume->device->driver->write(volume->offset + offset, size, buffer);
 }

@@ -46,10 +46,10 @@
 #define VMM_HIGHER_HALF_BASE 0xC0100000
 #define VMM_HIGHER_HALF_SIZE 0x0FF00000
 
-extern const uint32_t kernel_physical_start;
-extern const uint32_t kernel_physical_end;
-extern const uint32_t kernel_virtual_start;
-extern const uint32_t kernel_virtual_end;
+extern char kernel_physical_start[];
+extern char kernel_physical_end[];
+extern char kernel_virtual_start[];
+extern char kernel_virtual_end[];
 
 /**
  * Initialize the Virtual Memory Manager.
