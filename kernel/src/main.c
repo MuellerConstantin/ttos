@@ -10,13 +10,13 @@
 #include <arch/i386/isr.h>
 #include <arch/i386/acpi.h>
 #include <arch/i386/pic/8259.h>
+#include <system/timer.h>
 #include <system/kpanic.h>
 #include <system/switch_usermode.h>
 #include <system/kmessage.h>
 #include <device/device.h>
 #include <device/volume.h>
 #include <drivers/pci/pci.h>
-#include <drivers/pit/8253.h>
 #include <drivers/video/vga/vga.h>
 #include <drivers/serial/uart/16550.h>
 #include <drivers/input/ps2/keyboard.h>
@@ -103,6 +103,9 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
     // Initialize the volume manager
     volume_init();
 
+    // Initialize the system timer
+    timer_init();
+
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
     // Load initial ramdisk multiboot module if provided
@@ -116,7 +119,6 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
 }
 
 static void init_drivers() {
-    pit_8253_init(PIT_8253_COUNTER_0, 1000);
     uart_16550_init(UART_16550_COM1, 115200);
     vga_init(VGA_80x25_16_TEXT, true);
     ps2_keyboard_init();

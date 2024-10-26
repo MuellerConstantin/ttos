@@ -6,6 +6,7 @@
 #include <arch/i386/acpi.h>
 #include <arch/i386/isr.h>
 #include <system/kmessage.h>
+#include <system/timer.h>
 #include <device/device.h>
 #include <device/volume.h>
 #include <fs/mount.h>
@@ -31,6 +32,7 @@ static void shell_mount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_uptime(shell_t *shell, size_t argc, const char *argv[]);
 
 shell_t* shell_create(stream_t* out, stream_t* in, stream_t* err) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -152,6 +154,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_poweroff(shell, argc, argv);
     } else if(strcmp(command, "dmesg") == 0) {
         shell_dmesg(shell, argc, argv);
+    } else if(strcmp(command, "uptime") == 0) {
+        shell_uptime(shell, argc, argv);
     } else if(strcmp(command, "lsdev") == 0) {
         shell_lsdev(shell, argc, argv);
     } else if(strcmp(command, "lsvol") == 0) {
@@ -224,6 +228,7 @@ static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
         "memmap - Display memory map\n"
         "poweroff - Power off the system\n"
         "dmesg - Display kernel messages\n"
+        "uptime - Display system uptime\n"
         "lsdev - List available devices\n"
         "lsvol - List available volumes\n"
         "lsmnt - List available mount points\n"
@@ -505,4 +510,44 @@ static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]) {
     shell_paging(shell, message_buffer);
 
     kfree(message_buffer);
+}
+
+static void shell_uptime(shell_t *shell, size_t argc, const char *argv[]) {
+    uint32_t uptime = timer_get_uptime();
+
+    uint32_t weeks, days, hours, minutes, seconds;
+
+    seconds = uptime;
+
+    weeks = seconds / (60 * 60 * 24 * 7);
+    seconds %= (60 * 60 * 24 * 7);
+
+    days = seconds / (60 * 60 * 24);
+    seconds %= (60 * 60 * 24);
+
+    hours = seconds / (60 * 60);
+    seconds %= (60 * 60);
+
+    minutes = seconds / 60;
+    seconds %= 60;
+
+    stream_printf(shell->out, "up ");
+
+    if(weeks > 0) {
+        stream_printf(shell->out, "%d weeks, ", weeks);
+    }
+
+    if(days > 0) {
+        stream_printf(shell->out, "%d days, ", days);
+    }
+
+    if(hours > 0) {
+        stream_printf(shell->out, "%d hours, ", hours);
+    }
+
+    if(minutes > 0) {
+        stream_printf(shell->out, "%d minutes, ", minutes);
+    }
+
+    stream_printf(shell->out, "%d seconds\n", seconds);
 }

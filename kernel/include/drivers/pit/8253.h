@@ -24,11 +24,4 @@
  */
 int32_t pit_8253_init(uint8_t counter, uint32_t frequency);
 
-/**
- * Wait for a number of ticks.
- * 
- * @param ticks Number of ticks to wait.
- */
-void pit_8253_wait(size_t ticks);
-
 #endif // _KERNEL_DRIVERS_PIT_8253_H
