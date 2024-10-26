@@ -100,4 +100,26 @@ bool vmm_is_mapped(void* virtual_address);
  */
 void* vmm_get_physical_address(void* virtual_address);
 
+/**
+ * Switch the address space to the given page directory.
+ * 
+ * @param page_directory The page directory to switch to.
+ */
+void vmm_switch_address_space(page_directory_t *page_directory);
+
+/**
+ * Create a new address space.
+ * 
+ * @return The new address space.
+ */
+page_directory_t* vmm_create_address_space();
+
+/**
+ * Clone the given address space.
+ * 
+ * @param page_directory The address space to clone.
+ * @return The cloned address space.
+ */
+page_directory_t* vmm_clone_address_space(page_directory_t *page_directory);
+
 #endif // _KERNEL_MEMORY_VMM_H
