@@ -48,6 +48,15 @@ void vmm_init() {
 
     current_page_directory = kernel_page_directory;
 
+    /*
+     * Technically, paging should be already enabled by the kernel's startup code. However, we
+     * still need to enable it here to ensure that paging is actually activated and more important
+     * to ensure that the kernel's internal state is correct. This is required for correct virtual
+     * to physical software address translation.
+     */
+
+    paging_enable();
+
     kmessage(KMESSAGE_LEVEL_INFO, "memory: VMM initialized");
 }
 

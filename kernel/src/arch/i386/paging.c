@@ -101,13 +101,13 @@ void* paging_unmap_page(page_directory_t *const page_directory, void *const virt
 }
 
 void* paging_virtual_to_physical_address(const page_directory_t *const page_directory, void *const virtual_address) {
-    uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
-    uint32_t page_table_index = PAGE_TABLE_INDEX(virtual_address);
-    uint32_t page_offset = PAGE_OFFSET(virtual_address);
-
     if(!paging_enabled) {
         return (void*) (virtual_address - VMM_KERNEL_SPACE_BASE);
     }
+
+    uint32_t page_directory_index = PAGE_DIRECTORY_INDEX(virtual_address);
+    uint32_t page_table_index = PAGE_TABLE_INDEX(virtual_address);
+    uint32_t page_offset = PAGE_OFFSET(virtual_address);
 
     if (!page_directory->tables[page_directory_index]) {
         return NULL;
