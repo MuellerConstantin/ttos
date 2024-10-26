@@ -34,13 +34,12 @@ void vmm_init() {
         pmm_mark_frame_reserved((void*) physical_address);
     }
 
-    // Mapping kernel memory (Physical: 0x00100000 - 0x0FFFFFFF)
+    // Mapping kernel memory (Physical: 0x00100000 - 0x????????)
 
-    for(uint32_t virtual_address = VMM_HIGHER_HALF_BASE;
-        virtual_address < VMM_HIGHER_HALF_BASE + VMM_HIGHER_HALF_SIZE;
-        virtual_address += PAGE_SIZE) {
-        uint32_t physical_address = virtual_address - VMM_KERNEL_SPACE_BASE;
-
+    for(uint32_t virtual_address = (uint32_t) kernel_virtual_start, physical_address = (uint32_t) kernel_physical_start;
+        virtual_address < (uint32_t) kernel_virtual_end;
+        virtual_address += PAGE_SIZE, physical_address += PAGE_SIZE) {
+        
         paging_map_page(kernel_page_directory, (void*) virtual_address, (void*) physical_address, true, true);
         pmm_mark_frame_reserved((void*) physical_address);
     }

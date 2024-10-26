@@ -20,7 +20,7 @@
 #define KHEAP_PLACEMENT_SIZE 0x100000
 
 /** Size of the kernel heap. */
-#define KHEAP_HEAP_SIZE 0x4000000
+#define KHEAP_HEAP_SIZE 0x2000000
 
 #define KHEAP_MAGIC 0xD11EF00D
 

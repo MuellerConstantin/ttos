@@ -30,8 +30,8 @@
  *      0xC0000000 - 0xC00FFFFF : Real Mode Memory
  *          0xC00A0000 - 0xC00BFFFF : Video RAM
  *          0xC00C0000 - 0xC00C7FFF : Video BIOS
- *      0xC0100000 - 0xCFFFFFFF : Higher half Kernel (Code/Data/BSS)
- *      0xD0000000 - 0xFFFFFFFF : Kernel free use (Heap, DMA, etc.)
+ *      0xC0100000 - 0x???????? : Higher half Kernel (Code/Data/BSS)
+ *      0x???????? - 0xFFFFFFFF : Kernel free use (Heap, DMA, etc.)
  */
 
 #define VMM_USER_SPACE_BASE 0x00001000
@@ -42,9 +42,6 @@
 
 #define VMM_REAL_MODE_MEMORY_BASE   0xC0000000
 #define VMM_REAL_MODE_MEMORY_SIZE   0x00100000
-
-#define VMM_HIGHER_HALF_BASE 0xC0100000
-#define VMM_HIGHER_HALF_SIZE 0x0FF00000
 
 extern char kernel_physical_start[];
 extern char kernel_physical_end[];

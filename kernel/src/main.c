@@ -77,6 +77,20 @@ static void init_platform(multiboot_info_t *multiboot_info) {
     vmm_init();
     acpi_init();
     pic_8259_init();
+
+    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
+
+    // Map the initial ramdisk multiboot module to virtual address space
+    if(multiboot_info->mods_count > 0) {
+        multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE;
+        void* initrd_start_physical = (void*) initrd_module->mod_start;
+        size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
+
+        // Map the initrd's virtual address space
+        void* initrd_start_virtual = vmm_map_memory(NULL, initrd_size, initrd_start_physical, true, true);
+
+        initrd_module->mod_start = (uint32_t) initrd_start_virtual;
+    }
 }
 
 static void init_kernel(multiboot_info_t *multiboot_info) {
@@ -91,16 +105,13 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
 
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
-    // Check if an initial ramdisk is provided
+    // Load initial ramdisk multiboot module if provided
     if(multiboot_info->mods_count > 0) {
         multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE;
-        void* initrd_start_physical = (void*) initrd_module->mod_start;
+        void* initrd_start = (void*) initrd_module->mod_start;
         size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
 
-        // Map the initrd's virtual address space
-        void* initrd_start_virtual = vmm_map_memory(NULL, initrd_size, initrd_start_physical, true, true);
-
-        initrd_init((void*) initrd_start_virtual, initrd_size);
+        initrd_init((void*) initrd_start, initrd_size);
     }
 }
 
