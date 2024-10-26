@@ -28,7 +28,7 @@ int32_t acpi_init(void) {
     }
 
     void* acpi_rsdt_base = vmm_map_memory(NULL, sizeof(acpi_rsdt_t), (void*) acpi_rsdp->rsdt_address, true, false);
-    acpi_rsdt = (acpi_rsdt_t*) ((uintptr_t) acpi_rsdt_base + VMM_OFFSET(acpi_rsdp->rsdt_address));
+    acpi_rsdt = (acpi_rsdt_t*) ((uintptr_t) acpi_rsdt_base + VMM_ALIGN_OFFSET(acpi_rsdp->rsdt_address));
 
     if(memcmp(acpi_rsdt->sdt.signature, ACPI_RSDT_SIGNATURE, 4) != 0) {
         kmessage(KMESSAGE_LEVEL_WARN, "acpi: RSDT signature is invalid, ACPI is not supported");
@@ -50,20 +50,20 @@ int32_t acpi_init(void) {
 
     for(uint8_t index = 0; index < acpi_sdts_count; index++) {
         void* acpi_sdt_tmp_base = vmm_map_memory(NULL, sizeof(acpi_rsdt_t), (void*) acpi_rsdt->sdt_entries[index], true, false);
-        acpi_sdt_t* current_sdt = (acpi_sdt_t*) ((uintptr_t) acpi_sdt_tmp_base + VMM_OFFSET(acpi_rsdt->sdt_entries[index]));
+        acpi_sdt_t* current_sdt = (acpi_sdt_t*) ((uintptr_t) acpi_sdt_tmp_base + VMM_ALIGN_OFFSET(acpi_rsdt->sdt_entries[index]));
 
         uint32_t current_sdt_length = current_sdt->length;
 
         vmm_unmap_memory(acpi_sdt_tmp_base, sizeof(acpi_rsdt_t));
 
         void* acpi_sdt_base = vmm_map_memory(NULL, current_sdt_length, (void*) acpi_rsdt->sdt_entries[index], true, false);
-        acpi_sdts[index] = (acpi_rsdt_t*) ((uintptr_t) acpi_sdt_base + VMM_OFFSET(acpi_rsdt->sdt_entries[index]));
+        acpi_sdts[index] = (acpi_rsdt_t*) ((uintptr_t) acpi_sdt_base + VMM_ALIGN_OFFSET(acpi_rsdt->sdt_entries[index]));
 
         if(memcmp(acpi_sdts[index]->sdt.signature, ACPI_FADT_SIGNATURE, strlen(ACPI_FADT_SIGNATURE)) == 0) {
             acpi_fadt = (acpi_fadt_t*) acpi_sdts[index];
 
             void* acpi_dsdt_base = vmm_map_memory(NULL, sizeof(acpi_dsdt_t), (void*) acpi_fadt->dsdt, true, false);
-            acpi_dsdt = (acpi_dsdt_t*) ((uintptr_t) acpi_dsdt_base + VMM_OFFSET(acpi_fadt->dsdt));
+            acpi_dsdt = (acpi_dsdt_t*) ((uintptr_t) acpi_dsdt_base + VMM_ALIGN_OFFSET(acpi_fadt->dsdt));
         }
     }
 

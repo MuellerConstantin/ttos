@@ -63,7 +63,7 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
     }
 
     // Page align the virtual address
-    virtual_address = VMM_ALIGN(virtual_address);
+    virtual_address = VMM_ALIGN_DOWN(virtual_address);
 
     for(uint32_t page_address = (uint32_t) virtual_address;
         page_address < ((uint32_t) virtual_address) + size;
@@ -143,6 +143,6 @@ bool vmm_is_mapped(void* virtual_address) {
     return paging_is_page_used(current_page_directory, virtual_address);
 }
 
-void* vmm_get_mapped_address(void* virtual_address) {
+void* vmm_get_physical_address(void* virtual_address) {
     return paging_virtual_to_physical_address(current_page_directory, virtual_address);
 }

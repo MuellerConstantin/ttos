@@ -17,9 +17,10 @@
 
 #define VMM_VAS_SIZE 0xFFFFFFFF
 
-#define VMM_IS_ALIGNED(address) (((uintptr_t) address % PAGE_SIZE) == 0)
-#define VMM_ALIGN(address) ((void*) ((uintptr_t) address & ~(PAGE_SIZE - 1)))
-#define VMM_OFFSET(address) ((uintptr_t) address % PAGE_SIZE)
+#define VMM_IS_ALIGNED(address) (((uintptr_t) address & (PAGE_SIZE - 1)) == 0)
+#define VMM_ALIGN_UP(address) (((uintptr_t) address + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#define VMM_ALIGN_DOWN(address) ((uintptr_t) address & ~(PAGE_SIZE - 1))
+#define VMM_ALIGN_OFFSET(address) ((address) & (PAGE_SIZE - 1))
 
 /*
  * The kernel's virtual memory layout:
@@ -97,6 +98,6 @@ bool vmm_is_mapped(void* virtual_address);
  * @param virtual_address The virtual address to get the physical address for.
  * @return The physical address of the virtual address, or NULL if the virtual address is not mapped.
  */
-void* vmm_get_mapped_address(void* virtual_address);
+void* vmm_get_physical_address(void* virtual_address);
 
 #endif // _KERNEL_MEMORY_VMM_H

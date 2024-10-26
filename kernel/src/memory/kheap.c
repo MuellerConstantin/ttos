@@ -154,18 +154,18 @@ static void* kmalloc_heap(size_t size, bool align) {
     }
 
     if(align) {
-        uintptr_t block_addr = (uintptr_t) best_fit + sizeof(kheap_block_t);
-        uintptr_t aligned_addr = (block_addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-        size_t alignment_padding = aligned_addr - block_addr;
+        uintptr_t data_addr = (uintptr_t) best_fit + sizeof(kheap_block_t);
 
-        // Check if block is already aligned
-        if(alignment_padding > 0) {
+        if(!VMM_IS_ALIGNED(data_addr)) {
+            uint32_t aligned_addr = VMM_ALIGN_UP(data_addr);
+            size_t align_padding = aligned_addr - data_addr;
+
             // Ensure block has enough space for alignment padding block and can be split
-            if(best_fit->size > total_size + alignment_padding + sizeof(kheap_block_t)) {
-                kheap_block_t* new_best_fit = (kheap_block_t*) ((uintptr_t) best_fit + alignment_padding + sizeof(kheap_block_t));
+            if(best_fit->size > total_size + align_padding + sizeof(kheap_block_t)) {
+                kheap_block_t* new_best_fit = (kheap_block_t*) ((uintptr_t) aligned_addr - sizeof(kheap_block_t));
                 new_best_fit->free = true;
                 new_best_fit->magic = KHEAP_MAGIC;
-                new_best_fit->size = best_fit->size - alignment_padding - sizeof(kheap_block_t);
+                new_best_fit->size = best_fit->size - align_padding - sizeof(kheap_block_t);
                 new_best_fit->next = best_fit->next;
                 new_best_fit->prev = best_fit;
 
@@ -179,7 +179,7 @@ static void* kmalloc_heap(size_t size, bool align) {
                 kheap_block_t* padding_block = best_fit;
 
                 padding_block->free = true;
-                padding_block->size = alignment_padding;
+                padding_block->size = align_padding;
                 padding_block->next = new_best_fit;
 
                 best_fit = new_best_fit;
@@ -222,14 +222,21 @@ static void* kheap_find_best_fit(size_t size, bool align) {
     while(current != NULL) {
         if (current->free && current->size >= size) {
             if (align) {
-                uintptr_t block_addr = (uintptr_t) current + sizeof(kheap_block_t);
-                uintptr_t aligned_addr = (block_addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-                size_t alignment_padding = aligned_addr - block_addr;
+                uintptr_t data_addr = (uintptr_t) current + sizeof(kheap_block_t);
 
-                // Ensure that the block has enough additional space for alignment padding
-                if (current->size >= size + alignment_padding + sizeof(kheap_block_t)) {
-                    if (best_fit == NULL || current->size < best_fit->size) {
+                if(VMM_IS_ALIGNED(data_addr)) {
+                    if(best_fit == NULL || current->size < best_fit->size) {
                         best_fit = current;
+                    }
+                } else {
+                    uint32_t aligned_addr = VMM_ALIGN_UP(data_addr);
+                    size_t align_padding = aligned_addr - data_addr;
+
+                    // Ensure that the block has enough additional space for alignment padding
+                    if (current->size >= size + align_padding + sizeof(kheap_block_t)) {
+                        if (best_fit == NULL || current->size < best_fit->size) {
+                            best_fit = current;
+                        }
                     }
                 }
             } else {
