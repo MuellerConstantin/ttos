@@ -94,14 +94,14 @@ static acpi_rsdp_t* acpi_find_rsdp() {
     // Transform the real mode address to a linear address
     ebda_location_address <<= 4;
     // Transform linear address to a virtual address
-    ebda_location_address += VMM_LOWER_MEMORY_BASE;
+    ebda_location_address += VMM_REAL_MODE_MEMORY_BASE;
 
     // Read the EBDA real mode address
     uint32_t ebda_address = *((uint16_t*) ebda_location_address);
     // Transform the real mode address to a linear address
     ebda_address <<= 4;
     // Transform linear address to a virtual address
-    ebda_address += VMM_LOWER_MEMORY_BASE;
+    ebda_address += VMM_REAL_MODE_MEMORY_BASE;
 
     // Search for the RSDP in the EBDA
     for(uint32_t current_address = ebda_address; current_address < ebda_address + 0x1000; current_address += 16) {
@@ -115,7 +115,7 @@ static acpi_rsdp_t* acpi_find_rsdp() {
 
     if(rsdp == NULL) {
         // Search for the RSDP in the BIOS ROM
-        for(uint32_t current_address = 0xE0000 + VMM_LOWER_MEMORY_BASE; current_address < 0xFFFFF + VMM_LOWER_MEMORY_BASE; current_address += 16) {
+        for(uint32_t current_address = 0xE0000 + VMM_REAL_MODE_MEMORY_BASE; current_address < 0xFFFFF + VMM_REAL_MODE_MEMORY_BASE; current_address += 16) {
             acpi_rsdp_t* current_rsdp = (acpi_rsdp_t*) current_address;
 
             if(memcmp(current_rsdp->signature, ACPI_RSDP_SIGNATURE, 8) == 0) {

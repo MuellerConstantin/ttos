@@ -23,19 +23,31 @@ void vmm_init() {
 
     memset(kernel_page_directory, 0, sizeof(page_directory_t));
 
-    // Mapping lower memory + higher half kernel (Physical: 0x00000000 - 0x0FFFFFFF)
-    for(uint32_t page_address = VMM_LOWER_MEMORY_BASE;
-        page_address < VMM_LOWER_MEMORY_BASE + VMM_LOWER_MEMORY_SIZE + VMM_HIGHER_HALF_SIZE;
-        page_address += PAGE_SIZE) {
-        paging_map_page(kernel_page_directory, (void*) page_address, (void*) (page_address - VMM_LOWER_MEMORY_BASE), true, true);
-        pmm_mark_frame_reserved((void*) (page_address - VMM_LOWER_MEMORY_BASE));
+    // Mapping real mode memory (Physical: 0x00000000 - 0x000FFFFF)
+
+    for(uint32_t virtual_address = VMM_REAL_MODE_MEMORY_BASE;
+        virtual_address < VMM_REAL_MODE_MEMORY_BASE + VMM_REAL_MODE_MEMORY_SIZE;
+        virtual_address += PAGE_SIZE) {
+        uint32_t physical_address = virtual_address - VMM_KERNEL_SPACE_BASE;
+
+        paging_map_page(kernel_page_directory, (void*) virtual_address, (void*) physical_address, true, true);
+        pmm_mark_frame_reserved((void*) physical_address);
+    }
+
+    // Mapping kernel memory (Physical: 0x00100000 - 0x0FFFFFFF)
+
+    for(uint32_t virtual_address = VMM_HIGHER_HALF_BASE;
+        virtual_address < VMM_HIGHER_HALF_BASE + VMM_HIGHER_HALF_SIZE;
+        virtual_address += PAGE_SIZE) {
+        uint32_t physical_address = virtual_address - VMM_KERNEL_SPACE_BASE;
+
+        paging_map_page(kernel_page_directory, (void*) virtual_address, (void*) physical_address, true, true);
+        pmm_mark_frame_reserved((void*) physical_address);
     }
 
     paging_switch_page_directory(current_page_directory, kernel_page_directory);
 
     current_page_directory = kernel_page_directory;
-
-    paging_enable();
 
     kmessage(KMESSAGE_LEVEL_INFO, "memory: VMM initialized");
 }

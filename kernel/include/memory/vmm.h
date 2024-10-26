@@ -27,7 +27,7 @@
  * 0x00000000 - 0x00001000 : NULL pointer dereference
  * 0x00001000 - 0xBFFFF000 : User space
  * 0xC0000000 - 0xFFFFFFFF : Kernel space
- *      0xC0000000 - 0xC00FFFFF : Lower Memory (Real Mode Address Space)
+ *      0xC0000000 - 0xC00FFFFF : Real Mode Memory
  *          0xC00A0000 - 0xC00BFFFF : Video RAM
  *          0xC00C0000 - 0xC00C7FFF : Video BIOS
  *      0xC0100000 - 0xCFFFFFFF : Higher half Kernel (Code/Data/BSS)
@@ -40,8 +40,8 @@
 #define VMM_KERNEL_SPACE_BASE 0xC0000000
 #define VMM_KERNEL_SPACE_SIZE 0x3FFFFFFF
 
-#define VMM_LOWER_MEMORY_BASE 0xC0000000
-#define VMM_LOWER_MEMORY_SIZE 0x00100000
+#define VMM_REAL_MODE_MEMORY_BASE   0xC0000000
+#define VMM_REAL_MODE_MEMORY_SIZE   0x00100000
 
 #define VMM_HIGHER_HALF_BASE 0xC0100000
 #define VMM_HIGHER_HALF_SIZE 0x0FF00000

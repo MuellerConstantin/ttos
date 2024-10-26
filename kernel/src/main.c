@@ -89,18 +89,18 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
     // Initialize the volume manager
     volume_init();
 
-    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_LOWER_MEMORY_BASE);
+    multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
     // Check if an initial ramdisk is provided
     if(multiboot_info->mods_count > 0) {
-        multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_LOWER_MEMORY_BASE;
-        uint32_t initrd_start = (uint32_t) initrd_module->mod_start + VMM_LOWER_MEMORY_BASE;
+        multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE;
+        void* initrd_start_physical = (void*) initrd_module->mod_start;
         size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
 
         // Map the initrd's virtual address space
-        vmm_map_memory((void*) initrd_start, initrd_size, (void*) initrd_start - VMM_LOWER_MEMORY_BASE, true, true);
+        void* initrd_start_virtual = vmm_map_memory(NULL, initrd_size, initrd_start_physical, true, true);
 
-        initrd_init((void*) initrd_start, initrd_size);
+        initrd_init((void*) initrd_start_virtual, initrd_size);
     }
 }
 
