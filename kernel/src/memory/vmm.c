@@ -67,9 +67,19 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
         virtual_address = vmm_find_free_memory(size, is_kernel);
 
         if(!virtual_address) {
-            KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_CODE,
-                   is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MESSAGE,
+            KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_CODE,
+                   is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_MESSAGE,
                    NULL);
+        }
+    } else {
+        // Ensure given virtual address is within kernel space if it is kernel memory
+        if(is_kernel && virtual_address < VMM_KERNEL_SPACE_BASE) {
+            KPANIC(KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_CODE, KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_MESSAGE, NULL);
+        }
+
+        // Ensure given virtual address is within user space if it is user memory
+        if(!is_kernel && (uint32_t) virtual_address + size >= VMM_KERNEL_SPACE_BASE) {
+            KPANIC(KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_CODE, KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_MESSAGE, NULL);
         }
     }
 
@@ -107,8 +117,8 @@ static void* vmm_map_page(void* virtual_address, void* physical_address, bool is
         virtual_address = vmm_find_free_memory(PAGE_SIZE, is_kernel);
 
         if(!virtual_address) {
-            KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_CODE,
-                   is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MESSAGE,
+            KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_CODE,
+                   is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_MESSAGE,
                    NULL);
         }
     }
@@ -147,6 +157,12 @@ static void* vmm_find_free_memory(size_t size, bool is_kernel) {
             bool is_free = true;
 
             for(uint32_t index = 0; index < size; index += PAGE_SIZE) {
+                // Ensure memory region is still within memory space bounds
+                if(page_address + index >= space_base_address + space_size) {
+                    is_free = false;
+                    break;
+                }
+
                 if(paging_is_page_used(current_page_directory, (void*) (page_address + index))) {
                     is_free = false;
                     break;

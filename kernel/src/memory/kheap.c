@@ -42,7 +42,7 @@ void kheap_init() {
     kheap_base = vmm_map_memory(NULL, KHEAP_HEAP_SIZE, NULL, true, true);
 
     if(!kheap_base) {
-        KPANIC(KPANIC_VMM_OUT_OF_KERNEL_SPACE_CODE, KPANIC_VMM_OUT_OF_KERNEL_SPACE_MESSAGE, NULL);
+        KPANIC(KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_CODE, KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_MESSAGE, NULL);
     }
 
     kheap_head = (kheap_block_t*) kheap_base;
