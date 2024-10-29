@@ -155,6 +155,74 @@ int32_t file_seek(int32_t fd, int32_t offset, int32_t whence) {
     return 0;
 }
 
+size_t file_size(const char* path) {
+    if(!vfs_is_abs_path(path)) {
+        return -1;
+    }
+
+    mnt_mountpoint_t* mountpoint = mnt_get_mountpoint(path);
+
+    if(!mountpoint) {
+        return -1;
+    }
+
+    char* relative_path = path + 3;
+
+    vfs_node_t* node = vfs_findpath(mountpoint->root, relative_path);
+
+    if(!node) {
+        kfree(node);
+        return -1;
+    }
+
+    if(node->type != VFS_FILE) {
+        kfree(node);
+        return -1;
+    }
+
+    
+    size_t size = node->length;
+
+    kfree(node);
+
+    return size;
+}
+
+int32_t file_stat(const char* path, file_stat_t* stat) {
+    if(!vfs_is_abs_path(path)) {
+        return -1;
+    }
+
+    mnt_mountpoint_t* mountpoint = mnt_get_mountpoint(path);
+
+    if(!mountpoint) {
+        return -1;
+    }
+
+    char* relative_path = path + 3;
+
+    vfs_node_t* node = vfs_findpath(mountpoint->root, relative_path);
+
+    if(!node) {
+        kfree(node);
+        return -1;
+    }
+
+    if(node->type != VFS_FILE) {
+        kfree(node);
+        return -1;
+    }
+
+    stat->size = node->length;
+    stat->uid = node->uid;
+    stat->gid = node->gid;
+    stat->permissions = node->permissions;
+
+    kfree(node);
+
+    return 0;
+}
+
 static int32_t file_get_free_descriptor() {
     for(size_t index = 0; index < MAX_FILE_DESCRIPTORS; index++) {
         if(!file_descriptors[index].node) {

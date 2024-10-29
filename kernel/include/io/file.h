@@ -31,6 +31,15 @@ struct file_descriptor {
     uint32_t flags;
 };
 
+typedef struct file_stat file_stat_t;
+
+struct file_stat {
+    size_t size;
+    uint32_t uid;
+    uint32_t gid;
+    uint32_t permissions;
+};
+
 /**
  * Open a file.
  * 
@@ -77,5 +86,14 @@ int32_t file_write(int32_t fd, void* buffer, size_t size);
  * @return 0 on success or -1 on error.
  */
 int32_t file_seek(int32_t fd, int32_t offset, int32_t whence);
+
+/**
+ * Get the stat of a file.
+ * 
+ * @param path The path to the file.
+ * @param stat The file stat to store the size in.
+ * @return 0 on success or -1 on error.
+ */
+int32_t file_stat(const char* path, file_stat_t* stat);
 
 #endif // _KERNEL_IO_FILE_H
