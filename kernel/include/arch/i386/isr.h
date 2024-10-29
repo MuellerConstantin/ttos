@@ -62,7 +62,9 @@ extern void irq45();
 extern void irq46();
 extern void irq47();
 
-#define ISR_MAX_INTERRUPT_LISTENERS 48
+extern void syscall();
+
+#define ISR_MAX_INTERRUPT_LISTENERS 256
 
 struct isr_cpu_state {
     uint32_t ds;
@@ -129,7 +131,11 @@ typedef enum {
     PS2_INTERRUPT = 44,
     COPROCESSOR_INTERRUPT = 45,
     PRIMARY_ATA_HARD_DISK_INTERRUPT = 46,
-    SECONDARY_ATA_HARD_DISK_INTERRUPT = 47
+    SECONDARY_ATA_HARD_DISK_INTERRUPT = 47,
+
+    // Software interrupts
+
+    SYSCALL_INTERRUPT = 0x80
 } isr_interrupt_t;
 
 typedef void (*isr_interrupt_listener_t)(isr_cpu_state_t *state);

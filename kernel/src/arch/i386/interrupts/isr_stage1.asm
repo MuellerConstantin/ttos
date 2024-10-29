@@ -83,6 +83,17 @@ isr_stage1:
 
 %endmacro
 
+[GLOBAL syscall]
+
+syscall:
+
+    cli
+
+    push byte 0x00
+    push 0x80
+
+    jmp isr_stage1
+
 EXC_CODELESS 0
 EXC_CODELESS 1
 EXC_CODELESS 2

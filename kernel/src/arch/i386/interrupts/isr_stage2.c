@@ -54,7 +54,7 @@ void isr_stage2(isr_cpu_state_t *state) {
 	}
 
     // In case of an unhandled exception
-    if(0 == listener && 32 > state->interrupt_code) {
+	if(0 == listener && 32 > state->interrupt_code && 0x80 != state->interrupt_code) {
 		KPANIC(KPANIC_CPU_EXCEPTION_TYPE(state->interrupt_code), exception_messages[state->interrupt_code], state);
 	}
 }

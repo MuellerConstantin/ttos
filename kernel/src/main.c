@@ -12,8 +12,8 @@
 #include <arch/i386/pic/8259.h>
 #include <system/timer.h>
 #include <system/kpanic.h>
-#include <system/switch_usermode.h>
 #include <system/kmessage.h>
+#include <system/syscall.h>
 #include <device/device.h>
 #include <device/volume.h>
 #include <drivers/pci/pci.h>
@@ -31,7 +31,6 @@
 static void init_platform(multiboot_info_t *multiboot_info);
 static void init_kernel(multiboot_info_t *multiboot_info);
 static void init_drivers();
-static void init_usermode();
 static void init_console();
 
 void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
@@ -78,6 +77,16 @@ static void init_platform(multiboot_info_t *multiboot_info) {
     acpi_init();
     pic_8259_init();
 
+    /*
+     * Save the kernel stack pointer to the TSS so that the kernel has a valid
+     * stack pointer when switching back to kernel mode in case of an exception.
+     */
+
+    uint32_t kernel_stack;
+    __asm__ volatile("mov %%esp, %0" : "=r" (kernel_stack));
+
+    tss_update_ring0_stack(0x10, kernel_stack);
+
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
     // Map the initial ramdisk multiboot module to virtual address space
@@ -106,6 +115,9 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
     // Initialize the system timer
     timer_init();
 
+    // Initialize the syscall manager
+    syscall_init();
+
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
     // Load initial ramdisk multiboot module if provided
@@ -125,22 +137,6 @@ static void init_drivers() {
     pci_init();
     ata_init();
     sata_init();
-}
-
-static void init_usermode() {
-    /*
-     * Save the kernel stack pointer to the TSS so that the kernel has a valid
-     * stack pointer when switching back to kernel mode in case of an exception.
-     */
-
-    uint32_t kernel_stack;
-    __asm__ volatile("mov %%esp, %0" : "=r" (kernel_stack));
-
-    tss_update_ring0_stack(0x10, kernel_stack);
-
-    // TODO: Launch a user process with separate address space
-
-    switch_usermode();
 }
 
 static void init_console() {
@@ -169,9 +165,9 @@ static void init_console() {
         KPANIC(KPANIC_NO_INPUT_DEVICE_FOUND_CODE, KPANIC_NO_INPUT_DEVICE_FOUND_MESSAGE, NULL);
     }
 
-    // init_usermode();
-
     tty_t* tty0 = tty_create(video_device, keyboard_device, &tty_keyboard_layout_de_DE);
+    tty_set_stdterm(tty0);
+
     stream_t* out_stream = tty_get_out_stream(tty0);
     stream_t* in_stream = tty_get_in_stream(tty0);
     stream_t* err_stream = tty_get_err_stream(tty0);

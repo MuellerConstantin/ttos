@@ -56,6 +56,20 @@ struct tty {
 extern tty_keyboard_layout_t tty_keyboard_layout_de_DE;
 
 /**
+ * Sets the TTY to the standard terminal.
+ * 
+ * @param tty The TTY.
+ */
+void tty_set_stdterm(tty_t* tty);
+
+/**
+ * Gets the TTY of the standard terminal.
+ * 
+ * @return The TTY.
+ */
+const tty_t* tty_get_stdterm();
+
+/**
  * Creates a new TTY.
  * 
  * @param video The video device to use.

@@ -2,12 +2,22 @@
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 
+static tty_t* tty_stdterm = NULL;
+
 static tty_stream_putchar(stream_t* stream, char ch);
 static char tty_stream_getchar(stream_t* stream);
 static void tty_stream_puts(stream_t* stream, const char* str);
 static char* tty_stream_gets(stream_t* stream);
 
 static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted);
+
+void tty_set_stdterm(tty_t* tty) {
+    tty_stdterm = tty;
+}
+
+const tty_t* tty_get_stdterm() {
+    return tty_stdterm;
+}
 
 tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout) {
     if(!video->driver->tm_probe()) {
