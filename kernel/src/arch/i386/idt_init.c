@@ -59,7 +59,12 @@ void idt_init() {
     idt_init_descriptor(PRIMARY_ATA_HARD_DISK_INTERRUPT, (uint32_t) irq46, 0x08, 0x8E);
     idt_init_descriptor(SECONDARY_ATA_HARD_DISK_INTERRUPT, (uint32_t) irq47, 0x08, 0x8E);
 
-    idt_init_descriptor(SYSCALL_INTERRUPT, (uint32_t) syscall, 0x08, 0x8E);
+    /*
+     * Syscalls should be callable from any privilege level. So we have to ensure that the
+     * interrupt gate is present in all privilege levels.
+     */
+
+    idt_init_descriptor(SYSCALL_INTERRUPT, (uint32_t) syscall, 0x08, 0xEE);
 
     idt.base = (uint32_t) &descriptors;
     idt.limit = sizeof(descriptors) - 1;

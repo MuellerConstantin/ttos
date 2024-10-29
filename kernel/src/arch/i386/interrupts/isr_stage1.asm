@@ -19,14 +19,11 @@ isr_stage1:
     mov fs, ax
     mov gs, ax
 
-    ; Push current stack pointer
-
-    mov eax, esp
-    push eax
+    push esp                ; Push current stack pointer
 
     call isr_stage2         ; Calls second stage interrupt handler
 
-    pop eax                 ; Remove pushed stack pointer
+    pop esp                 ; Remove pushed stack pointer
 
     pop ebx                 ; Restore original data segment descriptor
     mov ds, bx
