@@ -4,6 +4,7 @@
 
 ROOTDIR ?= $(realpath ..)
 
+LD := ld
 CC := gcc
 AS := nasm
 
@@ -17,13 +18,12 @@ LIBK := $(ROOTDIR)/libk/libk.a
 
 INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/libk/include' -I '$(ROOTDIR)/libc/include'
 
-CFLAGS := -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __is_libk
-ASFLAGS := -f elf -g
+CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __is_libk
+ASFLAGS := -f elf32 -g
+LDFLAGS := -m $(FORMAT) -T kernel.ld
 
 SRCS := $(shell find $(SRCDIR) -name '*.asm') $(shell find $(SRCDIR) -name '*.c')
 OBJS := $(subst $(SRCDIR), $(OBJDIR), $(patsubst %.c, %.o, $(patsubst %.asm, %.o, $(SRCS))))
-
-LDFLAGS := -m $(FORMAT) -T kernel.ld
 
 all: $(TARGET)
 

@@ -14,7 +14,7 @@ TARGET := libk.a
 
 INCLUDE := -I '$(ROOTDIR)/libk/include' -I '$(ROOTDIR)/libc/include'
 
-CFLAGS := -std=c99 -ffreestanding -m32 -Wall -Wextra
+CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra
 ARFLAGS := rcs
 
 SRCS := $(shell find $(SRCDIR) -name '*.c')
