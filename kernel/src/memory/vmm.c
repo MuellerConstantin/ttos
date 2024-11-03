@@ -60,6 +60,10 @@ void vmm_init() {
     kmessage(KMESSAGE_LEVEL_INFO, "memory: VMM initialized");
 }
 
+const page_directory_t* vmm_get_current_address_space() {
+    return current_page_directory;
+}
+
 void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable) {
     uint32_t frame_address = (uint32_t) physical_address;
 

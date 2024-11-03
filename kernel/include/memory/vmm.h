@@ -55,6 +55,13 @@ extern char kernel_virtual_end[];
 void vmm_init();
 
 /**
+ * Get the current address space.
+ * 
+ * @return The current address space.
+ */
+const page_directory_t* vmm_get_current_address_space();
+
+/**
  * Map a memory region to a virtual address.
  * 
  * It is important to note that the VMM can only map whole pages, so the given
