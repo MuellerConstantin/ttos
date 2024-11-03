@@ -28,12 +28,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
 static void syscall_print(isr_cpu_state_t *state) {
     const char* message = (const char*) state->ebx;
 
-    char* bufffer = kmalloc(strlen(message) + 1);
-    strcpy(bufffer, message);
+    char* buffer = kmalloc(strlen(message) + 1);
+    strcpy(buffer, message);
 
     tty_t* tty0 = tty_get_stdterm();
 
     if(tty0) {
-        tty_puts(tty0, bufffer);
+        tty_puts(tty0, buffer);
     }
+
+    kfree(buffer);
 }

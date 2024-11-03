@@ -225,4 +225,5 @@ tags
 
 # Assets
 !initrd/*
+initrd/*.elf
 !hdd/*
