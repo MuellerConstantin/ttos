@@ -18,7 +18,15 @@ extern "C" {
  * @param ... The arguments to format.
  * @return The number of characters written.
  */
-int sprintf(char * str, const char * format, ... );
+int sprintf(char* str, const char * format, ... );
+
+/**
+ * Writes a string to the standard output stream.
+ * 
+ * @param str The string to write.
+ * @return The number of characters written.
+ */
+int puts(const char* str);
 
 #ifdef __cplusplus
 }
