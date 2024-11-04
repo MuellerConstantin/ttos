@@ -63,15 +63,15 @@ static void syscall_handler(isr_cpu_state_t *state) {
     uint32_t syscall = state->eax;
 
     switch(syscall) {
-        case 1: {
+        case SYSCALL_WRITE: {
             state->eax = syscall_write(state);
             break;
         }
-        case 4: {
+        case SYSCALL_GET_OSINFO: {
             state->eax = syscall_get_osinfo(state);
             break;
         }
-        case 5: {
+        case SYSCALL_GET_MEMINFO: {
             state->eax = syscall_get_meminfo(state);
             break;
         }

@@ -67,6 +67,7 @@ const page_directory_t* vmm_get_current_address_space() {
 void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address, bool is_kernel, bool is_writeable) {
     uint32_t frame_address = (uint32_t) physical_address;
 
+    // Find contiguos virtual memory if no memory region is given
     if(!virtual_address) {
         virtual_address = vmm_find_free_memory(size, is_kernel);
 
@@ -74,16 +75,6 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
             KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_CODE,
                    is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_MESSAGE,
                    NULL);
-        }
-    } else {
-        // Ensure given virtual address is within kernel space if it is kernel memory
-        if(is_kernel && virtual_address < VMM_KERNEL_SPACE_BASE) {
-            KPANIC(KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_CODE, KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_MESSAGE, NULL);
-        }
-
-        // Ensure given virtual address is within user space if it is user memory
-        if(!is_kernel && (uint32_t) virtual_address + size >= VMM_KERNEL_SPACE_BASE) {
-            KPANIC(KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_CODE, KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_MESSAGE, NULL);
         }
     }
 
@@ -93,12 +84,25 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
     for(uint32_t page_address = (uint32_t) virtual_address;
         page_address < ((uint32_t) virtual_address) + size;
         page_address += PAGE_SIZE) {
+
+        void* resulted_address = NULL;
         
         if(frame_address) {
-            vmm_map_page((void*) page_address, (void*) frame_address, is_kernel, is_writeable);
+            resulted_address = vmm_map_page((void*) page_address, (void*) frame_address, is_kernel, is_writeable);
             frame_address += PAGE_SIZE;
         } else {
-            vmm_map_page((void*) page_address, NULL, is_kernel, is_writeable);
+            resulted_address = vmm_map_page((void*) page_address, NULL, is_kernel, is_writeable);
+        }
+
+        if(resulted_address == NULL) {
+            // Unmap all pages that were mapped up to this point
+            for(uint32_t unmap_page_address = (uint32_t) virtual_address;
+                unmap_page_address < page_address;
+                unmap_page_address += PAGE_SIZE) {
+                vmm_unmap_page((void*) unmap_page_address);
+            }
+
+            return NULL;
         }
     }
 
@@ -106,6 +110,31 @@ void* vmm_map_memory(void* virtual_address, size_t size, void* physical_address,
 }
 
 static void* vmm_map_page(void* virtual_address, void* physical_address, bool is_kernel, bool is_writeable) {
+    if(!virtual_address) {
+        virtual_address = vmm_find_free_memory(PAGE_SIZE, is_kernel);
+
+        if(!virtual_address) {
+            KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_CODE,
+                   is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_MESSAGE,
+                   NULL);
+        }
+    } else {
+        // Ensure page address is not used already
+        if(paging_is_page_used(current_page_directory, virtual_address)) {
+            return NULL;
+        }
+    }
+
+    // Ensure given virtual address is within kernel space if it is kernel memory
+    if(is_kernel && virtual_address < VMM_KERNEL_SPACE_BASE) {
+        KPANIC(KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_CODE, KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_MESSAGE, NULL);
+    }
+
+    // Ensure given virtual address is within user space if it is user memory
+    if(!is_kernel && (uint32_t) virtual_address >= VMM_KERNEL_SPACE_BASE) {
+        KPANIC(KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_CODE, KPANCI_VMM_MEMORY_SPACE_BOUNDS_VIOLATION_MESSAGE, NULL);
+    }
+
     // If no frame address is provided, allocate a new frame
     if(!physical_address) {
         physical_address = pmm_alloc_frame();
@@ -115,16 +144,6 @@ static void* vmm_map_page(void* virtual_address, void* physical_address, bool is
         }
     } else {
         pmm_mark_frame_reserved(physical_address);
-    }
-
-    if(!virtual_address) {
-        virtual_address = vmm_find_free_memory(PAGE_SIZE, is_kernel);
-
-        if(!virtual_address) {
-            KPANIC(is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_CODE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_CODE,
-                   is_kernel ? KPANIC_VMM_OUT_OF_KERNEL_SPACE_MEMORY_MESSAGE : KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_MESSAGE,
-                   NULL);
-        }
     }
 
     paging_map_page(current_page_directory, virtual_address, physical_address, is_kernel, is_writeable);
@@ -220,6 +239,8 @@ page_directory_t* vmm_clone_address_space(page_directory_t *src_page_directory) 
                 if(!dst_page_table) {
                     KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
                 }
+
+                dst_page_directory->tables[directory_index] = dst_page_table;
 
                 for(size_t table_index = 0; table_index < PAGE_TABLE_SIZE; table_index++) {
                     // Check if page is used

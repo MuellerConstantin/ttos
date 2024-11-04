@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#define SYSCALL_WRITE 0x01
+#define SYSCALL_GET_OSINFO 0x04
+#define SYSCALL_GET_MEMINFO 0x05
+
 /**
  * Initializes the syscall handler.
  */
