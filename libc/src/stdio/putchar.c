@@ -1,14 +1,7 @@
 #include <stdio.h>
-#include <string.h>
 
-int puts(const char* str) {
-    /*
-     * Naive implementation of puts that writes a string to the standard output stream by
-     * using the syscall interface directly.
-     */
-
+int putchar(int ch) {
     uint32_t return_value = 0;
-    size_t length = strlen(str);
 
     __asm__ volatile(
         "mov $0x01, %%ebx\n"
@@ -18,7 +11,7 @@ int puts(const char* str) {
         "int $0x80\n"
         "mov %%eax, %0\n"
         : "=r"(return_value)
-        : "r"(str), "r"(length)
+        : "r"(&ch), "r"(sizeof(ch))
         : "%eax", "%ebx", "%ecx", "%edx"
     );
 
@@ -26,5 +19,5 @@ int puts(const char* str) {
         return -1;
     }
 
-    return length;
+    return ch;
 }

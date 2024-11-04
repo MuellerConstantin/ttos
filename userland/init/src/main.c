@@ -3,7 +3,7 @@
 void _start() {
     const char message[] = "Hello, Kernel!";
 
-    puts(message);
+    printf(message);
 
     while (1) {
         __asm__ volatile ("nop");

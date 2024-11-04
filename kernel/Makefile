@@ -18,7 +18,7 @@ LIBK := $(ROOTDIR)/libk/libk.a
 
 INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/libk/include' -I '$(ROOTDIR)/libc/include'
 
-CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __is_libk
+CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g
 ASFLAGS := -f elf32 -g
 LDFLAGS := -m $(FORMAT) -T kernel.ld
 

@@ -17,7 +17,7 @@ extern "C" {
  * @param base The base to convert the integer to.
  * @return The string representation of the integer.
  */
-char *itoa(uint32_t n, char *buf, uint32_t base);
+char *itoa(int32_t n, char *buf, uint32_t base);
 
 /**
  * Converts a double to a string.
