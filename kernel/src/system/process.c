@@ -3,11 +3,12 @@
 #include <system/kpanic.h>
 #include <system/elf.h>
 #include <memory/kheap.h>
-#include <drivers/serial/uart/16550.h>
+
+static process_t* current_process = NULL;
 
 static pid_t process_next_pid();
 
-process_t* process_create(const char* name, const char* path) {
+process_t* process_create(const char* name, const char* path, stream_t* out, stream_t* in, stream_t* err) {
     // Read the executable file
 
     file_stat_t executable_stat;
@@ -15,12 +16,10 @@ process_t* process_create(const char* name, const char* path) {
     uint8_t* executable_data;
 
     if(file_stat(path, &executable_stat) < 0) {
-        uart_16550_write(UART_16550_COM1, "Failed to stat executable file\n", 27);
         return NULL;
     }
 
     if((executable_fd = file_open(path, FILE_MODE_R)) < 0) {
-        uart_16550_write(UART_16550_COM1, "Failed to open executable file\n", 27);
         return NULL;
     }
 
@@ -31,7 +30,6 @@ process_t* process_create(const char* name, const char* path) {
     if(file_read(executable_fd, executable_data, executable_stat.size) != executable_stat.size) {
         kfree(executable_data);
         file_close(executable_fd);
-        uart_16550_write(UART_16550_COM1, "Failed to read executable file\n", 27);
         return NULL;
     }
 
@@ -63,6 +61,8 @@ process_t* process_create(const char* name, const char* path) {
 
     strcpy(process->path, path);
 
+    process->state = PROCESS_STATE_READY;
+
     // Load the executable
 
     if(!elf_is_valid(executable_data, executable_stat.size)) {
@@ -70,7 +70,6 @@ process_t* process_create(const char* name, const char* path) {
         kfree(process->path);
         kfree(process);
         kfree(executable_data);
-        uart_16550_write(UART_16550_COM1, "Invalid ELF file\n", 17);
         return NULL;
     }
 
@@ -82,7 +81,6 @@ process_t* process_create(const char* name, const char* path) {
         kfree(process->path);
         kfree(process);
         kfree(executable_data);
-        uart_16550_write(UART_16550_COM1, "Failed to create address space\n", 29);
         return NULL;
     }
 
@@ -97,31 +95,51 @@ process_t* process_create(const char* name, const char* path) {
         kfree(process);
         kfree(executable_data);
         vmm_switch_address_space(former_address_space);
-        uart_16550_write(UART_16550_COM1, "Failed to load ELF file\n", 22);
         return NULL;
     }
 
     // Allocate the user stack
 
-    void* user_stack = vmm_map_memory(NULL, PAGE_SIZE, NULL, false, true);
+    void* user_stack_limit = vmm_map_memory(NULL, PAGE_SIZE, NULL, false, true);
 
-    if(user_stack == NULL) {
+    if(user_stack_limit == NULL) {
         KPANIC(KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_CODE, KPANIC_VMM_OUT_OF_USER_SPACE_MEMORY_MESSAGE, NULL);
     }
 
-    process->stack = (void*) ((uint32_t) user_stack + PAGE_SIZE - 1);
+    process->stack_base = (void*) ((uint32_t) user_stack_limit + PAGE_SIZE - 1);
+    process->stack_limit = user_stack_limit;
+
+    process->heap_base = NULL;
+    process->heap_limit = NULL;
 
     // Switch back to former address space after loading the executable
     vmm_switch_address_space(former_address_space);
 
     process->context.eip = (uint32_t) elf_get_entry_point(executable_data, executable_stat.size);
+    process->context.esp = (uint32_t) process->stack_base;
+    process->context.eflags = 0x200;
 
     kfree(executable_data);
+
+    // Create the streams
+
+    process->out = out;
+    process->in = in;
+    process->err = err;
 
     return process;
 }
 
 void process_run(process_t* process) {
+    if(process->state != PROCESS_STATE_READY) {
+        return;
+    }
+
+    current_process = process;
+
+    process->state = PROCESS_STATE_RUNNING;
+
+    // Switch to the new address space
     vmm_switch_address_space(process->address_space);
 
     const uint32_t USER_DS_SELECTOR = 0x23;
@@ -142,11 +160,15 @@ void process_run(process_t* process) {
         :
         : "r"(USER_DS_SELECTOR),
           "r"(USER_DS_SELECTOR),
-          "r"(process->stack),
-          "r"(0x200),
+          "r"(process->context.esp),
+          "r"(process->context.eflags),
           "r"(USER_CS_SELECTOR),
           "r"(process->context.eip)
     );
+}
+
+const process_t* process_get_current() {
+    return current_process;
 }
 
 static pid_t process_next_pid() {

@@ -1,6 +1,7 @@
 #include <system/syscall.h>
 #include <arch/i386/isr.h>
-#include <io/tty.h>
+#include <io/stream.h>
+#include <system/process.h>
 
 static void syscall_handler(isr_cpu_state_t *state);
 static void syscall_print(isr_cpu_state_t *state);
@@ -28,14 +29,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
 static void syscall_print(isr_cpu_state_t *state) {
     const char* message = (const char*) state->ebx;
 
-    char* buffer = kmalloc(strlen(message) + 1);
-    strcpy(buffer, message);
+    process_t* current_process = process_get_current();
 
-    tty_t* tty0 = tty_get_stdterm();
+    if(current_process && current_process->out) {
+        char* buffer = kmalloc(strlen(message) + 1);
+        strcpy(buffer, message);
 
-    if(tty0) {
-        tty_puts(tty0, buffer);
+        stream_puts(current_process->out, buffer);
+
+        kfree(buffer);
     }
-
-    kfree(buffer);
 }

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <memory/vmm.h>
+#include <io/stream.h>
 
 typedef int32_t pid_t;
 
@@ -21,15 +22,33 @@ struct process_context {
     uint32_t eflags;
 };
 
+typedef enum {
+    PROCESS_STATE_READY = 0,
+    PROCESS_STATE_RUNNING = 1,
+    PROCESS_STATE_EXITED = 2
+} process_state_t;
+
 typedef struct process process_t;
 
 struct process {
     pid_t pid;
     char* name;
     char* path;
-    void* stack;
+
+    process_state_t state;
+
     page_directory_t* address_space;
     process_context_t context;
+
+    void* stack_base;
+    void* stack_limit;
+
+    void* heap_base;
+    void* heap_limit;
+
+    stream_t* out;
+    stream_t* in;
+    stream_t* err;
 };
 
 /**
@@ -37,9 +56,12 @@ struct process {
  * 
  * @param name Name of the process.
  * @param path Path to the executable.
+ * @param out Output stream.
+ * @param in Input stream.
+ * @param err Error stream.
  * @return The new process.
  */
-process_t* process_create(const char* name, const char* path);
+process_t* process_create(const char* name, const char* path, stream_t* out, stream_t* in, stream_t* err);
 
 /**
  * Run a process.
@@ -47,5 +69,12 @@ process_t* process_create(const char* name, const char* path);
  * @param process The process to run.
  */
 void process_run(process_t* process);
+
+/**
+ * Get the current process.
+ * 
+ * @return The current process.
+ */
+const process_t* process_get_current();
 
 #endif // _KERNEL_SYSTEM_PROCESS_H

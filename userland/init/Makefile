@@ -12,7 +12,7 @@ SRCDIR := src
 OBJDIR := obj
 
 FORMAT := elf_i386
-TARGET := hello.elf
+TARGET := init.elf
 LIBC := $(ROOTDIR)/libc/libc.a
 
 INCLUDE := -I '$(ROOTDIR)/libc/include'
