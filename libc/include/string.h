@@ -127,6 +127,17 @@ char *strpbrk(const char *s, const char *accept);
  */
 int strncmp(const char *str1, const char *str2, size_t n);
 
+/**
+ * Copies the first n characters of the string pointed to by src
+ * to the array pointed to by dest.
+ * 
+ * @param dest The destination to copy the characters to.
+ * @param src The source to copy the characters from.
+ * @param n The number of characters to copy.
+ * @return A pointer to the destination.
+ */
+char *strncpy(char *dest, const char *src, size_t n);
+
 #ifdef __cplusplus
 }
 #endif

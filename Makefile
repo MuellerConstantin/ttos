@@ -2,11 +2,12 @@
 
 .PHONY: all clean
 
+VERSION := 0.1.0
 ARCH ?= x86
 PLATFORM ?= intel
-VERSION := 0.1.0
 ROOTDIR := $(realpath .)
 
+export VERSION
 export ARCH
 export PLATFORM
 export ROOTDIR
