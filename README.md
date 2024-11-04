@@ -28,17 +28,23 @@ is [multiboot](https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
 compliant, which means it can be booted by the [GRUB](https://www.gnu.org/software/grub/)
 bootloader.
 
-The project itself is divided into three main parts:
+The project itself is divided into multiple parts:
 
-- **Kernel**: The core of the operating system. It contains the source code
+- **kernel**: The core of the operating system. It contains the source code
   for all core functionalities and default drivers of the operating system. See
   [here](kernel/README.md) for more information.
 - **libc**: A naive implementation of a standard C library for the TTOS project.
   It may be replaced by an existing C library implementation/port in the future.
   See [here](libc/README.md) for more information.
 - **libk**: A special library that bundles kernel-specific functions and utilities
-  used by the TTOS kernel. It is an extension of the C standard library.
-  See [here](libk/README.md) for more information.
+  used by the TTOS kernel. It is intended to be used by the kernel and other
+  possibly kernel extensions/modules. See [here](libk/README.md) for more information.
+- **libsys**: An additional library that bundles system-level calls. With the help
+  of this library, user programs can perform system-specific operations. See
+  [here](libsys/README.md) for more information.
+- **userland**: A subproject that contains the source code for userland applications
+  provided by the operating system by default. See [here](userland/README.md) for
+  more information.
 
 ## Build Instructions
 

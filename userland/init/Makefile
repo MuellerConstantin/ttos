@@ -14,8 +14,9 @@ OBJDIR := obj
 FORMAT := elf_i386
 TARGET := init.elf
 LIBC := $(ROOTDIR)/libc/libc.a
+LIBSYS := $(ROOTDIR)/libsys/libsys.a
 
-INCLUDE := -I '$(ROOTDIR)/libc/include'
+INCLUDE := -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
 
 CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O0 -fno-stack-protector -g
 LDFLAGS := -m $(FORMAT) -e _start
@@ -32,8 +33,8 @@ clean:
 
 $(TARGET): $(OBJS)
 
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBC)
-	
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBSYS) $(LIBC)
+
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
 
 	mkdir -p $(@D)

@@ -39,7 +39,10 @@ kernel: $(TARGET)
 
 clean:
 
-	$(MAKE) -C kernel clean
+	$(MAKE) -C $(ROOTDIR)/kernel clean
+
+	$(MAKE) -C $(ROOTDIR)/userland clean
+	rm -f initrd/*.elf
 
 	rm -rf $(INITRD)
 	rm -f $(IMAGE)
@@ -65,6 +68,9 @@ $(TARGET):
 	$(MAKE) -C kernel all
 
 $(INITRD):
+
+	$(MAKE) -C $(ROOTDIR)/userland all
+	cp -r $(ROOTDIR)/userland/bin/* initrd
 
 	./scripts/mkinitrd.py -o $(INITRD) -i initrd
 
