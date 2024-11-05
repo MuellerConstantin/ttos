@@ -2,6 +2,7 @@
 #define _STDLIB_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,6 +43,39 @@ void srand(unsigned int seed);
  * @return A random number between 0 and RAND_MAX.
  */
 int rand(void);
+
+/**
+ * Allocates memory.
+ * 
+ * @param size The size of the memory to allocate.
+ * @return A pointer to the allocated memory or NULL if allocation failed.
+ */
+void* malloc(size_t size);
+
+/**
+ * Allocate memory for an array of elements and set the memory to zero.
+ * 
+ * @param num The number of elements.
+ * @param size The size of each element.
+ * @return The address of the allocated block of memory or NULL if allocation failed.
+ */
+void* calloc(size_t num, size_t size);
+
+/**
+ * Reallocate a block of memory with a new size.
+ * 
+ * @param ptr The address of the block to reallocate.
+ * @param size The new size of the block.
+ * @return The address of the reallocated block.
+ */
+void* realloc(void* ptr, size_t size);
+
+/**
+ * Free a block of memory allocated by malloc.
+ * 
+ * @param ptr The address of the block to free.
+ */
+void free(void* ptr);
 
 #ifdef __cplusplus
 }
