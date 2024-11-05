@@ -154,10 +154,10 @@ char tty_getchar(tty_t* tty) {
     volatile keyboard_event_t event;
 
     while(1) {
-        // Wait for a key press/release event
-        do {
-            waiting = !tty->keyboard->driver->available();
-        } while(waiting);
+        // Check if keypress is available
+        if(!tty->keyboard->driver->available()) {
+            return -1;
+        }
 
         tty->keyboard->driver->dequeue(&event);
 
@@ -187,7 +187,7 @@ char tty_getchar(tty_t* tty) {
         }
     }
 
-    return 0;
+    return -1;
 }
 
 static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted) {
@@ -216,7 +216,8 @@ char* tty_gets(tty_t* tty) {
     size_t buffer_index = 0;
 
     while(true) {
-        char ch = tty_getchar(tty);
+        char ch;
+        while((ch = tty_getchar(tty)) == -1);
 
         if(ch == '\n') {
             tty_putchar(tty, ch);
