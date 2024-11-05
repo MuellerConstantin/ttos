@@ -12,7 +12,7 @@ process_t* process_create(const char* name, const char* path, stream_t* out, str
     // Read the executable file
 
     file_stat_t executable_stat;
-    int32_t executable_fd;
+    file_descriptor_t* executable_fd;
     uint8_t* executable_data;
 
     if(file_stat(path, &executable_stat) < 0) {

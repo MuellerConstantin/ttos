@@ -13,8 +13,6 @@
 #include <stdbool.h>
 #include <fs/vfs.h>
 
-#define MAX_FILE_DESCRIPTORS 256
-
 #define FILE_MODE_R         0b00000001
 #define FILE_MODE_W         0b00000010
 
@@ -45,9 +43,9 @@ struct file_stat {
  * 
  * @param path The path to the file.
  * @param flags The flags to open the file with.
- * @return The file descriptor or -1 on error.
+ * @return The file descriptor or NULL on error.
  */
-int32_t file_open(char* path, uint32_t flags);
+file_descriptor_t* file_open(char* path, uint32_t flags);
 
 /**
  * Close a file.
@@ -55,7 +53,7 @@ int32_t file_open(char* path, uint32_t flags);
  * @param fd The file descriptor to close.
  * @return 0 on success or -1 on error.
  */
-int32_t file_close(int32_t fd);
+int32_t file_close(file_descriptor_t* fd);
 
 /**
  * Read from a file.
@@ -65,7 +63,7 @@ int32_t file_close(int32_t fd);
  * @param size The number of bytes to read.
  * @return The number of bytes read or -1 on error.
  */
-int32_t file_read(int32_t fd, void* buffer, size_t size);
+int32_t file_read(file_descriptor_t* fd, void* buffer, size_t size);
 
 /**
  * Write to a file.
@@ -75,7 +73,7 @@ int32_t file_read(int32_t fd, void* buffer, size_t size);
  * @param size The number of bytes to write.
  * @return The number of bytes written or -1 on error.
  */
-int32_t file_write(int32_t fd, void* buffer, size_t size);
+int32_t file_write(file_descriptor_t* fd, void* buffer, size_t size);
 
 /**
  * Seek to a position in a file.
@@ -85,7 +83,7 @@ int32_t file_write(int32_t fd, void* buffer, size_t size);
  * @param whence The position to seek from.
  * @return 0 on success or -1 on error.
  */
-int32_t file_seek(int32_t fd, int32_t offset, int32_t whence);
+int32_t file_seek(file_descriptor_t* fd, int32_t offset, int32_t whence);
 
 /**
  * Get the stat of a file.
