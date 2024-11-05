@@ -5,6 +5,7 @@
 #include <kernel.h>
 #include <sysinfo.h>
 #include <memory/pmm.h>
+#include <memory/vmm.h>
 #include <string.h>
 
 static void syscall_handler(isr_cpu_state_t *state);
@@ -22,6 +23,8 @@ static void syscall_handler(isr_cpu_state_t *state);
  * 
  * - edx: Size
  * 
+ * Syscall returns the number of bytes written or -1 on error.
+ * 
  * @param state The CPU state.
  * @return The number of bytes written or -1 on error.
  */
@@ -35,6 +38,8 @@ static int32_t syscall_write(isr_cpu_state_t *state);
  * - eax: Syscall number
  * 
  * - ebx: Pointer to info struct
+ * 
+ * Syscall returns 0 on success or -1 on error.
  * 
  * @param state The CPU state.
  * @return The number of bytes written or -1 on error.
@@ -50,10 +55,28 @@ static int32_t syscall_get_osinfo(isr_cpu_state_t *state);
  * 
  * - ebx: Pointer to info struct
  * 
+ * Syscall returns 0 on success or -1 on error.
+ * 
  * @param state The CPU state.
  * @return The number of bytes written or -1 on error.
  */
 static int32_t syscall_get_meminfo(isr_cpu_state_t *state);
+
+/**
+ * Allocate/increase heap syscall handler.
+ * 
+ * Syscall expects the following parameters:
+ * 
+ * - eax: Syscall number
+ * 
+ * - ebx: Number of pages to increase the heap by
+ * 
+ * Syscall returns the new heap end address or NULL on error.
+ * 
+ * @param state The CPU state.
+ * @return The number of bytes written or -1 on error.
+ */
+static void* syscall_alloc_heap(isr_cpu_state_t *state);
 
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
@@ -75,7 +98,12 @@ static void syscall_handler(isr_cpu_state_t *state) {
             state->eax = syscall_get_meminfo(state);
             break;
         }
+        case SYSCALL_ALLOC_HEAP: {
+            state->eax = syscall_alloc_heap(state);
+            break;
+        }
         default: {
+            state->eax = -1;
             break;
         }
     }
@@ -138,4 +166,41 @@ static int32_t syscall_get_meminfo(isr_cpu_state_t *state) {
     info->free = pmm_get_available_memory_size();
 
     return 0;
+}
+
+static void* syscall_alloc_heap(isr_cpu_state_t *state) {
+    uint32_t n_pages = state->ebx;
+
+    process_t* current_process = process_get_current();
+
+    if(current_process) {
+        void* heap_start = current_process->heap_base;
+        void* current_heap_end = current_process->heap_limit;
+
+        if(n_pages == 0) {
+            return current_process->heap_limit;
+        }
+
+        // If the heap is not allocated, allocate it
+        if(heap_start == NULL) {
+            heap_start = vmm_map_memory(NULL, n_pages * PAGE_SIZE, NULL, false, true);
+
+            if(!heap_start) {
+                return NULL;
+            }
+
+            current_process->heap_base = heap_start;
+            current_process->heap_limit = (void*) ((uint32_t) heap_start + (n_pages * PAGE_SIZE) - 1);
+        } else {
+            void* block_begin = vmm_map_memory((void*) ((uint32_t) current_heap_end + 1), n_pages * PAGE_SIZE, NULL, false, true);
+
+            if(!block_begin) {
+                return NULL;
+            }
+
+            current_process->heap_limit = (void*) ((uint32_t) block_begin + (n_pages * PAGE_SIZE) - 1);
+        }
+
+        return current_process->heap_limit;
+    }
 }

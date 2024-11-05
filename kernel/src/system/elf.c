@@ -59,7 +59,9 @@ int32_t elf_load(uint8_t* data, size_t size) {
 
     for(size_t index = 0; index < header->e_phnum; index++, program_header++) {
         if(program_header->p_type == ELF_PROGRAM_TYPE_LOAD) {
-            if(vmm_map_memory(program_header->p_vaddr, program_header->p_memsz, NULL, false, true) == NULL) {
+            bool is_writeable = (program_header->p_flags & ELF_PROGRAM_FLAG_WRITE) != 0;
+
+            if(vmm_map_memory(program_header->p_vaddr, program_header->p_memsz, NULL, false, is_writeable) == NULL) {
                 return -1;
             }
 
