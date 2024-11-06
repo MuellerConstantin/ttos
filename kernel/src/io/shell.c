@@ -65,7 +65,7 @@ void shell_execute(shell_t *shell) {
 static void shell_display_banner(shell_t* shell) {
     const char* PATH = "A:/banner.txt";
 
-    file_descriptor_t* banner_fd = file_open(PATH, FILE_MODE_R);
+    file_descriptor_t* banner_fd = file_open(PATH, FILE_RDONLY);
 
     if(!banner_fd) {
         return;

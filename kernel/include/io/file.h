@@ -13,8 +13,12 @@
 #include <stdbool.h>
 #include <fs/vfs.h>
 
-#define FILE_MODE_R         0b00000001
-#define FILE_MODE_W         0b00000010
+#define FILE_RDONLY    0b00000001
+#define FILE_WRONLY    0b00000010
+#define FILE_RDWR      (FILE_RDONLY | FILE_WRONLY)
+#define FILE_CREAT     0b00000100
+#define FILE_TRUNC     0b00001000
+#define FILE_APPEND    0x00010000
 
 #define FILE_SEEK_CUR       0
 #define FILE_SEEK_BEGIN     1

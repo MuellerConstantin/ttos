@@ -70,7 +70,7 @@ int32_t file_read(file_descriptor_t* fd, void* buffer, size_t size) {
         return -1;
     }
 
-    if(!(fd->flags & FILE_MODE_R)) {
+    if(!(fd->flags & FILE_RDONLY)) {
         return -1;
     }
 
@@ -98,7 +98,7 @@ int32_t file_write(file_descriptor_t* fd, void* buffer, size_t size) {
         return -1;
     }
 
-    if(!(fd->flags & FILE_MODE_W)) {
+    if(!(fd->flags & FILE_WRONLY)) {
         return -1;
     }
 

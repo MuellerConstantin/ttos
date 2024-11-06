@@ -19,7 +19,7 @@ process_t* process_create(const char* name, const char* path, stream_t* out, str
         return NULL;
     }
 
-    if((executable_fd = file_open(path, FILE_MODE_R)) < 0) {
+    if((executable_fd = file_open(path, FILE_RDONLY)) < 0) {
         return NULL;
     }
 
@@ -126,6 +126,12 @@ process_t* process_create(const char* name, const char* path, stream_t* out, str
     process->out = out;
     process->in = in;
     process->err = err;
+
+    // Initialize the file descriptors
+
+    for(int index = 0; index < PROCESS_MAX_FILE_DESCRIPTORS; index++) {
+        process->files[index] = NULL;
+    }
 
     return process;
 }

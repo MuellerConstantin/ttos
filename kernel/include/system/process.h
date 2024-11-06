@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <memory/vmm.h>
 #include <io/stream.h>
+#include <io/file.h>
+
+#define PROCESS_MAX_FILE_DESCRIPTORS 32
 
 typedef int32_t pid_t;
 
@@ -49,6 +52,8 @@ struct process {
     stream_t* out;
     stream_t* in;
     stream_t* err;
+
+    file_descriptor_t* files[PROCESS_MAX_FILE_DESCRIPTORS];
 };
 
 /**
