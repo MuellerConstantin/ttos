@@ -119,7 +119,8 @@ void tty_clear(tty_t* tty0);
 void tty_putchar(tty_t* tty0, char c);
 
 /**
- * Reads a character from the TTY.
+ * Reads a character from the TTY. It is important to note, that this
+ * function is non-blocking and non-echoing.
  * 
  * @param tty The TTY.
  * @return The character read.
