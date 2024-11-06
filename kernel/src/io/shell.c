@@ -2,6 +2,7 @@
 #include <string.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
+#include <system/process.h>
 #include <memory/pmm.h>
 #include <arch/i386/acpi.h>
 #include <arch/i386/isr.h>
@@ -33,6 +34,7 @@ static void shell_unmount(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_lsdir(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_kheap_usage(shell_t *shell, size_t argc, const char *argv[]);
 static void shell_uptime(shell_t *shell, size_t argc, const char *argv[]);
+static void shell_run(shell_t *shell, size_t argc, const char *argv[]);
 
 shell_t* shell_create(stream_t* out, stream_t* in, stream_t* err) {
     shell_t *shell = kmalloc(sizeof(shell_t));
@@ -168,6 +170,8 @@ static void shell_process_instruction(shell_t *shell, char *instruction) {
         shell_unmount(shell, argc, argv);
     } else if(strcmp(command, "lsdir") == 0) {
         shell_lsdir(shell, argc, argv);
+    } else if(strcmp(command, "run") == 0) {
+        shell_run(shell, argc, argv);
     } else {
         stream_printf(shell->out, "Unknown command: %s\n", command);
     }
@@ -234,7 +238,8 @@ static void shell_help(shell_t *shell, size_t argc, const char *argv[]) {
         "lsmnt - List available mount points\n"
         "mount <drive> <volume> - Mount a volume to a drive\n"
         "unmount <drive> - Unmount a volume from a drive\n"
-        "lsdir <path> - List directory contents\n";
+        "lsdir <path> - List directory contents\n"
+        "run <path> - Run a user program\n";
 
     shell_paging(shell, help_message);
 }
@@ -550,4 +555,20 @@ static void shell_uptime(shell_t *shell, size_t argc, const char *argv[]) {
     }
 
     stream_printf(shell->out, "%d seconds\n", seconds);
+}
+
+static void shell_run(shell_t *shell, size_t argc, const char *argv[]) {
+    if(argc < 2) {
+        stream_printf(shell->out, "Usage: run <path>\n");
+        return;
+    }
+
+    process_t* process = process_create("uprogram", argv[1], shell->out, shell->in, shell->err);
+
+    if(!process) {
+        stream_puts(shell->err, "Failed to run user program\n");
+        return;
+    }
+
+    process_run(process);
 }
