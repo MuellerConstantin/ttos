@@ -183,6 +183,7 @@ char tty_getchar(tty_t* tty) {
 
         // Wait for a displayable character
         if(ch) {
+            tty_putchar(tty, ch);
             return ch;
         }
     }
@@ -220,7 +221,6 @@ char* tty_gets(tty_t* tty) {
         while((ch = tty_getchar(tty)) == -1);
 
         if(ch == '\n') {
-            tty_putchar(tty, ch);
             break;
         }
 
@@ -230,12 +230,9 @@ char* tty_gets(tty_t* tty) {
             }
 
             buffer_index--;
-            tty_putchar(tty, ch);
 
             continue;
         }
-
-        tty_putchar(tty, ch);
 
         if(buffer_index == buffer_size) {
             buffer_size *= 2;

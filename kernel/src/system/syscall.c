@@ -11,6 +11,26 @@
 static void syscall_handler(isr_cpu_state_t *state);
 
 /**
+ * Read syscall handler.
+ * 
+ * Syscall expects the following parameters:
+ * 
+ * - eax: Syscall number
+ * 
+ * - ebx: File descriptor
+ * 
+ * - ecx: Buffer
+ * 
+ * - edx: Size
+ * 
+ * Syscall returns the number of bytes read or -1 on error.
+ * 
+ * @param state The CPU state.
+ * @return The number of bytes read or -1 on error.
+ */
+static int32_t syscall_read(isr_cpu_state_t *state);
+
+/**
  * Write syscall handler.
  * 
  * Syscall expects the following parameters:
@@ -86,6 +106,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
     uint32_t syscall = state->eax;
 
     switch(syscall) {
+        case SYSCALL_READ: {
+            state->eax = syscall_read(state);
+            break;
+        }
         case SYSCALL_WRITE: {
             state->eax = syscall_write(state);
             break;
@@ -109,6 +133,31 @@ static void syscall_handler(isr_cpu_state_t *state) {
     }
 }
 
+static int32_t syscall_read(isr_cpu_state_t *state) {
+    int32_t fd = state->ebx;
+    uint8_t* buffer = (uint8_t*) state->ecx;
+    size_t size = state->edx;
+
+    process_t* current_process = process_get_current();
+
+    // Read from stdin
+    if(current_process && current_process->in && fd == 0) {
+        char ch;
+        for(size_t i = 0; i < size; i++) {
+
+            if((ch = stream_getchar(current_process->in)) <= 0) {
+                return i;
+            }
+
+            buffer[i] = ch;
+        }
+
+        return size;
+    }
+
+    return -1;
+}
+
 static int32_t syscall_write(isr_cpu_state_t *state) {
     int32_t fd = state->ebx;
     const uint8_t* buffer = (const uint8_t*) state->ecx;
@@ -116,6 +165,7 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
 
     process_t* current_process = process_get_current();
 
+    // Write to stdout
     if(current_process && current_process->out && fd == 1) {
         char* message = kmalloc(size + 1);
         memcpy(message, buffer, size);
@@ -127,6 +177,7 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
         return size;
     }
 
+    // Write to stderr
     if(current_process && current_process->err && fd == 2) {
         char* message = kmalloc(size + 1);
         memcpy(message, buffer, size);

@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+#define EOF (-1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,6 +47,13 @@ int putchar(int ch);
  * @return The number of characters written or EOF on error.
  */
 int printf(const char *format, ... );
+
+/**
+ * Reads a character from the standard input stream.
+ * 
+ * @return The read character or EOF on error.
+ */
+int getchar(void);
 
 #ifdef __cplusplus
 }

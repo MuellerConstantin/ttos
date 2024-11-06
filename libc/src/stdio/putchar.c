@@ -16,7 +16,7 @@ int putchar(int ch) {
     );
 
     if(return_value < 0) {
-        return -1;
+        return EOF;
     }
 
     return ch;

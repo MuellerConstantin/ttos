@@ -23,7 +23,7 @@ int puts(const char* str) {
     );
 
     if(return_value < 0) {
-        return -1;
+        return EOF;
     }
 
     return length;
