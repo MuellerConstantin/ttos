@@ -1,15 +1,15 @@
 #include <drivers/input/ps2/keyboard.h>
-#include <circular_buffer.h>
 #include <system/ports.h>
 #include <arch/i386/isr.h>
 #include <device/device.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 
-static circular_buffer_t* ps2_keyboard_buffer;
+static keyboard_listener_t ps2_keyboard_listener = NULL;
 
 static bool ps2_keyboard_probe(void);
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state);
+static void ps2_keyboard_register_listener(keyboard_listener_t listener);
 
 static const uint32_t PS2_KEYBOARD_SET1_STANDARD_KEYCODES[] = {
     /* 00 */ 0x00, KEYBOARD_KEYCODE_ESCAPE, KEYBOARD_KEYCODE_1, KEYBOARD_KEYCODE_2, KEYBOARD_KEYCODE_3, KEYBOARD_KEYCODE_4, KEYBOARD_KEYCODE_5, KEYBOARD_KEYCODE_6,
@@ -55,12 +55,6 @@ int32_t ps2_keyboard_init(void) {
         return -1;
     }
 
-    ps2_keyboard_buffer = circular_buffer_create(KEYBOARD_BUFFER_SIZE, sizeof(keyboard_event_t));
-
-    if (!ps2_keyboard_buffer) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-    }
-
     keyboard_device_t *device = (keyboard_device_t*) kmalloc(sizeof(keyboard_device_t));
 
     if(!device) {
@@ -85,8 +79,7 @@ int32_t ps2_keyboard_init(void) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device->driver->dequeue = ps2_keyboard_dequeue;
-    device->driver->available = ps2_keyboard_available;
+    device->driver->register_listener = ps2_keyboard_register_listener;
 
     device_register(NULL, device);
 
@@ -98,14 +91,6 @@ int32_t ps2_keyboard_init(void) {
     return 0;
 }
 
-void ps2_keyboard_dequeue(keyboard_event_t* event) {
-    circular_buffer_dequeue(ps2_keyboard_buffer, event);
-}
-
-bool ps2_keyboard_available() {
-    return !circular_buffer_empty(ps2_keyboard_buffer);
-}
-
 static bool ps2_keyboard_probe(void) {
     // Send self-test command
     outb(PS2_DATA_REGISTER, 0xFF);
@@ -113,6 +98,10 @@ static bool ps2_keyboard_probe(void) {
     uint8_t response = inb(PS2_DATA_REGISTER);
 
     return response != 0xFC && response != 0xFD;
+}
+
+static void ps2_keyboard_register_listener(keyboard_listener_t listener) {
+    ps2_keyboard_listener = listener;
 }
 
 static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
@@ -130,7 +119,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     .pressed = true
                 };
 
-                circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                if(ps2_keyboard_listener) {
+                    ps2_keyboard_listener(&event);
+                }
             }
         // Standard key released
         } else if(scancode >= 0x80 && scancode <= 0xD8) {
@@ -142,7 +133,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     .pressed = false
                 };
 
-                circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                if(ps2_keyboard_listener) {
+                    ps2_keyboard_listener(&event);
+                }
             }
         // Pause key pressed
         } else if(scancode == 0xE1) {
@@ -166,7 +159,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                     .pressed = true
                                 };
 
-                                circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                                if(ps2_keyboard_listener) {
+                                    ps2_keyboard_listener(&event);
+                                }
                             }
                         }
                     }
@@ -190,7 +185,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                 .pressed = true
                             };
 
-                            circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                            if(ps2_keyboard_listener) {
+                                ps2_keyboard_listener(&event);
+                            }
                         }
                     }
                 // Print screen key released
@@ -207,7 +204,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                                 .pressed = false
                             };
 
-                            circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                            if(ps2_keyboard_listener) {
+                                ps2_keyboard_listener(&event);
+                            }
                         }
                     }
                 // Extended key pressed
@@ -220,7 +219,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                             .pressed = true
                         };
 
-                        circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                        if(ps2_keyboard_listener) {
+                            ps2_keyboard_listener(&event);
+                        }
                     }
                 // Extended key released
                 } else if(scancode >= 0x80 && scancode <= 0xED) {
@@ -232,7 +233,9 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                             .pressed = false
                         };
 
-                        circular_buffer_enqueue(ps2_keyboard_buffer, &event);
+                        if(ps2_keyboard_listener) {
+                            ps2_keyboard_listener(&event);
+                        }
                     }
                 }
             }

@@ -6,6 +6,9 @@
 #include <stdarg.h>
 #include <device/device.h>
 #include <io/stream.h>
+#include <circular_buffer.h>
+
+#define TTY_BUFFER_SIZE 1024
 
 #define TTY_BLACK			0x00
 #define TTY_BLUE            0x01
@@ -48,6 +51,8 @@ struct tty {
     size_t cursor_y;
     uint8_t fgcolor;
     uint8_t bgcolor;
+    circular_buffer_t* input;
+    circular_buffer_t* output;
     video_device_t* video;
     keyboard_device_t* keyboard;
     tty_keyboard_layout_t* layout;
@@ -104,6 +109,13 @@ stream_t* tty_get_in_stream(tty_t* tty);
 stream_t* tty_get_err_stream(tty_t* tty);
 
 /**
+ * Flushes the TTY.
+ * 
+ * @param tty The TTY.
+ */
+void tty_flush(tty_t* tty);
+
+/**
  * Clears the TTY.
  * 
  * @param tty The TTY.
@@ -119,8 +131,9 @@ void tty_clear(tty_t* tty0);
 void tty_putchar(tty_t* tty0, char c);
 
 /**
- * Reads a character from the TTY. It is important to note, that this
- * function is non-blocking and non-echoing.
+ * Reads a character from the TTY. In contrast to the other functions of the TTY,
+ * this function is implemented in raw mode and not in canonical mode, meaning
+ * it does not block and echoing is disabled.
  * 
  * @param tty The TTY.
  * @return The character read.

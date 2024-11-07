@@ -1,9 +1,12 @@
 #include <io/tty.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
+#include <device/keyboard.h>
 
 static tty_t* tty_stdterm = NULL;
 
+static void tty_keyboard_listener(keyboard_event_t* event);
+static void tty_render(tty_t* tty, char ch);
 static tty_stream_putchar(stream_t* stream, char ch);
 static char tty_stream_getchar(stream_t* stream);
 static void tty_stream_puts(stream_t* stream, const char* str);
@@ -40,7 +43,110 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     tty->keyboard = keyboard;
     tty->layout = layout;
 
+    tty->input = circular_buffer_create(TTY_BUFFER_SIZE, sizeof(char));
+
+    if (!tty->input) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    tty->output = circular_buffer_create(TTY_BUFFER_SIZE, sizeof(char));
+
+    if (!tty->output) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    if(tty_stdterm == NULL) {
+        tty_set_stdterm(tty);
+        keyboard->driver->register_listener(tty_keyboard_listener);
+    }
+
     return tty;
+}
+
+static void tty_keyboard_listener(keyboard_event_t* event) {
+    tty_t* tty = tty_get_stdterm();
+
+    if(tty == NULL) {
+        return;
+    }
+
+    static bool shift = false;
+
+    if(!event->pressed) {
+        if(event->keycode == KEYBOARD_KEYCODE_LEFT_SHIFT || event->keycode == KEYBOARD_KEYCODE_RIGHT_SHIFT) {
+            shift = false;
+        }
+
+        return;
+    }
+
+    if(event->keycode == KEYBOARD_KEYCODE_LEFT_SHIFT || event->keycode == KEYBOARD_KEYCODE_RIGHT_SHIFT) {
+        shift = true;
+        return;
+    }
+
+    if(event->keycode == KEYBOARD_KEYCODE_CAPS_LOCK) {
+        shift = !shift;
+        return;
+    }
+
+    char ch = tty_keycode_to_char(tty, event->keycode, shift);
+
+    // Wait for a displayable character
+    if(ch) {
+        circular_buffer_enqueue(tty->input, &ch);
+    }
+}
+
+void tty_flush(tty_t* tty) {
+    while(!circular_buffer_empty(tty->output)) {
+        char ch = 0;
+
+        circular_buffer_dequeue(tty->output, &ch);
+
+        tty_render(tty, ch);
+    }
+}
+
+static void tty_render(tty_t* tty, char ch) {
+    switch(ch) {
+        case '\n':
+            tty->cursor_x = 0;
+            tty->cursor_y++;
+            break;
+        case '\r':
+            tty->cursor_x = 0;
+            break;
+        case '\b':
+            if(tty->cursor_x > 0) {
+                tty->cursor_x--;
+            }
+
+            tty->video->driver->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ' ', tty->fgcolor, tty->bgcolor);
+            break;
+        case '\t':
+            tty->cursor_x = (tty->cursor_x + 8) & ~(8 - 1);
+            break;
+        default:
+            tty->video->driver->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ch, tty->fgcolor, tty->bgcolor);
+            tty->cursor_x++;
+            break;
+    }
+
+    // Check if end of line has been reached
+    if(tty->cursor_x >= tty->columns) {
+        tty->cursor_x = 0;
+        tty->cursor_y++;
+    }
+
+    // Check if end of screen has been reached
+    if(tty->cursor_y >= tty->rows) {
+        tty->video->driver->tm.scroll(tty->fgcolor, tty->bgcolor);
+        tty->cursor_y--;
+        tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+    }
+
+    tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
 }
 
 stream_t* tty_get_out_stream(tty_t* tty) {
@@ -108,86 +214,20 @@ void tty_clear(tty_t* tty) {
 }
 
 void tty_putchar(tty_t* tty, char ch) {
-    switch(ch) {
-        case '\n':
-            tty->cursor_x = 0;
-            tty->cursor_y++;
-            break;
-        case '\r':
-            tty->cursor_x = 0;
-            break;
-        case '\b':
-            if(tty->cursor_x > 0) {
-                tty->cursor_x--;
-            }
-
-            tty->video->driver->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ' ', tty->fgcolor, tty->bgcolor);
-            break;
-        case '\t':
-            tty->cursor_x = (tty->cursor_x + 8) & ~(8 - 1);
-            break;
-        default:
-            tty->video->driver->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ch, tty->fgcolor, tty->bgcolor);
-            tty->cursor_x++;
-            break;
-    }
-
-    // Check if end of line has been reached
-    if(tty->cursor_x >= tty->columns) {
-        tty->cursor_x = 0;
-        tty->cursor_y++;
-    }
-
-    // Check if end of screen has been reached
-    if(tty->cursor_y >= tty->rows) {
-        tty->video->driver->tm.scroll(tty->fgcolor, tty->bgcolor);
-        tty->cursor_y--;
-        tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
-    }
-
-    tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+    circular_buffer_enqueue(tty->output, &ch);
+    tty_flush(tty);
 }
 
 char tty_getchar(tty_t* tty) {
-    static bool shift = false;
-    volatile bool waiting = true;
-    volatile keyboard_event_t event;
+    char ch;
 
-    while(1) {
-        // Check if keypress is available
-        if(!tty->keyboard->driver->available()) {
-            return -1;
-        }
-
-        tty->keyboard->driver->dequeue(&event);
-
-        if(!event.pressed) {
-            if(event.keycode == KEYBOARD_KEYCODE_LEFT_SHIFT || event.keycode == KEYBOARD_KEYCODE_RIGHT_SHIFT) {
-                shift = false;
-            }
-
-            continue;
-        }
-
-        if(event.keycode == KEYBOARD_KEYCODE_LEFT_SHIFT || event.keycode == KEYBOARD_KEYCODE_RIGHT_SHIFT) {
-            shift = true;
-            continue;
-        }
-
-        if(event.keycode == KEYBOARD_KEYCODE_CAPS_LOCK) {
-            shift = !shift;
-            continue;
-        }
-
-        char ch = tty_keycode_to_char(tty, event.keycode, shift);
-
-        // Wait for a displayable character
-        if(ch) {
-            return ch;
-        }
+    if(circular_buffer_empty(tty->input)) {
+        return -1;
     }
 
-    return -1;
+    circular_buffer_dequeue(tty->input, &ch);
+
+    return ch;
 }
 
 static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted) {

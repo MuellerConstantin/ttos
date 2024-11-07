@@ -144,6 +144,14 @@ static int32_t syscall_read(isr_cpu_state_t *state) {
     if(current_process && current_process->in && fd == 0) {
         char ch;
         for(size_t i = 0; i < size; i++) {
+            /*
+             * It is important to read character wise using getchar, because gets or
+             * similar functions will read until it encounters a newline character
+             * and hence will block the whole system because interrupts are disabled
+             * during syscalls. It will result in a deadlock because interrupts are
+             * required to handle keyboard input. Because getchar is implemented using
+             * raw instead of canonical mode, it will not block on missing input.
+             */
 
             if((ch = stream_getchar(current_process->in)) <= 0) {
                 return i;

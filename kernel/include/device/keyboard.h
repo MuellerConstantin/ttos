@@ -169,9 +169,10 @@ struct keyboard_event {
 
 typedef struct keyboard_driver keyboard_driver_t;
 
+typedef void (*keyboard_listener_t)(keyboard_event_t* event);
+
 struct keyboard_driver {
-    void (*dequeue)(keyboard_event_t* event);
-    bool (*available)(void);
+    void (*register_listener)(keyboard_listener_t listener);
 };
 
 #endif // _KERNEL_DEVICE_KEYBOARD_H
