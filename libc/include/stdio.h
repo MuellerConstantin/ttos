@@ -55,6 +55,14 @@ int printf(const char *format, ... );
  */
 int getchar(void);
 
+/**
+ * Reads a string from the standard input stream until a newline is read.
+ * 
+ * @param str The string buffer to read into.
+ * @return The string or NULL on error.
+ */
+char *gets(char *str);
+
 #ifdef __cplusplus
 }
 #endif
