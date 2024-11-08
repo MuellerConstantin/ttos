@@ -174,11 +174,19 @@ static bool pmm_test_frame(uint32_t frame) {
 }
 
 static void pmm_set_frame(uint32_t frame) {
+    if(pmm_test_frame(frame)) {
+        return;
+    }
+
     pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] |= (1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE));
     pmm_num_memory_frames_used++;
 }
 
 static void pmm_unset_frame(uint32_t frame) {
+    if(!pmm_test_frame(frame)) {
+        return;
+    }
+
     pmm_bitmap[frame / PMM_FRAMES_PER_BITMAP_BYTE] &= ~(1 << (frame % PMM_FRAMES_PER_BITMAP_BYTE));
     pmm_num_memory_frames_used--;
 }
