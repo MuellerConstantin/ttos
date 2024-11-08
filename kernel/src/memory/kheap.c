@@ -145,9 +145,7 @@ static void* kmalloc_heap(size_t size, bool align) {
         return NULL;
     }
 
-    size_t total_size = size + sizeof(kheap_block_t);
-
-    kheap_block_t* best_fit = kheap_find_best_fit(total_size, align);
+    kheap_block_t* best_fit = kheap_find_best_fit(size, align);
 
     if(best_fit == NULL) {
         return NULL;
@@ -157,15 +155,15 @@ static void* kmalloc_heap(size_t size, bool align) {
         uintptr_t data_addr = (uintptr_t) best_fit + sizeof(kheap_block_t);
 
         if(!VMM_IS_ALIGNED(data_addr)) {
-            uint32_t aligned_addr = VMM_ALIGN_UP(data_addr);
-            size_t align_padding = aligned_addr - data_addr;
+            uint32_t aligned_data_addr = VMM_ALIGN_UP((uintptr_t) best_fit + 2 * sizeof(kheap_block_t));
+            size_t align_data_padding = aligned_data_addr - data_addr;
 
             // Ensure block has enough space for alignment padding block and can be split
-            if(best_fit->size > total_size + align_padding + sizeof(kheap_block_t)) {
-                kheap_block_t* new_best_fit = (kheap_block_t*) ((uintptr_t) aligned_addr - sizeof(kheap_block_t));
+            if(best_fit->size >= size + align_data_padding) {
+                kheap_block_t* new_best_fit = (kheap_block_t*) ((uintptr_t) aligned_data_addr - sizeof(kheap_block_t));
                 new_best_fit->free = true;
                 new_best_fit->magic = KHEAP_MAGIC;
-                new_best_fit->size = best_fit->size - align_padding - sizeof(kheap_block_t);
+                new_best_fit->size = best_fit->size - align_data_padding;
                 new_best_fit->next = best_fit->next;
                 new_best_fit->prev = best_fit;
 
@@ -179,7 +177,7 @@ static void* kmalloc_heap(size_t size, bool align) {
                 kheap_block_t* padding_block = best_fit;
 
                 padding_block->free = true;
-                padding_block->size = align_padding;
+                padding_block->size = align_data_padding - sizeof(kheap_block_t);
                 padding_block->next = new_best_fit;
 
                 best_fit = new_best_fit;
@@ -189,13 +187,13 @@ static void* kmalloc_heap(size_t size, bool align) {
         }
     }
 
-    size_t remaining_size = best_fit->size - total_size;
+    size_t remaining_size = best_fit->size - size;
 
     best_fit->free = false;
 
     // Split the block if there is enough space for a new block
     if(remaining_size > sizeof(kheap_block_t)) {
-        kheap_block_t* remaining_block = (kheap_block_t*) ((uintptr_t) best_fit + total_size);
+        kheap_block_t* remaining_block = (kheap_block_t*) ((uintptr_t) best_fit + size + sizeof(kheap_block_t));
         remaining_block->free = true;
         remaining_block->magic = KHEAP_MAGIC;
         remaining_block->size = remaining_size - sizeof(kheap_block_t);
@@ -229,11 +227,11 @@ static void* kheap_find_best_fit(size_t size, bool align) {
                         best_fit = current;
                     }
                 } else {
-                    uint32_t aligned_addr = VMM_ALIGN_UP(data_addr);
-                    size_t align_padding = aligned_addr - data_addr;
+                    uint32_t aligned_data_addr = VMM_ALIGN_UP((uintptr_t) current + 2 * sizeof(kheap_block_t));
+                    size_t align_data_padding = aligned_data_addr - data_addr;
 
                     // Ensure that the block has enough additional space for alignment padding
-                    if (current->size >= size + align_padding + sizeof(kheap_block_t)) {
+                    if (current->size >= size + align_data_padding) {
                         if (best_fit == NULL || current->size < best_fit->size) {
                             best_fit = current;
                         }
@@ -283,11 +281,13 @@ void kfree(void* ptr) {
 
     // Merge with next block if it is free
     if (block->next != NULL && block->next->magic == KHEAP_MAGIC && block->next->free) {
-        block->size += block->next->size + sizeof(kheap_block_t);
-        block->next = block->next->next;
+        kheap_block_t* tmp_block = block->next;
 
-        if (block->next != NULL) {
-            block->next->prev = block;
+        block->size += tmp_block->size + sizeof(kheap_block_t);
+        block->next = tmp_block->next;
+
+        if (tmp_block->next != NULL) {
+            tmp_block->next->prev = block;
         } else {
             kheap_tail = block;
         }
@@ -305,11 +305,15 @@ static inline bool kheap_is_valid_heap_address(void* ptr) {
 
     bool in_space = addr >= (uintptr_t) kheap_base + sizeof(kheap_block_t) && addr < (uintptr_t) kheap_base + KHEAP_HEAP_SIZE;
 
+    if(!in_space) {
+        return false;
+    }
+
     kheap_block_t* block = (kheap_block_t*) ((uintptr_t) ptr - sizeof(kheap_block_t));
 
     bool valid_block = block->magic == KHEAP_MAGIC;
 
-    return in_space && valid_block;
+    return valid_block;
 }
 
 static void* kmalloc_placement(size_t size, bool align) {

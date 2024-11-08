@@ -226,7 +226,8 @@ void vmm_destroy_address_space(page_directory_t *page_directory) {
     vmm_switch_address_space(kernel_page_directory);
 
     for(size_t directory_index = 0; directory_index < PAGE_DIRECTORY_SIZE; directory_index++) {
-        if(page_directory->tables[directory_index]) {
+        // Free page table if it is not the kernel page table
+        if(page_directory->tables[directory_index] && page_directory->tables[directory_index] != kernel_page_directory->tables[directory_index]) {
             kfree(page_directory->tables[directory_index]);
         }
     }

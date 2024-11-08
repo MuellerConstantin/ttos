@@ -41,9 +41,7 @@ void* malloc(size_t size) {
         return NULL;
     }
 
-    size_t total_size = size + sizeof(heap_block_t);
-
-    heap_block_t* best_fit = heap_find_best_fit(total_size);
+    heap_block_t* best_fit = heap_find_best_fit(size);
 
     if(best_fit == NULL) {
         // Try to increase the heap size
@@ -51,20 +49,20 @@ void* malloc(size_t size) {
             return NULL;
         }
 
-        best_fit = heap_find_best_fit(total_size);
+        best_fit = heap_find_best_fit(size);
 
         if(best_fit == NULL) {
             return NULL;
         }
     }
 
-    size_t remaining_size = best_fit->size - total_size;
+    size_t remaining_size = best_fit->size - size;
 
     best_fit->free = false;
 
     // Split the block if there is enough space for a new block
     if(remaining_size > sizeof(heap_block_t)) {
-        heap_block_t* remaining_block = (heap_block_t*) ((uintptr_t) best_fit + total_size);
+        heap_block_t* remaining_block = (heap_block_t*) ((uintptr_t) best_fit + size + sizeof(heap_block_t));
         remaining_block->free = true;
         remaining_block->magic = HEAP_MAGIC;
         remaining_block->size = remaining_size - sizeof(heap_block_t);
@@ -158,11 +156,13 @@ void free(void* ptr) {
 
     // Merge with next block if it is free
     if (block->next != NULL && block->next->magic == HEAP_MAGIC && block->next->free) {
-        block->size += block->next->size + sizeof(heap_block_t);
-        block->next = block->next->next;
+        heap_block_t* tmp_block = block->next;
 
-        if (block->next != NULL) {
-            block->next->prev = block;
+        block->size += tmp_block->size + sizeof(heap_block_t);
+        block->next = tmp_block->next;
+
+        if (tmp_block->next != NULL) {
+            tmp_block->next->prev = block;
         } else {
             heap_tail = block;
         }
