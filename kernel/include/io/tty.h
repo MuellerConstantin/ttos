@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include <device/device.h>
 #include <io/stream.h>
-#include <circular_buffer.h>
+#include <util/circular_buffer.h>
 
 #define TTY_BUFFER_SIZE 1024
 

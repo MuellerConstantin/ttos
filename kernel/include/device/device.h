@@ -12,9 +12,9 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <uuid.h>
-#include <generic_tree.h>
-#include <linked_list.h>
+#include <util/uuid.h>
+#include <util/generic_tree.h>
+#include <util/linked_list.h>
 #include <device/keyboard.h>
 #include <device/storage.h>
 #include <device/video.h>

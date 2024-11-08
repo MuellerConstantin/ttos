@@ -1,4 +1,4 @@
-#include <uuid.h>
+#include <util/uuid.h>
 
 void generate_uuid_v4(uuid_t* uuid) {
     for (int i = 0; i < 16; ++i) {

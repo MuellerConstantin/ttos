@@ -27,9 +27,8 @@ FORMAT := elf_i386
 TARGET := kernel.elf
 LIBC := $(ROOTDIR)/libc/libc.a
 LIBSYS := $(ROOTDIR)/libsys/libsys.a
-LIBK := $(ROOTDIR)/libk/libk.a
 
-INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/libk/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
+INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
 
 CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __KERNEL_VERSION__=\"$(VERSION)\" -D __KERNEL_ARCH__=\"$(ARCH)\" -D __KERNEL_PLATFORM__=\"$(PLATFORM)\"
 ASFLAGS := -f elf32 -g
@@ -44,14 +43,13 @@ clean:
 
 	$(MAKE) -C $(ROOTDIR)/libc clean
 	$(MAKE) -C $(ROOTDIR)/libsys clean
-	$(MAKE) -C $(ROOTDIR)/libk clean
 
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
 
-$(TARGET): $(OBJS) $(LIBC) $(LIBSYS) $(LIBK)
+$(TARGET): $(OBJS) $(LIBC) $(LIBSYS)
 
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBK) $(LIBSYS) $(LIBC)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBSYS) $(LIBC)
 
 $(LIBC):
 
@@ -60,10 +58,6 @@ $(LIBC):
 $(LIBSYS):
 
 	$(MAKE) -C $(ROOTDIR)/libsys all
-
-$(LIBK):
-
-	$(MAKE) -C $(ROOTDIR)/libk all
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.asm
 

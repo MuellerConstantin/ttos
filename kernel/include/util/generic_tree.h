@@ -1,5 +1,5 @@
-#ifndef _LIBK_GENERIC_TREE_H
-#define _LIBK_GENERIC_TREE_H
+#ifndef _KERNEL_UTIL_GENERIC_TREE_H
+#define _KERNEL_UTIL_GENERIC_TREE_H
 
 #include <stdbool.h>
 #include <memory/kheap.h>
@@ -225,4 +225,4 @@ static inline void generic_tree_foreach(generic_tree_t* tree, void (*callback)(g
     _generic_tree_foreach_recursive(tree->root, callback, userdata);
 }
 
-#endif // _LIBK_GENERIC_TREE_H
+#endif // _KERNEL_UTIL_GENERIC_TREE_H

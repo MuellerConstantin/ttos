@@ -14,8 +14,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <device/device.h>
-#include <linked_list.h>
-#include <uuid.h>
+#include <util/linked_list.h>
+#include <util/uuid.h>
 
 typedef struct volume volume_t;
 typedef struct volume_operations volume_operations_t;

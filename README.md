@@ -36,9 +36,6 @@ The project itself is divided into multiple parts:
 - **libc**: A naive implementation of a standard C library for the TTOS project.
   It may be replaced by an existing C library implementation/port in the future.
   See [here](libc/README.md) for more information.
-- **libk**: A special library that bundles kernel-specific functions and utilities
-  used by the TTOS kernel. It is intended to be used by the kernel and other
-  possibly kernel extensions/modules. See [here](libk/README.md) for more information.
 - **libsys**: An additional library that bundles system-level calls. With the help
   of this library, user programs can perform system-specific operations. See
   [here](libsys/README.md) for more information.

@@ -13,7 +13,7 @@
 #include <fs/mount.h>
 #include <io/file.h>
 #include <io/dir.h>
-#include <uuid.h>
+#include <util/uuid.h>
 #include <io/tty.h>
 
 static void shell_display_banner(shell_t* shell);

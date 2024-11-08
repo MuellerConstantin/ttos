@@ -2,7 +2,7 @@
 #include <system/kpanic.h>
 #include <arch/i386/isr.h>
 #include <drivers/pit/8253.h>
-#include <linked_list.h>
+#include <util/linked_list.h>
 
 static volatile uint32_t timer_jiffies = 0;
 static volatile uint16_t timer_hz = 0;

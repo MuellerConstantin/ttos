@@ -1,5 +1,5 @@
-#ifndef _LIBK_LINKED_LIST_H
-#define _LIBK_LINKED_LIST_H
+#ifndef _KERNEL_UTIL_LINKED_LIST_H
+#define _KERNEL_UTIL_LINKED_LIST_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -253,4 +253,4 @@ static inline void linked_list_sort(linked_list_t* list, int (*compare)(void* a,
     }
 }
 
-#endif // _LIBK_LINKED_LIST_H
+#endif // _KERNEL_UTIL_LINKED_LIST_H

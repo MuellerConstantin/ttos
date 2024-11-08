@@ -9,7 +9,7 @@
 #ifndef _KERNEL_SYSTEM_KMESSAGE_H
 #define _KERNEL_SYSTEM_KMESSAGE_H
 
-#include <linked_list.h>
+#include <util/linked_list.h>
 
 #define KMESSAGE_LEVEL_PANIC "DEBUG"
 #define KMESSAGE_LEVEL_INFO "INFO"

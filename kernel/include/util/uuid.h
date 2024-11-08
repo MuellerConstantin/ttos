@@ -1,5 +1,5 @@
-#ifndef _LIBK_UUID_H
-#define _LIBK_UUID_H
+#ifndef _KERNEL_UTIL_UUID_H
+#define _KERNEL_UTIL_UUID_H
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,4 +34,4 @@ void uuid_v4_to_string(uuid_t* uuid, char* buffer);
  */
 int uuid_v4_compare(uuid_t* uuid1, uuid_t* uuid2);
 
-#endif // _LIBK_UUID_H
+#endif // _KERNEL_UTIL_UUID_H

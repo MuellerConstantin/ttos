@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <multiboot.h>
-#include <linked_list.h>
+#include <util/linked_list.h>
 
 #define PMM_PAS_SIZE 0xFFFFFFFF
 

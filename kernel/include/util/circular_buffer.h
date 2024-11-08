@@ -1,5 +1,5 @@
-#ifndef _LIBK_CIRCULAR_BUFFER_H
-#define _LIBK_CIRCULAR_BUFFER_H
+#ifndef _KERNEL_UTIL_CIRCULAR_BUFFER_H
+#define _KERNEL_UTIL_CIRCULAR_BUFFER_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -120,4 +120,4 @@ static inline bool circular_buffer_full(circular_buffer_t* buffer) {
     return buffer->full;
 }
 
-#endif // _LIBK_CIRCULAR_BUFFER_H
+#endif // _KERNEL_UTIL_CIRCULAR_BUFFER_H
