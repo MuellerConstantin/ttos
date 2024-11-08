@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <string.h>
 #include <stdbool.h>
 
 #define ACPI_RSDP_SIGNATURE "RSD PTR "

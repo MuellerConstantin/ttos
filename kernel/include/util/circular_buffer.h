@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <string.h>
+#include <util/string.h>
 #include <memory/kheap.h>
 
 typedef struct circular_buffer circular_buffer_t;

@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <string.h>
 
 #define PAGE_FLAG_FREE      0b000
 #define PAGE_FLAG_USED      0b001

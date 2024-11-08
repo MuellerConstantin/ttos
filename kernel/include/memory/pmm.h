@@ -12,9 +12,9 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <string.h>
+#include <util/string.h>
 #include <stdbool.h>
-#include <math.h>
+#include <util/numeric.h>
 #include <multiboot.h>
 #include <util/linked_list.h>
 

@@ -2,7 +2,7 @@
 #define _KERNEL_UTIL_UUID_H
 
 #include <stdint.h>
-#include <stdlib.h>
+#include <util/random.h>
 
 typedef struct uuid uuid_t;
 

@@ -1,5 +1,5 @@
 #include <device/volume.h>
-#include <string.h>
+#include <util/string.h>
 #include <fs/mbr.h>
 #include <system/kpanic.h>
 

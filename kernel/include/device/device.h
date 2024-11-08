@@ -11,7 +11,7 @@
 #define _KERNEL_DEVICE_DEVICE_H
 
 #include <stdint.h>
-#include <string.h>
+#include <util/string.h>
 #include <util/uuid.h>
 #include <util/generic_tree.h>
 #include <util/linked_list.h>

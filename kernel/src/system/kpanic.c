@@ -1,6 +1,6 @@
 #include <system/kpanic.h>
 #include <stdlib.h>
-#include <string.h>
+#include <util/string.h>
 
 #define SCREEN_NEXT_LINE(screen_width, screen_offset) (screen_offset + (screen_width - (screen_offset % screen_width)))
 #define SCREEN_NEXT_PARAGRAPH(screen_width, screen_offset) (SCREEN_NEXT_LINE(screen_width, screen_offset) + screen_width)

@@ -2,7 +2,7 @@
 
 void generate_uuid_v4(uuid_t* uuid) {
     for (int i = 0; i < 16; ++i) {
-        uuid->bytes[i] = (uint8_t)(rand() & 0xFF);
+        uuid->bytes[i] = (uint8_t)(random_next() & 0xFF);
     }
 
     // Sets the version (4 for UUIDv4) -> Byte 6 must be 0100xxxx

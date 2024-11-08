@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <string.h>
+#include <util/string.h>
 #include <stdbool.h>
 #include <ctype.h>
 #include <device/volume.h>

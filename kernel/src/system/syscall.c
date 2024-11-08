@@ -4,10 +4,21 @@
 #include <io/file.h>
 #include <system/process.h>
 #include <kernel.h>
-#include <sysinfo.h>
 #include <memory/pmm.h>
 #include <memory/vmm.h>
-#include <string.h>
+#include <util/string.h>
+
+struct osinfo {
+    char name[16];
+    char arch[16];
+    char version[32];
+    char platform[16];
+};
+
+struct meminfo {
+    size_t total;
+    size_t free;
+};
 
 static void syscall_handler(isr_cpu_state_t *state);
 
@@ -325,7 +336,7 @@ static int32_t syscall_close(isr_cpu_state_t *state) {
 }
 
 static int32_t syscall_get_osinfo(isr_cpu_state_t *state) {
-    osinfo_t* info = (osinfo_t*) state->ebx;
+    struct osinfo* info = (struct osinfo*) state->ebx;
 
     strncpy(info->name, __KERNEL_NAME__, 16);
     info->name[15] = '\0';
@@ -343,7 +354,7 @@ static int32_t syscall_get_osinfo(isr_cpu_state_t *state) {
 }
 
 static int32_t syscall_get_meminfo(isr_cpu_state_t *state) {
-    meminfo_t* info = (meminfo_t*) state->ebx;
+    struct meminfo* info = (struct meminfo*) state->ebx;
 
     info->total = pmm_get_total_memory_size();
     info->free = pmm_get_available_memory_size();

@@ -11,7 +11,7 @@
 #define _KERNEL_DRIVERS_STORAGE_SATA_H
 
 #include <stdint.h>
-#include <string.h>
+#include <util/string.h>
 
 /**
  * Initialize the SATA driver and detect the drives.

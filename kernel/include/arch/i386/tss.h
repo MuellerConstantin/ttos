@@ -12,7 +12,7 @@
 #define _KERNEL_ARCH_I386_TSS_H
 
 #include <stdint.h>
-#include <string.h>
+#include <util/string.h>
 #include <arch/i386/gdt.h>
 
 struct tss_segment_descriptor {

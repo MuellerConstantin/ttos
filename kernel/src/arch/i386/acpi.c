@@ -4,6 +4,7 @@
 #include <system/ports.h>
 #include <system/kpanic.h>
 #include <system/kmessage.h>
+#include <util/string.h>
 
 static acpi_poweroff_information_t acpi_poweroff_info;
 
@@ -41,7 +42,7 @@ int32_t acpi_init(void) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    sprintf(kernel_message, "acpi: ACPI supported with Version %d", acpi_rsdp->revision);
+    strfmt(kernel_message, "acpi: ACPI supported with Version %d", acpi_rsdp->revision);
 
     kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 
@@ -204,11 +205,11 @@ static void acpi_init_poweroff() {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    sprintf(kernel_message_pm1, "acpi: PM1A_CNT: %x SLP_TYP_A: %x", acpi_poweroff_info.pm1a_cnt, acpi_poweroff_info.slp_type_a);
+    strfmt(kernel_message_pm1, "acpi: PM1A_CNT: %x SLP_TYP_A: %x", acpi_poweroff_info.pm1a_cnt, acpi_poweroff_info.slp_type_a);
 
     kmessage(KMESSAGE_LEVEL_INFO, kernel_message_pm1);
 
-    sprintf(kernel_message_pm2, "acpi: PM1B_CNT: %x SLP_TYP_B: %x", acpi_poweroff_info.pm1b_cnt, acpi_poweroff_info.slp_type_b);
+    strfmt(kernel_message_pm2, "acpi: PM1B_CNT: %x SLP_TYP_B: %x", acpi_poweroff_info.pm1b_cnt, acpi_poweroff_info.slp_type_b);
 
     kmessage(KMESSAGE_LEVEL_INFO, kernel_message_pm2);
 }

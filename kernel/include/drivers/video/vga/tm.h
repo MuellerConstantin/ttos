@@ -2,7 +2,7 @@
 #define _KERNEL_DRIVERS_VIDEO_VGA_TM_H
 
 #include <drivers/video/vga/vga.h>
-#include <string.h>
+#include <util/string.h>
 
 #define VGA_TM_ENTRY(ch, fgcolor, bgcolor) (ch | ((((bgcolor & 0x0F) << 4) | (fgcolor & 0x0F)) << 8))
 

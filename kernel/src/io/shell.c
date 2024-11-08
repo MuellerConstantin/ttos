@@ -1,5 +1,5 @@
 #include <io/shell.h>
-#include <string.h>
+#include <util/string.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 #include <system/process.h>

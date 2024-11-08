@@ -51,7 +51,7 @@ int32_t pci_init() {
                     KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
                 }
 
-                sprintf(kernel_message, "pci: Found device Vendor ID: %x, Device ID: %x at %d:%d.%d", pci_device->vendor_id, pci_device->device_id, bus, slot, function);
+                strfmt(kernel_message, "pci: Found device Vendor ID: %x, Device ID: %x at %d:%d.%d", pci_device->vendor_id, pci_device->device_id, bus, slot, function);
 
                 kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 
@@ -164,7 +164,7 @@ static char* pci_get_device_name(pci_device_t* pci_device) {
     /*
      * The following code for generating the device name is not
      * the most efficient way to do it, but it is simple way that
-     * works without sprintf.
+     * works without strfmt.
      */
 
     char* name_ptr = name;

@@ -57,7 +57,7 @@ void pmm_init(multiboot_info_t *multiboot_info) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    sprintf(kernel_message, "memory: PMM initialized with %d (%f MB) memory frames", pmm_num_memory_frames, pmm_total_memory_size / 1024.0 / 1024.0);
+    strfmt(kernel_message, "memory: PMM initialized with %d (%f MB) memory frames", pmm_num_memory_frames, pmm_total_memory_size / 1024.0 / 1024.0);
 
     kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 }
