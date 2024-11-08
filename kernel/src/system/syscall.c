@@ -1,6 +1,7 @@
 #include <system/syscall.h>
 #include <arch/i386/isr.h>
 #include <io/stream.h>
+#include <io/file.h>
 #include <system/process.h>
 #include <kernel.h>
 #include <sysinfo.h>
@@ -49,6 +50,40 @@ static int32_t syscall_read(isr_cpu_state_t *state);
  * @return The number of bytes written or -1 on error.
  */
 static int32_t syscall_write(isr_cpu_state_t *state);
+
+/**
+ * Open syscall handler.
+ * 
+ * Syscall expects the following parameters:
+ * 
+ * - eax: Syscall number
+ * 
+ * - ebx: File name
+ * 
+ * - ecx: Flags
+ * 
+ * - edx: Mode
+ * 
+ * Syscall returns the file descriptor or -1 on error.
+ * 
+ * @param state The CPU state.
+ */
+static int32_t syscall_open(isr_cpu_state_t *state);
+
+/**
+ * Close syscall handler.
+ * 
+ * Syscall expects the following parameters:
+ * 
+ * - eax: Syscall number
+ * 
+ * - ebx: File descriptor
+ * 
+ * Syscall returns 0 on success or -1 on error.
+ * 
+ * @param state The CPU state.
+ */
+static int32_t syscall_close(isr_cpu_state_t *state);
 
 /**
  * Get sysinfo syscall handler.
@@ -114,6 +149,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
             state->eax = syscall_write(state);
             break;
         }
+        case SYSCALL_OPEN: {
+            state->eax = syscall_open(state);
+            break;
+        }
+        case SYSCALL_CLOSE: {
+            state->eax = syscall_close(state);
+            break;
+        }
         case SYSCALL_GET_OSINFO: {
             state->eax = syscall_get_osinfo(state);
             break;
@@ -137,6 +180,10 @@ static int32_t syscall_read(isr_cpu_state_t *state) {
     int32_t fd = state->ebx;
     uint8_t* buffer = (uint8_t*) state->ecx;
     size_t size = state->edx;
+
+    if(fd < 0 || fd >= PROCESS_MAX_FILE_DESCRIPTORS) {
+        return -1;
+    }
 
     process_t* current_process = process_get_current();
 
@@ -163,6 +210,11 @@ static int32_t syscall_read(isr_cpu_state_t *state) {
         return size;
     }
 
+    // Read from file
+    if(current_process && current_process->files[fd]) {
+        return file_read(current_process->files[fd], buffer, size);
+    }
+
     return -1;
 }
 
@@ -170,6 +222,10 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
     int32_t fd = state->ebx;
     const uint8_t* buffer = (const uint8_t*) state->ecx;
     size_t size = state->edx;
+
+    if(fd < 0 || fd >= PROCESS_MAX_FILE_DESCRIPTORS) {
+        return -1;
+    }
 
     process_t* current_process = process_get_current();
 
@@ -195,6 +251,74 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
 
         kfree(buffer);
         return size;
+    }
+
+    // Write to file
+    if(current_process && current_process->files[fd]) {
+        return file_write(current_process->files[fd], buffer, size);
+    }
+
+    return -1;
+}
+
+static int32_t syscall_open(isr_cpu_state_t *state) {
+    const char* name = (const char*) state->ebx;
+    int32_t flags = state->ecx;
+    int32_t mode = state->edx;
+
+    process_t* current_process = process_get_current();
+
+    if(current_process) {
+        // Creating files is not supported yet
+        if(flags & FILE_CREAT) {
+            return -1;
+        }
+
+        int32_t fd = -1;
+
+        // Find first free file descriptor, skip over stdin/stdout/stderr
+        for(int32_t index = 3; index < PROCESS_MAX_FILE_DESCRIPTORS; index++) {
+            if(current_process->files[index] == NULL) {
+                fd = index;
+                break;
+            }
+        }
+
+        if(fd == -1) {
+            return -1;
+        }
+
+        file_descriptor_t* file_descriptor = file_open(name, flags);
+
+        if(file_descriptor) {
+            current_process->files[fd] = file_descriptor;
+            return fd;
+        }
+    }
+
+    return -1;
+}
+
+static int32_t syscall_close(isr_cpu_state_t *state) {
+    int32_t fd = state->ebx;
+
+    if(fd < 0 || fd >= PROCESS_MAX_FILE_DESCRIPTORS) {
+        return -1;
+    }
+
+    process_t* current_process = process_get_current();
+
+    if(current_process) {
+        // Skip stdin/stdout/stderr
+        if(fd < 3) {
+            return -1;
+        }
+
+        if(current_process->files[fd] != NULL) {
+            file_close(current_process->files[fd]);
+            current_process->files[fd] = NULL;
+            return 0;
+        }
     }
 
     return -1;

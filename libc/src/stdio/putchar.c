@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 int putchar(int ch) {
-    uint32_t return_value = 0;
+    int32_t return_value = 0;
 
     __asm__ volatile(
         "mov $0x01, %%ebx\n"

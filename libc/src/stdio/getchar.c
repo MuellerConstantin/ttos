@@ -2,7 +2,7 @@
 
 int getchar(void) {
     char ch;
-    uint32_t return_value = 0;
+    int32_t return_value = 0;
 
     do {
         __asm__ volatile(
