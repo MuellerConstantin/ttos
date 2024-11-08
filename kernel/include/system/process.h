@@ -69,11 +69,25 @@ struct process {
 process_t* process_create(const char* name, const char* path, stream_t* out, stream_t* in, stream_t* err);
 
 /**
+ * Destroy a process.
+ * 
+ * @param process The process to destroy.
+ */
+void process_destroy(process_t* process);
+
+/**
  * Run a process.
  * 
  * @param process The process to run.
  */
 void process_run(process_t* process);
+
+/**
+ * Terminate a process.
+ * 
+ * @param process The process to terminate.
+ */
+void process_terminate(process_t* process);
 
 /**
  * Get the current process.

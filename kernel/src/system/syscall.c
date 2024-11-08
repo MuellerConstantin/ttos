@@ -144,6 +144,19 @@ static int32_t syscall_get_meminfo(isr_cpu_state_t *state);
  */
 static void* syscall_alloc_heap(isr_cpu_state_t *state);
 
+/**
+ * Exit syscall handler.
+ * 
+ * Syscall expects the following parameters:
+ * 
+ * - eax: Syscall number
+ * 
+ * - ebx: Exit code
+ * 
+ * @param state The CPU state.
+ */
+static void syscall_exit(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -178,6 +191,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_ALLOC_HEAP: {
             state->eax = syscall_alloc_heap(state);
+            break;
+        }
+        case SYSCALL_EXIT: {
+            syscall_exit(state);
             break;
         }
         default: {
@@ -397,4 +414,16 @@ static void* syscall_alloc_heap(isr_cpu_state_t *state) {
 
         return current_process->heap_limit;
     }
+}
+
+void syscall_exit(isr_cpu_state_t *state) {
+    int32_t exit_code = state->ebx;
+
+    process_t* current_process = process_get_current();
+
+    if(current_process) {
+        process_terminate(current_process);
+    }
+
+    while(1);
 }

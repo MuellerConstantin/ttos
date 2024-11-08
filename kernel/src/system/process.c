@@ -1,8 +1,10 @@
 #include <system/process.h>
+#include <arch/i386/isr.h>
 #include <io/file.h>
 #include <system/kpanic.h>
 #include <system/elf.h>
 #include <memory/kheap.h>
+#include <shell/shell.h>
 
 static process_t* current_process = NULL;
 
@@ -136,6 +138,13 @@ process_t* process_create(const char* name, const char* path, stream_t* out, str
     return process;
 }
 
+void process_destroy(process_t* process) {
+    vmm_destroy_address_space(process->address_space);
+    kfree(process->name);
+    kfree(process->path);
+    kfree(process);
+}
+
 void process_run(process_t* process) {
     if(process->state != PROCESS_STATE_READY) {
         return;
@@ -171,6 +180,14 @@ void process_run(process_t* process) {
           "r"(USER_CS_SELECTOR),
           "r"(process->context.eip)
     );
+}
+
+void process_terminate(process_t* process) {
+    process_destroy(process);
+
+    // For now return to the kernel shell, later a scheduler will take control
+    isr_sti();
+    shell_execute();
 }
 
 const process_t* process_get_current() {

@@ -122,6 +122,13 @@ void vmm_switch_address_space(page_directory_t *page_directory);
 page_directory_t* vmm_create_address_space();
 
 /**
+ * Destroy the given address space.
+ * 
+ * @param page_directory The address space to destroy.
+ */
+void vmm_destroy_address_space(page_directory_t *page_directory);
+
+/**
  * Clone the given address space.
  * 
  * @param page_directory The address space to clone.

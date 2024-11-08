@@ -164,7 +164,7 @@ static void vmm_unmap_page(void *const virtual_address) {
     void* frame_address = paging_unmap_page(current_page_directory, virtual_address);
 
     if(frame_address) {
-        pmm_mark_frame_available(frame_address);
+        //pmm_mark_frame_available(frame_address);
     }
 }
 
@@ -216,6 +216,22 @@ void vmm_switch_address_space(page_directory_t *page_directory) {
 
 page_directory_t* vmm_create_address_space() {
     return vmm_clone_address_space(kernel_page_directory);
+}
+
+void vmm_destroy_address_space(page_directory_t *page_directory) {
+    // Naively, the entire user space is released without regard to shared memory
+    vmm_unmap_memory((void*) VMM_USER_SPACE_BASE, VMM_USER_SPACE_SIZE);
+
+    // Temporarily switch to the kernel page directory
+    vmm_switch_address_space(kernel_page_directory);
+
+    for(size_t directory_index = 0; directory_index < PAGE_DIRECTORY_SIZE; directory_index++) {
+        if(page_directory->tables[directory_index]) {
+            kfree(page_directory->tables[directory_index]);
+        }
+    }
+
+    kfree(page_directory);
 }
 
 page_directory_t* vmm_clone_address_space(page_directory_t *src_page_directory) {

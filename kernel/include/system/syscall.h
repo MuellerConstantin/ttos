@@ -10,6 +10,7 @@
 #define SYSCALL_GET_OSINFO 0x04
 #define SYSCALL_GET_MEMINFO 0x05
 #define SYSCALL_ALLOC_HEAP 0x0A
+#define SYSCALL_EXIT 0x0B
 
 /**
  * Initializes the syscall handler.
