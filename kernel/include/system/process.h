@@ -54,6 +54,9 @@ struct process {
     stream_t* err;
 
     file_descriptor_t* files[PROCESS_MAX_FILE_DESCRIPTORS];
+
+    int32_t exit_code;
+    int32_t exception_code;
 };
 
 /**

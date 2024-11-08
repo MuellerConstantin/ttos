@@ -422,6 +422,8 @@ void syscall_exit(isr_cpu_state_t *state) {
     process_t* current_process = process_get_current();
 
     if(current_process) {
+        current_process->exit_code = exit_code;
+        current_process->exception_code = -1;
         process_terminate(current_process);
     }
 

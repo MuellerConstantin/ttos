@@ -2,10 +2,11 @@
 #include <system/ports.h>
 #include <arch/i386/pic/8259.h>
 #include <system/kpanic.h>
+#include <system/process.h>
 
 isr_interrupt_listener_t listeners[ISR_MAX_INTERRUPT_LISTENERS];
 
-const char *exception_messages[] = {
+const char *isr_exception_messages[] = {
 	"Division By Zero",
 	"Debug",
 	"Non Maskable Interrupt",
@@ -55,7 +56,17 @@ void isr_stage2(isr_cpu_state_t *state) {
 
     // In case of an unhandled exception
 	if(0 == listener && 32 > state->interrupt_code && 0x80 != state->interrupt_code) {
-		KPANIC(KPANIC_CPU_EXCEPTION_TYPE(state->interrupt_code), exception_messages[state->interrupt_code], state);
+		// Check if exception did occurred in user space by checking the CPL
+		if(state->cs & 0x3 == 3) {
+			process_t* current_process = process_get_current();
+
+			if(current_process) {
+				current_process->exception_code = state->interrupt_code;
+				process_terminate(current_process);
+			}
+		}
+
+		KPANIC(KPANIC_CPU_EXCEPTION_TYPE(state->interrupt_code), isr_exception_messages[state->interrupt_code], state);
 	}
 }
 

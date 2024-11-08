@@ -135,6 +135,11 @@ process_t* process_create(const char* name, const char* path, stream_t* out, str
         process->files[index] = NULL;
     }
 
+    // Initialize the signals
+
+    process->exit_code = 0;
+    process->exception_code = -1;
+
     return process;
 }
 
@@ -183,11 +188,14 @@ void process_run(process_t* process) {
 }
 
 void process_terminate(process_t* process) {
+    int32_t exit_code = process->exit_code;
+    int32_t exception_code = process->exception_code;
+
     process_destroy(process);
 
     // For now return to the kernel shell, later a scheduler will take control
     isr_sti();
-    shell_execute();
+    shell_revert(exit_code, exception_code);
 }
 
 const process_t* process_get_current() {

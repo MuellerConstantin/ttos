@@ -60,6 +60,14 @@ void shell_execute() {
     }
 }
 
+void shell_revert(int32_t exit_code, int32_t exception_code) {
+    if(exception_code != -1) {
+        stream_printf(out_stream, "Exception (%s)\n", isr_exception_messages[exception_code]);
+    }
+
+    shell_execute();
+}
+
 static void shell_display_banner() {
     const char* PATH = "A:/banner.txt";
 

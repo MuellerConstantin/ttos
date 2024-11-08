@@ -12,6 +12,8 @@
 
 #include <stdint.h>
 
+extern const char *isr_exception_messages[];
+
 extern void exc0();
 extern void exc1();
 extern void exc2();
