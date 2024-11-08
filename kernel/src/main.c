@@ -26,7 +26,7 @@
 #include <fs/mount.h>
 #include <io/tty.h>
 #include <io/stream.h>
-#include <io/shell.h>
+#include <shell/shell.h>
 
 static void init_platform(multiboot_info_t *multiboot_info);
 static void init_kernel(multiboot_info_t *multiboot_info);
@@ -174,6 +174,6 @@ static void init_console() {
 
     // Initialize the CLI
 
-    shell_t* shell = shell_create(out_stream, in_stream, err_stream);
-    shell_execute(shell);
+    shell_init(out_stream, in_stream, err_stream);
+    shell_execute();
 }
