@@ -11,13 +11,6 @@
 extern "C" {
 #endif
 
-#define O_RDONLY    0b00000001
-#define O_WRONLY    0b00000010
-#define O_RDWR      (O_RDONLY | O_WRONLY)
-#define O_CREAT     0b00000100
-#define O_TRUNC     0b00001000
-#define O_APPEND    0x00010000
-
 struct _FILE {
     int32_t fd;
     uint32_t flags;

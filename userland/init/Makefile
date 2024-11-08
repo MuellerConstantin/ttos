@@ -33,7 +33,7 @@ clean:
 
 $(TARGET): $(OBJS)
 
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBSYS) $(LIBC)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) --start-group $(LIBSYS) $(LIBC) --end-group
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
 

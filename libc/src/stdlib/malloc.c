@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <hmap.h>
 
 #define HEAP_MAGIC 0xD11EF00D
 #define HEAP_PAGE_SIZE 4096
@@ -185,24 +186,14 @@ static inline bool heap_is_valid_address(void* ptr) {
 }
 
 static int32_t heap_increase_size(size_t n_pages) {
-    void* return_value = NULL;
+    void* new_heap_limit = hmap_alloc(n_pages);
 
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x0A, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(n_pages)
-        : "%eax", "%ebx"
-    );
-
-    if(return_value == NULL) {
+    if(new_heap_limit == NULL) {
         return -1;
     }
 
     if(heap_head == NULL) {
-        heap_head = (heap_block_t*) ((uint32_t) return_value - (HEAP_PAGE_SIZE - 1));
+        heap_head = (heap_block_t*) ((uint32_t) new_heap_limit - (HEAP_PAGE_SIZE - 1));
         heap_head->magic = HEAP_MAGIC;
         heap_head->size = (HEAP_PAGE_SIZE * n_pages) - sizeof(heap_block_t);
         heap_head->free = true;
@@ -215,7 +206,7 @@ static int32_t heap_increase_size(size_t n_pages) {
         if(heap_tail->free) {
             heap_tail->size += (HEAP_PAGE_SIZE * n_pages);
         } else {
-            heap_block_t* new_block = (heap_block_t*) ((uint32_t) return_value - (HEAP_PAGE_SIZE - 1));
+            heap_block_t* new_block = (heap_block_t*) ((uint32_t) new_heap_limit - (HEAP_PAGE_SIZE - 1));
             new_block->magic = HEAP_MAGIC;
             new_block->size = HEAP_PAGE_SIZE - sizeof(heap_block_t);
             new_block->free = true;

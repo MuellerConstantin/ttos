@@ -1,41 +1,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fsio.h>
 
 FILE* fopen(const char* filename, const char* mode) {
     uint32_t flags;
 
     if (strcmp(mode, "r") == 0) {
-        flags = O_RDONLY;
+        flags = FSIO_RDONLY;
     } else if (strcmp(mode, "r+") == 0) {
-        flags = O_RDWR;
+        flags = FSIO_RDWR;
     } else if (strcmp(mode, "w") == 0) {
-        flags = O_WRONLY | O_CREAT | O_TRUNC;
+        flags = FSIO_WRONLY | FSIO_CREAT | FSIO_TRUNC;
     } else if (strcmp(mode, "w+") == 0) {
-        flags = O_RDWR | O_CREAT | O_TRUNC;
+        flags = FSIO_RDWR | FSIO_CREAT | FSIO_TRUNC;
     } else if (strcmp(mode, "a") == 0) {
-        flags = O_WRONLY | O_CREAT | O_APPEND;
+        flags = FSIO_WRONLY | FSIO_CREAT | FSIO_APPEND;
     } else if (strcmp(mode, "a+") == 0) {
-        flags = O_RDWR | O_CREAT | O_APPEND;
+        flags = FSIO_RDWR | FSIO_CREAT | FSIO_APPEND;
     } else {
         return NULL;
     }
 
-    int32_t return_value = 0;
+    int32_t fd = fsio_open(filename, flags, 0666);
 
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov %3, %%edx\n"
-        "mov $0x02, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(filename), "g"(flags), "g"(0644)
-        : "%eax", "%ebx", "%ecx", "%edx"
-    );
-
-    if(return_value == -1) {
+    if (fd < 0) {
         return NULL;
     }
 
@@ -45,7 +34,7 @@ FILE* fopen(const char* filename, const char* mode) {
         return NULL;
     }
 
-    file->fd = return_value;
+    file->fd = fd;
     file->flags = flags;
 
     return file;
