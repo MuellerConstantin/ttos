@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <sysinfo.h>
 
-void _start() {
+int main(void) {
     osinfo_t osinfo;
     meminfo_t meminfo;
 
@@ -26,5 +26,5 @@ void _start() {
         printf("%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
     }
 
-    while(1);
+    return 0;
 }
