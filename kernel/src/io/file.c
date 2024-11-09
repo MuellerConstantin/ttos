@@ -8,9 +8,9 @@ file_descriptor_t* file_open(char* path, uint32_t flags) {
         return NULL;
     }
 
-    mnt_mountpoint_t* mountpoint = mnt_get_mountpoint(path);
+    vfs_filesystem_t* mountpoint = mnt_get_mountpoint(path);
 
-    if(!mountpoint) {
+    if(!mountpoint || !mountpoint->root) {
         return NULL;
     }
 
@@ -156,9 +156,9 @@ int32_t file_stat(const char* path, file_stat_t* stat) {
         return -1;
     }
 
-    mnt_mountpoint_t* mountpoint = mnt_get_mountpoint(path);
+    vfs_filesystem_t* mountpoint = mnt_get_mountpoint(path);
 
-    if(!mountpoint) {
+    if(!mountpoint || !mountpoint->root) {
         return -1;
     }
 

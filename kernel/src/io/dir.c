@@ -12,9 +12,9 @@ int32_t dir_open(char* path) {
         return -1;
     }
 
-    mnt_mountpoint_t* mountpoint = mnt_get_mountpoint(path);
+    vfs_filesystem_t* mountpoint = mnt_get_mountpoint(path);
 
-    if(!mountpoint) {
+    if(!mountpoint || !mountpoint->root) {
         return -1;
     }
 

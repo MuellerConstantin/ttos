@@ -42,21 +42,8 @@
 #define DRIVE_Y 'Y'
 #define DRIVE_Z 'Z'
 
-typedef struct mnt_mountpoint mnt_mountpoint_t;
-typedef struct mnt_mountpoint_operations mnt_mountpoint_operations_t;
-
-struct mnt_mountpoint_operations {
-    int32_t (*unmount)(mnt_mountpoint_t* mount);
-} __attribute__((packed));
-
-struct mnt_mountpoint {
-    vfs_node_t* root;
-    volume_t* volume;
-    mnt_mountpoint_operations_t* operations;
-} __attribute__((packed));
-
 /**
- * Mount a volume.
+ * Mount a volume by trying to detect an appropriate file system.
  * 
  * @param drive The drive letter to mount the file system to.
  * @param volume The volume to mount.
@@ -73,19 +60,19 @@ int32_t mnt_volume_mount(char drive, volume_t* volume);
 int32_t mnt_volume_unmount(char drive);
 
 /**
- * Get the mounted volume for a path.
+ * Get the mounted filesystem/volume for a path.
  * 
  * @param path The path to get the mounted volume for.
- * @return The mounted volume or NULL if not found.
+ * @return The mounted filesystem/volume or NULL if not found.
  */
-const mnt_mountpoint_t* mnt_get_mountpoint(char* path);
+const vfs_filesystem_t* mnt_get_mountpoint(char* path);
 
 /**
- * Get the mounted volume for a drive.
+ * Get the mounted filesystem/volume for a drive.
  * 
  * @param drive The drive letter to get the mounted volume for.
- * @return The mounted volume or NULL if not found.
+ * @return The mounted filesystem/volume or NULL if not found.
  */
-const mnt_mountpoint_t* mnt_get_drive(char drive);
+const vfs_filesystem_t* mnt_get_drive(char drive);
 
 #endif // _KERNEL_FS_MOUNT_H

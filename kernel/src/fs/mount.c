@@ -1,6 +1,7 @@
 #include <fs/mount.h>
+#include <fs/initfs.h>
 
-static mnt_mountpoint_t* mnt_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
+static vfs_filesystem_t* mnt_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
 
 static int32_t mnt_get_drive_index(char drive);
 
@@ -18,6 +19,13 @@ int32_t mnt_volume_mount(char drive, volume_t* volume) {
     // Probe for the file system
     if(initfs_probe(volume)) {
         mnt_mountpoints[index] = initfs_init(volume);
+        
+        if(mnt_mountpoints[index]->operations->mount(mnt_mountpoints[index]) != 0) {
+            mnt_mountpoints[index]->operations->unmount(mnt_mountpoints[index]);
+            mnt_mountpoints[index] = NULL;
+            return -1;
+        }
+
         return 0;
     }
 
@@ -44,7 +52,7 @@ int32_t mnt_volume_unmount(char drive) {
     return 0;
 }
 
-const mnt_mountpoint_t* mnt_get_mountpoint(char* path) {
+const vfs_filesystem_t* mnt_get_mountpoint(char* path) {
     if(strlen(path) < 3) {
         return NULL;
     }
@@ -58,7 +66,7 @@ const mnt_mountpoint_t* mnt_get_mountpoint(char* path) {
     return mnt_mountpoints[index];
 }
 
-const mnt_mountpoint_t* mnt_get_drive(char drive) {
+const vfs_filesystem_t* mnt_get_drive(char drive) {
     int32_t index = mnt_get_drive_index(drive);
 
     if(index == -1) {

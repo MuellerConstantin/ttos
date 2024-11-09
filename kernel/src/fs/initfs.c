@@ -3,7 +3,8 @@
 #include <system/kpanic.h>
 #include <util/string.h>
 
-static int32_t initfs_unmount(mnt_mountpoint_t* volume);
+static int32_t initfs_mount(vfs_filesystem_t* filesystem);
+static int32_t initfs_unmount(vfs_filesystem_t* filesystem);
 
 static int32_t initfs_open(vfs_node_t* node);
 static int32_t initfs_close(vfs_node_t* node);
@@ -55,11 +56,33 @@ bool initfs_probe(volume_t* volume) {
     return initfs_header.magic == INITFS_HEADER_MAGIC;
 }
 
-mnt_mountpoint_t* initfs_init(volume_t* volume) {
+vfs_filesystem_t* initfs_init(volume_t* volume) {
     if(!initfs_probe(volume)) {
         return NULL;
     }
 
+    vfs_filesystem_t* initfs_mountpoint = (vfs_filesystem_t*) kmalloc(sizeof(vfs_filesystem_t));
+
+    if(!initfs_mountpoint) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    initfs_mountpoint->root = NULL;
+    initfs_mountpoint->volume = volume;
+
+    initfs_mountpoint->operations = (vfs_filesystem_operations_t*) kmalloc(sizeof(vfs_filesystem_operations_t));
+
+    if(!initfs_mountpoint->operations) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    initfs_mountpoint->operations->mount = &initfs_mount;
+    initfs_mountpoint->operations->unmount = &initfs_unmount;
+
+    return initfs_mountpoint;
+}
+
+static int32_t initfs_mount(vfs_filesystem_t* filesystem) {
     vfs_node_t* root = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
 
     if(!root) {
@@ -75,31 +98,16 @@ mnt_mountpoint_t* initfs_init(volume_t* volume) {
     root->length = 0;
     root->link = NULL;
     root->operations = &initfs_directory_operations;
-    root->volume = volume;
+    root->filesystem = filesystem;
 
-    mnt_mountpoint_t* initfs_mountpoint = (mnt_mountpoint_t*) kmalloc(sizeof(mnt_mountpoint_t));
+    filesystem->root = root;
 
-    if(!initfs_mountpoint) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-    }
-
-    initfs_mountpoint->root = root;
-    initfs_mountpoint->volume = volume;
-
-    initfs_mountpoint->operations = (mnt_mountpoint_operations_t*) kmalloc(sizeof(mnt_mountpoint_operations_t));
-
-    if(!initfs_mountpoint->operations) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-    }
-
-    initfs_mountpoint->operations->unmount = &initfs_unmount;
-
-    return initfs_mountpoint;
+    return 0;
 }
 
-static int32_t initfs_unmount(mnt_mountpoint_t* mount) {
-    kfree(mount->root);
-    kfree(mount);
+static int32_t initfs_unmount(vfs_filesystem_t* filesystem) {
+    kfree(filesystem->root);
+    kfree(filesystem);
 
     return 0;
 }
@@ -110,7 +118,7 @@ static int32_t initfs_open(vfs_node_t* node) {
     }
 
     initfs_header_t initfs_header;
-    node->volume->operations->read(node->volume, 0, sizeof(initfs_header_t), &initfs_header);
+    node->filesystem->volume->operations->read(node->filesystem->volume, 0, sizeof(initfs_header_t), &initfs_header);
 
     if(node->inode >= initfs_header.n_files) {
         return -1;
@@ -122,7 +130,7 @@ static int32_t initfs_open(vfs_node_t* node) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    node->volume->operations->read(node->volume, sizeof(initfs_header_t) + node->inode * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), file_header);
+    node->filesystem->volume->operations->read(node->filesystem->volume, sizeof(initfs_header_t) + node->inode * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), file_header);
 
     if(file_header->magic != INITFS_FILE_HEADER_MAGIC) {
         return -1;
@@ -164,7 +172,7 @@ static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void*
         size = file_header->length - offset;
     }
 
-    node->volume->operations->read(node->volume, file_header->offset + offset, size, (char*) buffer);
+    node->filesystem->volume->operations->read(node->filesystem->volume, file_header->offset + offset, size, (char*) buffer);
 
     return size;
 }
@@ -196,7 +204,7 @@ static int32_t initfs_rmdir(vfs_node_t* node, char* name) {
 
 static vfs_dirent_t* initfs_readdir(vfs_node_t* node, uint32_t index) {
     initfs_header_t initfs_header;
-    node->volume->operations->read(node->volume, 0, sizeof(initfs_header_t), &initfs_header);
+    node->filesystem->volume->operations->read(node->filesystem->volume, 0, sizeof(initfs_header_t), &initfs_header);
 
     if(index >= initfs_header.n_files) {
         return NULL;
@@ -209,7 +217,7 @@ static vfs_dirent_t* initfs_readdir(vfs_node_t* node, uint32_t index) {
     }
 
     initfs_file_header_t file_header;
-    node->volume->operations->read(node->volume, sizeof(initfs_header_t) + index * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), &file_header);
+    node->filesystem->volume->operations->read(node->filesystem->volume, sizeof(initfs_header_t) + index * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), &file_header);
 
     if(file_header.magic != INITFS_FILE_HEADER_MAGIC) {
         return NULL;
@@ -223,11 +231,11 @@ static vfs_dirent_t* initfs_readdir(vfs_node_t* node, uint32_t index) {
 
 static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
     initfs_header_t initfs_header;
-    node->volume->operations->read(node->volume, 0, sizeof(initfs_header_t), &initfs_header);
+    node->filesystem->volume->operations->read(node->filesystem->volume, 0, sizeof(initfs_header_t), &initfs_header);
 
     for(size_t index = 0; index < initfs_header.n_files; index++) {
         initfs_file_header_t file_header;
-        node->volume->operations->read(node->volume, sizeof(initfs_header_t) + index * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), &file_header);
+        node->filesystem->volume->operations->read(node->filesystem->volume, sizeof(initfs_header_t) + index * sizeof(initfs_file_header_t), sizeof(initfs_file_header_t), &file_header);
 
         if(!strcmp(name, file_header.name)) {
             vfs_node_t* new_node = (vfs_node_t*) kmalloc(sizeof(vfs_node_t));
@@ -245,7 +253,7 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
             new_node->length = file_header.length;
             new_node->link = NULL;
             new_node->operations = &initfs_file_operations;
-            new_node->volume = node->volume;
+            new_node->filesystem = node->filesystem;
 
             return new_node;
         }

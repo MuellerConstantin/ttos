@@ -26,6 +26,9 @@ typedef struct vfs_dirent vfs_dirent_t;
 
 typedef struct vfs_node_operations vfs_node_operations_t;
 
+typedef struct vfs_filesystem_operations vfs_filesystem_operations_t;
+typedef struct vfs_filesystem vfs_filesystem_t;
+
 struct vfs_node_operations {
     // File operations
 
@@ -59,12 +62,24 @@ struct vfs_node {
     void* inode_data;
     struct vfs_node *link;
     vfs_node_operations_t* operations;
-    volume_t* volume;
+    vfs_filesystem_t* filesystem;
 } __attribute__((packed));
 
 struct vfs_dirent {
     char name[128];
     uint32_t inode;
+} __attribute__((packed));
+
+struct vfs_filesystem_operations {
+    int32_t (*mount)(vfs_filesystem_t* filesystem);
+    int32_t (*unmount)(vfs_filesystem_t* filesystem);
+} __attribute__((packed));
+
+struct vfs_filesystem {
+    vfs_node_t* root;
+    volume_t* volume;
+    void* fs_data;
+    vfs_filesystem_operations_t* operations;
 } __attribute__((packed));
 
 /**

@@ -4,9 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <fs/vfs.h>
-#include <fs/mount.h>
 #include <device/volume.h>
-#include <memory/kheap.h>
 
 #define INITFS_HEADER_MAGIC 0xDEAD
 #define INITFS_FILE_HEADER_MAGIC 0xBEEF
@@ -41,6 +39,6 @@ bool initfs_probe(volume_t* volume);
  * @param volume The volume to initialize.
  * @return The mount point or NULL on error.
  */
-mnt_mountpoint_t* initfs_init(volume_t* volume);
+vfs_filesystem_t* initfs_init(volume_t* volume);
 
 #endif // _KERNEL_FS_INITFS_H
