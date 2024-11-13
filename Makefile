@@ -78,13 +78,15 @@ $(INITRD):
 $(HDA):
 
 	dd if=/dev/zero of=$(HDA) bs=1M count=50
+	(echo n; echo p; echo 1; echo ; echo ; echo t; echo b; echo w) | fdisk $(HDA)
+
 	sudo losetup -P /dev/loop1 $(HDA)
 
-	sudo mkfs -t ext2 -F /dev/loop1
+	sudo mkfs.fat -F 32 /dev/loop1p1
 
 	mkdir -p mnt
 
-	sudo mount /dev/loop1 mnt
+	sudo mount /dev/loop1p1 mnt
 
 	sudo cp -r hdd/* mnt
 
@@ -97,13 +99,15 @@ $(HDA):
 $(SDA):
 
 	dd if=/dev/zero of=$(SDA) bs=1M count=50
+	(echo n; echo p; echo 1; echo ; echo ; echo t; echo b; echo w) | fdisk $(SDA)
+
 	sudo losetup -P /dev/loop1 $(SDA)
 
-	sudo mkfs -t ext2 -F /dev/loop1
+	sudo mkfs.fat -F 32 /dev/loop1p1
 
 	mkdir -p mnt
 
-	sudo mount /dev/loop1 mnt
+	sudo mount /dev/loop1p1 mnt
 
 	sudo cp -r hdd/* mnt
 
