@@ -101,8 +101,8 @@ size_t volume_register_device(storage_device_t* device) {
 
         strcpy(volume->name + strlen(device->info.name) + 2, partition_number);
 
-        volume->offset = partition->lba_start * MBR_SECTION_SIZE;
-        volume->size = partition->sectors * MBR_SECTION_SIZE;
+        volume->offset = partition->lba_start * device->driver->sector_size();
+        volume->size = partition->sectors * device->driver->sector_size();
         volume->device = device;
 
         volume->operations = (volume_operations_t*) kmalloc(sizeof(volume_operations_t));

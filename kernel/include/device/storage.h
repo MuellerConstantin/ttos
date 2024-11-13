@@ -15,6 +15,7 @@
 typedef struct storage_driver storage_driver_t;
 
 struct storage_driver {
+    size_t (*sector_size)();
     size_t (*total_size)();
     size_t (*read)(size_t offset, size_t size, char* buffer);
     size_t (*write)(size_t offset, size_t size, char* buffer);

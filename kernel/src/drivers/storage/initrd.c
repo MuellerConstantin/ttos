@@ -7,6 +7,9 @@ static void* initrd_base;
 static size_t initrd_size;
 
 static size_t initrd_total_size();
+static size_t initrd_sector_size();
+size_t initrd_read(size_t offset, size_t size, void* buffer);
+size_t initrd_write(size_t offset, size_t size, void* buffer);
 
 int32_t initrd_init(void* memory_base, size_t memory_size) {
     uint16_t* initrd_header = (uint16_t*) memory_base;
@@ -42,6 +45,7 @@ int32_t initrd_init(void* memory_base, size_t memory_size) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
+    device->driver->sector_size = initrd_sector_size;
     device->driver->total_size = initrd_total_size;
     device->driver->read = initrd_read;
     device->driver->write = initrd_write;
@@ -53,6 +57,11 @@ int32_t initrd_init(void* memory_base, size_t memory_size) {
 
 static size_t initrd_total_size() {
     return initrd_size;
+}
+
+static size_t initrd_sector_size() {
+    // Useless for the initial ramdisk because we're not handling it as a block device
+    return 0;
 }
 
 size_t initrd_read(size_t offset, size_t size, void* buffer) {

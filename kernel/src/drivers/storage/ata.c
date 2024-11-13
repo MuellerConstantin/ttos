@@ -28,6 +28,7 @@ static size_t ata_read_secondary_master(size_t offset, size_t size, char* buffer
 static size_t ata_total_size_secondary_slave();
 static size_t ata_write_secondary_slave(size_t offset, size_t size, char* buffer);
 static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer);
+static size_t ata_sector_size();
 
 int32_t ata_init() {
     if(ata_device_probe(&ata_devices[ATA_PRIMARY_MASTER_DRIVE])) {
@@ -55,6 +56,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
+        device->driver->sector_size = ata_sector_size;
         device->driver->total_size = ata_total_size_primary_master;
         device->driver->read = ata_read_primary_master;
         device->driver->write = ata_write_primary_master;
@@ -87,6 +89,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
+        device->driver->sector_size = ata_sector_size;
         device->driver->total_size = ata_total_size_primary_slave;
         device->driver->read = ata_read_primary_slave;
         device->driver->write = ata_write_primary_slave;
@@ -119,6 +122,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
+        device->driver->sector_size = ata_sector_size;
         device->driver->total_size = ata_total_size_secondary_master;
         device->driver->read = ata_read_secondary_master;
         device->driver->write = ata_write_secondary_master;
@@ -151,6 +155,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
+        device->driver->sector_size = ata_sector_size;
         device->driver->total_size = ata_total_size_secondary_slave;
         device->driver->read = ata_read_secondary_slave;
         device->driver->write = ata_write_secondary_slave;
@@ -207,6 +212,10 @@ static size_t ata_write_secondary_slave(size_t offset, size_t size, char* buffer
 
 static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer) {
     return ata_read(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE], offset, size, buffer);
+}
+
+static size_t ata_sector_size() {
+    return ATA_SECTOR_SIZE;
 }
 
 static uint16_t ata_get_io_base(ata_device_t* device) {
