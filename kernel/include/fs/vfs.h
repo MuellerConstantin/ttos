@@ -30,29 +30,27 @@ typedef struct vfs_filesystem_operations vfs_filesystem_operations_t;
 typedef struct vfs_filesystem vfs_filesystem_t;
 
 struct vfs_node_operations {
-    // File operations
+    int32_t (*open)(vfs_node_t* node);
+    int32_t (*close)(vfs_node_t* node);
+    int32_t (*rename)(vfs_node_t* node, char* new_name);
+
+    // File specific operations
 
     int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
     int32_t (*write)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-    int32_t (*open)(vfs_node_t* node);
-    int32_t (*close)(vfs_node_t* node);
     vfs_node_t* (*create)(vfs_node_t* node, char* name, uint32_t permissions);
     int32_t (*unlink)(vfs_node_t* node, char* name);
 
-    // Directory operations
+    // Directory specific operations
 
     int32_t (*mkdir)(vfs_node_t* node, char* name, uint32_t permissions);
     int32_t (*rmdir)(vfs_node_t* node, char* name);
     vfs_dirent_t* (*readdir)(vfs_node_t* node, uint32_t index);
     vfs_node_t* (*finddir)(vfs_node_t* node, char* name);
-
-    // General operations
-
-    int32_t (*rename)(vfs_node_t* node, char* new_name);
 } __attribute__((packed));
 
 struct vfs_node {
-    char name[128];
+    char* name;
     uint32_t permissions;
     uint32_t type;
     uint32_t uid;
@@ -91,6 +89,47 @@ struct vfs_filesystem {
 bool vfs_is_abs_path(char* path);
 
 /**
+ * Check if a node is a file.
+ * 
+ * @param node The node to check.
+ * @return True if the node is a file, false otherwise.
+ */
+bool vfs_is_file(vfs_node_t* node);
+
+/**
+ * Check if a node is a directory.
+ * 
+ * @param node The node to check.
+ * @return True if the node is a directory, false otherwise.
+ */
+bool vfs_is_dir(vfs_node_t* node);
+
+/**
+ * Open a node. This allows the underlying file system to load data into memory.
+ * 
+ * @param node The node to open.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_open(vfs_node_t* node);
+
+/**
+ * Close a node. This allows the underlying file system to unload data from memory.
+ * 
+ * @param node The node to close.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_close(vfs_node_t* node);
+
+/**
+ * Rename a node.
+ * 
+ * @param node The node to rename.
+ * @param new_name The new name of the file/directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_rename(vfs_node_t* node, char* new_name);
+
+/**
  * Read data from a file.
  * 
  * @param node The file to read from.
@@ -111,22 +150,6 @@ int32_t vfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
  * @return The number of bytes written or -1 on error.
  */
 int32_t vfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-
-/**
- * Open a file.
- * 
- * @param node The file to open.
- * @return 0 on success or -1 on error.
- */
-int32_t vfs_open(vfs_node_t* node);
-
-/**
- * Close a file.
- * 
- * @param node The file to close.
- * @return 0 on success or -1 on error.
- */
-int32_t vfs_close(vfs_node_t* node);
 
 /**
  * Create a file.
@@ -192,14 +215,5 @@ vfs_node_t* vfs_finddir(vfs_node_t* node, char* name);
  * @return The file or NULL if not found.
  */
 vfs_node_t* vfs_findpath(vfs_node_t* node, char* path);
-
-/**
- * Rename a file/directory.
- * 
- * @param node The directory or file to rename.
- * @param new_name The new name of the file/directory.
- * @return 0 on success or -1 on error.
- */
-int32_t vfs_rename(vfs_node_t* node, char* new_name);
 
 #endif // _KERNEL_FS_VFS_H

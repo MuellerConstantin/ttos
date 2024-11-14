@@ -48,11 +48,25 @@ int32_t dir_open(char* path) {
 
         memcpy(root_copy, node, sizeof(vfs_node_t));
 
+        root_copy->name = (char*) kmalloc(strlen(node->name));
+
+        if(!root_copy->name) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        strcpy(root_copy->name, node->name);
+
         node = root_copy;
     }
 
     dir_descriptors[dd].node = node;
     dir_descriptors[dd].index = 0;
+
+    if(vfs_open(node) != 0) {
+        kfree(node->name);
+        kfree(node);
+        return NULL;
+    }
 
     return dd;
 }
@@ -66,6 +80,7 @@ int32_t dir_close(int32_t dd) {
         return -1;
     }
 
+    kfree(dir_descriptors[dd].node->name);
     kfree(dir_descriptors[dd].node);
     dir_descriptors[dd].node = NULL;
 

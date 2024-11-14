@@ -36,6 +36,7 @@ file_descriptor_t* file_open(char* path, uint32_t flags) {
 
     if(vfs_open(node) != 0) {
         kfree(file_descriptor);
+        kfree(node->name);
         kfree(node);
         return NULL;
     }

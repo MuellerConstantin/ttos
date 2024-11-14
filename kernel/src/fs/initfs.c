@@ -21,31 +21,31 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name);
 static int32_t initfs_rename(vfs_node_t* node, char* new_name);
 
 static vfs_node_operations_t initfs_directory_operations = {
+    .open = &initfs_open,
+    .close = &initfs_close,
+    .rename = &initfs_rename,
     .read = NULL,
     .write = NULL,
-    .open = NULL,
-    .close = NULL,
     .create = NULL,
     .unlink = NULL,
     .mkdir = &initfs_mkdir,
     .rmdir = &initfs_rmdir,
     .readdir = &initfs_readdir,
     .finddir = &initfs_finddir,
-    .rename = &initfs_rename,
 };
 
 static vfs_node_operations_t initfs_file_operations = {
-    .read = &initfs_read,
-    .write = &initfs_write,
     .open = &initfs_open,
     .close = &initfs_close,
+    .rename = &initfs_rename,
+    .read = &initfs_read,
+    .write = &initfs_write,
     .create = &initfs_create,
     .unlink = &initfs_unlink,
     .mkdir = NULL,
     .rmdir = NULL,
     .readdir = NULL,
     .finddir = NULL,
-    .rename = &initfs_rename,
 };
 
 bool initfs_probe(volume_t* volume) {
@@ -89,7 +89,14 @@ static int32_t initfs_mount(vfs_filesystem_t* filesystem) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
+    root->name = (char*) kmalloc(2);
+
+    if(!root->name) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
     strcpy(root->name, "/");
+
     root->type = VFS_DIRECTORY;
     root->permissions = 0;
     root->uid = 0;
@@ -106,6 +113,7 @@ static int32_t initfs_mount(vfs_filesystem_t* filesystem) {
 }
 
 static int32_t initfs_unmount(vfs_filesystem_t* filesystem) {
+    kfree(filesystem->root->name);
     kfree(filesystem->root);
     kfree(filesystem);
 
@@ -113,8 +121,9 @@ static int32_t initfs_unmount(vfs_filesystem_t* filesystem) {
 }
 
 static int32_t initfs_open(vfs_node_t* node) {
+    // This file system does not have to load data for directories
     if(node->type == VFS_DIRECTORY) {
-        return -1;
+        return 0;
     }
 
     initfs_header_t initfs_header;
@@ -142,22 +151,18 @@ static int32_t initfs_open(vfs_node_t* node) {
 }
 
 static int32_t initfs_close(vfs_node_t* node) {
-    if(node->type == VFS_DIRECTORY) {
-        return 0;
-    }
-
-    if(node->inode_data) {
-        kfree(node->inode_data);
-    }
+    // This applys only to file nodes
+    kfree(node->inode_data);
 
     return 0;
 }
 
-static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    if(node->type == VFS_DIRECTORY) {
-        return -1;
-    }
+static int32_t initfs_rename(vfs_node_t* node, char* new_name) {
+    // Unsupported because the file system is read-only
+    return -1;
+}
 
+static int32_t initfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
     if(node->inode_data == NULL) {
         return -1;
     }
@@ -244,7 +249,14 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
                 KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
             }
 
+            new_node->name = (char*) kmalloc(strlen(file_header.name));
+
+            if(!new_node->name) {
+                KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+            }
+
             strcpy(new_node->name, (const char*) file_header.name);
+
             new_node->type = VFS_FILE;
             new_node->permissions = 0;
             new_node->uid = 0;
@@ -260,9 +272,4 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
     }
 
     return NULL;
-}
-
-static int32_t initfs_rename(vfs_node_t* node, char* new_name) {
-    // Unsupported because the file system is read-only
-    return -1;
 }

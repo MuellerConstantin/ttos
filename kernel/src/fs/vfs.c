@@ -18,24 +18,16 @@ bool vfs_is_abs_path(char* path) {
     return false;
 }
 
-int32_t vfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    if (node->operations->read != NULL) {
-        return node->operations->read(node, offset, size, buffer);
-    }
-
-    return -1;
+bool vfs_is_file(vfs_node_t* node) {
+    return node && node->type == VFS_FILE;
 }
 
-int32_t vfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    if (node->operations->write != NULL) {
-        return node->operations->write(node, offset, size, buffer);
-    }
-
-    return -1;
+bool vfs_is_dir(vfs_node_t* node) {
+    return node && node->type == VFS_DIRECTORY;
 }
 
 int32_t vfs_open(vfs_node_t* node) {
-    if (node->operations->open != NULL) {
+    if (node && node->operations->open != NULL) {
         return node->operations->open(node);
     }
 
@@ -43,15 +35,39 @@ int32_t vfs_open(vfs_node_t* node) {
 }
 
 int32_t vfs_close(vfs_node_t* node) {
-    if (node->operations->close != NULL) {
+    if (node && node->operations->close != NULL) {
         return node->operations->close(node);
     }
 
     return -1;
 }
 
+int32_t vfs_rename(vfs_node_t* node, char* new_name) {
+    if (node && node->operations->rename != NULL) {
+        return node->operations->rename(node, new_name);
+    }
+
+    return -1;
+}
+
+int32_t vfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
+    if (node && node->operations->read != NULL && node->type == VFS_FILE) {
+        return node->operations->read(node, offset, size, buffer);
+    }
+
+    return -1;
+}
+
+int32_t vfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
+    if (node && node->operations->write != NULL && node->type == VFS_FILE) {
+        return node->operations->write(node, offset, size, buffer);
+    }
+
+    return -1;
+}
+
 int32_t vfs_create(vfs_node_t* node, char* name, uint32_t permissions) {
-    if (node->operations->create != NULL && node->type == VFS_DIRECTORY) {
+    if (node && node->operations->create != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->create(node, name, permissions);
     }
 
@@ -59,7 +75,7 @@ int32_t vfs_create(vfs_node_t* node, char* name, uint32_t permissions) {
 }
 
 int32_t vfs_unlink(vfs_node_t* node, char* name) {
-    if (node->operations->unlink != NULL && node->type == VFS_DIRECTORY) {
+    if (node && node->operations->unlink != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->unlink(node, name);
     }
 
@@ -67,7 +83,7 @@ int32_t vfs_unlink(vfs_node_t* node, char* name) {
 }
 
 int32_t vfs_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
-    if (node->operations->mkdir != NULL && node->type == VFS_DIRECTORY) {
+    if (node && node->operations->mkdir != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->mkdir(node, name, permissions);
     }
 
@@ -75,7 +91,7 @@ int32_t vfs_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
 }
 
 int32_t vfs_rmdir(vfs_node_t* node, char* name) {
-    if (node->operations->rmdir != NULL && node->type == VFS_DIRECTORY) {
+    if (node && node->operations->rmdir != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->rmdir(node, name);
     }
 
@@ -83,7 +99,7 @@ int32_t vfs_rmdir(vfs_node_t* node, char* name) {
 }
 
 vfs_dirent_t* vfs_readdir(vfs_node_t* node, uint32_t index) {
-    if (node->operations->readdir != NULL && node->type == VFS_DIRECTORY) {
+    if (node && node->operations->readdir != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->readdir(node, index);
     }
 
@@ -91,7 +107,7 @@ vfs_dirent_t* vfs_readdir(vfs_node_t* node, uint32_t index) {
 }
 
 vfs_node_t* vfs_finddir(vfs_node_t* node, char* name) {
-    if (node->operations->finddir != NULL && node->type == VFS_DIRECTORY) {
+    if (node && node->operations->finddir != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->finddir(node, name);
     }
 
@@ -99,6 +115,10 @@ vfs_node_t* vfs_finddir(vfs_node_t* node, char* name) {
 }
 
 vfs_node_t* vfs_findpath(vfs_node_t* node, char* path) {
+    if(!node || !(node->type == VFS_DIRECTORY) || node->operations->finddir == NULL) {
+        return NULL;
+    }
+
     if(strcmp(path, "/") == 0 || strcmp(path, "") == 0) {
         return node;
     }
@@ -123,7 +143,7 @@ vfs_node_t* vfs_findpath(vfs_node_t* node, char* path) {
 }
 
 static vfs_node_t* vfs_findpath_recursive(vfs_node_t* node, char* path) {
-    if(!node || !(node->type == VFS_DIRECTORY)) {
+    if(!node || !(node->type == VFS_DIRECTORY) || node->operations->finddir == NULL) {
         return NULL;
     }
 
@@ -144,12 +164,4 @@ static vfs_node_t* vfs_findpath_recursive(vfs_node_t* node, char* path) {
     }
 
     return vfs_findpath_recursive(next_node, path);
-}
-
-int32_t vfs_rename(vfs_node_t* node, char* new_name) {
-    if (node->operations->rename != NULL) {
-        return node->operations->rename(node, new_name);
-    }
-
-    return -1;
 }
