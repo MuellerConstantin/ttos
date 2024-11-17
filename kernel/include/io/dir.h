@@ -25,7 +25,7 @@ struct dir_descriptor {
 typedef struct dir_dirent dir_dirent_t;
 
 struct dir_dirent {
-    char name[128];
+    char name[256];
     uint32_t inode;
 };
 

@@ -48,13 +48,7 @@ int32_t dir_open(char* path) {
 
         memcpy(root_copy, node, sizeof(vfs_node_t));
 
-        root_copy->name = (char*) kmalloc(strlen(node->name));
-
-        if(!root_copy->name) {
-            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-        }
-
-        strcpy(root_copy->name, node->name);
+        strncpy(root_copy->name, node->name, 256);
 
         node = root_copy;
     }
@@ -109,7 +103,7 @@ const dir_dirent_t* dir_read(int32_t dd) {
         return NULL;
     }
 
-    strcpy(dir_dirent->name, dirent->name);
+    strncpy(dir_dirent->name, dirent->name, 256);
     dir_dirent->inode = dirent->inode;
 
     kfree(dirent);

@@ -50,7 +50,7 @@ struct vfs_node_operations {
 } __attribute__((packed));
 
 struct vfs_node {
-    char* name;
+    char name[256];
     uint32_t permissions;
     uint32_t type;
     uint32_t uid;
@@ -64,7 +64,7 @@ struct vfs_node {
 } __attribute__((packed));
 
 struct vfs_dirent {
-    char name[128];
+    char name[256];
     uint32_t inode;
 } __attribute__((packed));
 

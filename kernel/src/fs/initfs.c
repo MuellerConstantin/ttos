@@ -89,13 +89,7 @@ static int32_t initfs_mount(vfs_filesystem_t* filesystem) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    root->name = (char*) kmalloc(2);
-
-    if(!root->name) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-    }
-
-    strcpy(root->name, "/");
+    strncpy(root->name, "/", 256);
 
     root->type = VFS_DIRECTORY;
     root->permissions = 0;
@@ -228,7 +222,7 @@ static vfs_dirent_t* initfs_readdir(vfs_node_t* node, uint32_t index) {
         return NULL;
     }
 
-    strcpy(dirent->name, (const char*) file_header.name);
+    strncpy(dirent->name, (const char*) file_header.name, 256);
     dirent->inode = index;
 
     return dirent;
@@ -249,13 +243,7 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
                 KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
             }
 
-            new_node->name = (char*) kmalloc(strlen(file_header.name));
-
-            if(!new_node->name) {
-                KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-            }
-
-            strcpy(new_node->name, (const char*) file_header.name);
+            strncpy(new_node->name, (const char*) file_header.name, 256);
 
             new_node->type = VFS_FILE;
             new_node->permissions = 0;
