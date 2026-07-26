@@ -1,5 +1,6 @@
 #include <fs/mount.h>
 #include <fs/initfs.h>
+#include <fs/ext2.h>
 
 static vfs_filesystem_t* mnt_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
 
@@ -19,7 +20,19 @@ int32_t mnt_volume_mount(char drive, volume_t* volume) {
     // Probe for the file system
     if(initfs_probe(volume)) {
         mnt_mountpoints[index] = initfs_init(volume);
-        
+
+        if(mnt_mountpoints[index]->operations->mount(mnt_mountpoints[index]) != 0) {
+            mnt_mountpoints[index]->operations->unmount(mnt_mountpoints[index]);
+            mnt_mountpoints[index] = NULL;
+            return -1;
+        }
+
+        return 0;
+    }
+
+    if(ext2_probe(volume)) {
+        mnt_mountpoints[index] = ext2_init(volume);
+
         if(mnt_mountpoints[index]->operations->mount(mnt_mountpoints[index]) != 0) {
             mnt_mountpoints[index]->operations->unmount(mnt_mountpoints[index]);
             mnt_mountpoints[index] = NULL;

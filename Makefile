@@ -80,11 +80,11 @@ $(INITRD):
 $(HDA):
 
 	dd if=/dev/zero of=$(HDA) bs=1M count=50
-	(echo n; echo p; echo 1; echo ; echo ; echo t; echo b; echo w) | fdisk $(HDA)
+	(echo n; echo p; echo 1; echo ; echo ; echo t; echo 83; echo w) | fdisk $(HDA)
 
 	sudo losetup -P $(LOOPDEV) $(HDA)
 
-	sudo mkfs.fat -F 32 $(LOOPDEV)p1
+	sudo mkfs.ext2 -b 1024 -I 128 -O ^resize_inode,^dir_index,^ext_attr,^metadata_csum,^64bit,^huge_file,^flex_bg $(LOOPDEV)p1
 
 	mkdir -p mnt
 
@@ -101,11 +101,11 @@ $(HDA):
 $(SDA):
 
 	dd if=/dev/zero of=$(SDA) bs=1M count=50
-	(echo n; echo p; echo 1; echo ; echo ; echo t; echo b; echo w) | fdisk $(SDA)
+	(echo n; echo p; echo 1; echo ; echo ; echo t; echo 83; echo w) | fdisk $(SDA)
 
 	sudo losetup -P $(LOOPDEV) $(SDA)
 
-	sudo mkfs.fat -F 32 $(LOOPDEV)p1
+	sudo mkfs.ext2 -b 1024 -I 128 -O ^resize_inode,^dir_index,^ext_attr,^metadata_csum,^64bit,^huge_file,^flex_bg $(LOOPDEV)p1
 
 	mkdir -p mnt
 
