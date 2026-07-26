@@ -12,6 +12,9 @@
 #define SYSCALL_GET_TERMINFO 0x06
 #define SYSCALL_ALLOC_HEAP 0x0A
 #define SYSCALL_EXIT 0x0B
+#define SYSCALL_OPENDIR 0x0C
+#define SYSCALL_READDIR 0x0D
+#define SYSCALL_CLOSEDIR 0x0E
 
 /**
  * Initializes the syscall handler.

@@ -2,6 +2,7 @@
 #include <arch/i386/isr.h>
 #include <io/stream.h>
 #include <io/file.h>
+#include <io/dir.h>
 #include <io/tty.h>
 #include <system/process.h>
 #include <kernel.h>
@@ -24,6 +25,11 @@ struct meminfo {
 struct terminfo {
     uint32_t rows;
     uint32_t cols;
+};
+
+struct dirent {
+    char name[256];
+    uint32_t inode;
 };
 
 static void syscall_handler(isr_cpu_state_t *state);
@@ -168,16 +174,63 @@ static void* syscall_alloc_heap(isr_cpu_state_t *state);
 
 /**
  * Exit syscall handler.
- * 
+ *
  * Syscall expects the following parameters:
- * 
+ *
  * - eax: Syscall number
- * 
+ *
  * - ebx: Exit code
- * 
+ *
  * @param state The CPU state.
  */
 static void syscall_exit(isr_cpu_state_t *state);
+
+/**
+ * Open directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Directory path
+ *
+ * Syscall returns the directory descriptor or -1 on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_opendir(isr_cpu_state_t *state);
+
+/**
+ * Read directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Directory descriptor
+ *
+ * - ecx: Pointer to a user dirent struct to fill
+ *
+ * Syscall returns 0 on success or -1 when there are no more entries or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_readdir(isr_cpu_state_t *state);
+
+/**
+ * Close directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Directory descriptor
+ *
+ * Syscall returns 0 on success or -1 on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_closedir(isr_cpu_state_t *state);
 
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
@@ -221,6 +274,18 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_EXIT: {
             syscall_exit(state);
+            break;
+        }
+        case SYSCALL_OPENDIR: {
+            state->eax = syscall_opendir(state);
+            break;
+        }
+        case SYSCALL_READDIR: {
+            state->eax = syscall_readdir(state);
+            break;
+        }
+        case SYSCALL_CLOSEDIR: {
+            state->eax = syscall_closedir(state);
             break;
         }
         default: {
@@ -476,4 +541,41 @@ void syscall_exit(isr_cpu_state_t *state) {
     }
 
     while(1);
+}
+
+static int32_t syscall_opendir(isr_cpu_state_t *state) {
+    char* path = (char*) state->ebx;
+
+    return dir_open(path);
+}
+
+static int32_t syscall_readdir(isr_cpu_state_t *state) {
+    int32_t dd = state->ebx;
+    struct dirent* user_entry = (struct dirent*) state->ecx;
+
+    if(!user_entry) {
+        return -1;
+    }
+
+    // dir_read returns a kmalloc'd entry; copy its fields into the caller's
+    // buffer and free it instead of handing a kernel pointer to userland.
+    const dir_dirent_t* dirent = dir_read(dd);
+
+    if(!dirent) {
+        return -1;
+    }
+
+    strncpy(user_entry->name, dirent->name, sizeof(user_entry->name));
+    user_entry->name[sizeof(user_entry->name) - 1] = '\0';
+    user_entry->inode = dirent->inode;
+
+    kfree((void*) dirent);
+
+    return 0;
+}
+
+static int32_t syscall_closedir(isr_cpu_state_t *state) {
+    int32_t dd = state->ebx;
+
+    return dir_close(dd);
 }
