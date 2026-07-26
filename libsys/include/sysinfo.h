@@ -20,6 +20,13 @@ struct meminfo {
     size_t free;
 };
 
+typedef struct terminfo terminfo_t;
+
+struct terminfo {
+    uint32_t rows;
+    uint32_t cols;
+};
+
 /**
  * Gets system information.
  * 
@@ -35,5 +42,13 @@ int32_t sysinfo_get_osinfo(osinfo_t* info);
  * @return 0 on success, -1 on error.
  */
 int32_t sysinfo_get_meminfo(meminfo_t* info);
+
+/**
+ * Gets terminal information (dimensions of the controlling terminal).
+ *
+ * @param info The terminal information.
+ * @return 0 on success, -1 on error.
+ */
+int32_t sysinfo_get_terminfo(terminfo_t* info);
 
 #endif // _LIBSYS_SYSINFO_H

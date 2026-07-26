@@ -2,6 +2,7 @@
 #include <arch/i386/isr.h>
 #include <io/stream.h>
 #include <io/file.h>
+#include <io/tty.h>
 #include <system/process.h>
 #include <kernel.h>
 #include <memory/pmm.h>
@@ -18,6 +19,11 @@ struct osinfo {
 struct meminfo {
     size_t total;
     size_t free;
+};
+
+struct terminfo {
+    uint32_t rows;
+    uint32_t cols;
 };
 
 static void syscall_handler(isr_cpu_state_t *state);
@@ -129,6 +135,22 @@ static int32_t syscall_get_osinfo(isr_cpu_state_t *state);
 static int32_t syscall_get_meminfo(isr_cpu_state_t *state);
 
 /**
+ * Get terminal info syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to terminfo struct
+ *
+ * Syscall returns 0 on success or -1 on error.
+ *
+ * @param state The CPU state.
+ * @return 0 on success or -1 on error.
+ */
+static int32_t syscall_get_terminfo(isr_cpu_state_t *state);
+
+/**
  * Allocate/increase heap syscall handler.
  * 
  * Syscall expects the following parameters:
@@ -187,6 +209,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_GET_MEMINFO: {
             state->eax = syscall_get_meminfo(state);
+            break;
+        }
+        case SYSCALL_GET_TERMINFO: {
+            state->eax = syscall_get_terminfo(state);
             break;
         }
         case SYSCALL_ALLOC_HEAP: {
@@ -375,6 +401,28 @@ static int32_t syscall_get_meminfo(isr_cpu_state_t *state) {
 
     info->total = pmm_get_total_memory_size();
     info->free = pmm_get_available_memory_size();
+
+    return 0;
+}
+
+static int32_t syscall_get_terminfo(isr_cpu_state_t *state) {
+    struct terminfo* info = (struct terminfo*) state->ebx;
+
+    process_t* current_process = process_get_current();
+
+    if(!current_process || !current_process->out) {
+        return -1;
+    }
+
+    // The process' output stream is backed by a TTY, which knows its dimensions.
+    tty_t* tty = (tty_t*) current_process->out->data;
+
+    if(!tty) {
+        return -1;
+    }
+
+    info->rows = tty->rows;
+    info->cols = tty->columns;
 
     return 0;
 }
