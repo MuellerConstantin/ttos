@@ -73,7 +73,9 @@ $(TARGET):
 $(INITRD):
 
 	$(MAKE) -C $(ROOTDIR)/userland all
-	cp -r $(ROOTDIR)/userland/bin/* initrd
+
+	rm -f initrd/*.elf
+	cp $(ROOTDIR)/userland/bin/init.elf initrd
 
 	./scripts/mkinitrd.py -o $(INITRD) -i initrd
 
@@ -96,7 +98,7 @@ $(HDA):
 	sudo cp -r hdd/* mnt
 
 	$(MAKE) -C $(ROOTDIR)/userland all
-	sudo cp -r $(ROOTDIR)/userland/bin/* mnt/bin
+	sudo find $(ROOTDIR)/userland/bin -maxdepth 1 -type f -name '*.elf' ! -name init.elf -exec cp {} mnt/bin/ \;
 
 	sudo umount mnt
 
@@ -123,7 +125,7 @@ $(SDA):
 	sudo cp -r hdd/* mnt
 
 	$(MAKE) -C $(ROOTDIR)/userland all
-	sudo cp -r $(ROOTDIR)/userland/bin/* mnt/bin
+	sudo find $(ROOTDIR)/userland/bin -maxdepth 1 -type f -name '*.elf' ! -name init.elf -exec cp {} mnt/bin/ \;
 
 	sudo umount mnt
 
