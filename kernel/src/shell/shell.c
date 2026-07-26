@@ -4,16 +4,13 @@
 #include <system/kpanic.h>
 #include <system/process.h>
 #include <memory/pmm.h>
-#include <arch/i386/acpi.h>
 #include <arch/i386/isr.h>
 #include <system/kmessage.h>
 #include <system/timer.h>
-#include <device/device.h>
 #include <device/volume.h>
 #include <fs/mount.h>
 #include <io/file.h>
 #include <io/dir.h>
-#include <util/uuid.h>
 #include <io/tty.h>
 
 static stream_t* in_stream = NULL;
@@ -28,11 +25,7 @@ static void shell_clear(size_t argc, const char *argv[]);
 static void shell_echo(size_t argc, const char *argv[]);
 static void shell_memory_usage(size_t argc, const char *argv[]);
 static void shell_memory_map(size_t argc, const char *argv[]);
-static void shell_poweroff(size_t argc, const char *argv[]);
 static void shell_dmesg(size_t argc, const char *argv[]);
-static void shell_lsdev(size_t argc, const char *argv[]);
-static void shell_lsvol(size_t argc, const char *argv[]);
-static void shell_lsmnt(size_t argc, const char *argv[]);
 static void shell_mount(size_t argc, const char *argv[]);
 static void shell_unmount(size_t argc, const char *argv[]);
 static void shell_lsdir(size_t argc, const char *argv[]);
@@ -156,18 +149,10 @@ static void shell_process_instruction(char *instruction) {
         shell_kheap_usage(argc, argv);
     } else if(strcmp(command, "memmap") == 0) {
         shell_memory_map(argc, argv);
-    } else if(strcmp(command, "poweroff") == 0) {
-        shell_poweroff(argc, argv);
     } else if(strcmp(command, "dmesg") == 0) {
         shell_dmesg(argc, argv);
     } else if(strcmp(command, "uptime") == 0) {
         shell_uptime(argc, argv);
-    } else if(strcmp(command, "lsdev") == 0) {
-        shell_lsdev(argc, argv);
-    } else if(strcmp(command, "lsvol") == 0) {
-        shell_lsvol(argc, argv);
-    } else if(strcmp(command, "lsmnt") == 0) {
-        shell_lsmnt(argc, argv);
     } else if(strcmp(command, "mount") == 0) {
         shell_mount(argc, argv);
     } else if(strcmp(command, "unmount") == 0) {
@@ -236,12 +221,8 @@ static void shell_help(size_t argc, const char *argv[]) {
         "memusage - Display memory usage\n"
         "kheapusage - Display kernel heap usage\n"
         "memmap - Display memory map\n"
-        "poweroff - Power off the system\n"
         "dmesg - Display kernel messages\n"
         "uptime - Display system uptime\n"
-        "lsdev - List available devices\n"
-        "lsvol - List available volumes\n"
-        "lsmnt - List available mount points\n"
         "mount <drive> <volume> - Mount a volume to a drive\n"
         "unmount <drive> - Unmount a volume from a drive\n"
         "lsdir <path> - List directory contents\n"
@@ -298,18 +279,6 @@ static void shell_memory_map(size_t argc, const char *argv[]) {
     }
 }
 
-static void shell_poweroff(size_t argc, const char *argv[]) {
-    tty_t* tty = out_stream->data;
-
-    acpi_poweroff();
-
-    stream_printf(out_stream, "It is now safe to turn off your computer...\n");
-    tty_disable_cursor(tty);
-
-    isr_cli();
-    
-    while(1);
-}
 
 static void shell_dmesg(size_t argc, const char *argv[]) {
     const linked_list_t* messages = kmessage_get_messages();
@@ -343,94 +312,6 @@ static void shell_dmesg(size_t argc, const char *argv[]) {
     kfree(message_buffer);
 }
 
-static void shell_lsdev_append_callback(generic_tree_node_t* node, void* data) {
-    device_t* device = (device_t*) node->data;
-    char** message_buffer_pointer = (char**) data;
-    char* message_buffer = *message_buffer_pointer;
-
-    message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(device->name) + 36 + 4);
-
-    char uuid_buffer[37];
-    uuid_v4_to_string(&device->id, uuid_buffer);
-
-    strcat(message_buffer, device->name);
-    strcat(message_buffer, " (");
-    strcat(message_buffer, uuid_buffer);
-    strcat(message_buffer, ")\n");
-
-    *message_buffer_pointer = message_buffer;
-}
-
-static void shell_lsdev(size_t argc, const char *argv[]) {
-    const generic_tree_t* devices = device_get_all();
-
-    char* message_buffer = kmalloc(1024);
-
-    if(message_buffer == NULL) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
-    }
-
-    message_buffer[0] = '\0';
-
-    generic_tree_foreach(devices, shell_lsdev_append_callback, &message_buffer);
-
-    shell_paging(message_buffer);
-
-    kfree(message_buffer);
-}
-
-static void shell_lsvol(size_t argc, const char *argv[]) {
-    const linked_list_t* volumes = volume_get_all();
-
-    char* message_buffer = kmalloc(512);
-
-    if(message_buffer == NULL) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
-    }
-
-    message_buffer[0] = '\0';
-
-    linked_list_foreach(volumes, node) {
-        volume_t* volume = (volume_t*) node->data;
-
-        message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(volume->name) + 36 + 4);
-
-        char uuid_buffer[37];
-        uuid_v4_to_string(&volume->id, uuid_buffer);
-
-        strcat(message_buffer, volume->name);
-        strcat(message_buffer, " (");
-        strcat(message_buffer, uuid_buffer);
-        strcat(message_buffer, ")\n");
-    }
-
-    shell_paging(message_buffer);
-
-    kfree(message_buffer);
-}
-
-static void shell_lsmnt(size_t argc, const char *argv[]) {
-    char* message_buffer = kmalloc(512);
-
-    if(message_buffer == NULL) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
-    }
-
-    message_buffer[0] = '\0';
-
-    for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
-        if(mnt_get_drive(drive) != NULL) {
-            message_buffer = krealloc(message_buffer, strlen(message_buffer) + 3);
-
-            message_buffer[strlen(message_buffer)] = drive;
-            strcat(message_buffer, ":\n");
-        }
-    }
-
-    shell_paging(message_buffer);
-
-    kfree(message_buffer);
-}
 
 static void shell_mount(size_t argc, const char *argv[]) {
     if(argc < 3) {

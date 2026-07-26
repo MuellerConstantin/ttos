@@ -4,6 +4,13 @@
 #include <io/file.h>
 #include <io/dir.h>
 #include <io/tty.h>
+#include <device/device.h>
+#include <device/volume.h>
+#include <fs/mount.h>
+#include <util/generic_tree.h>
+#include <util/linked_list.h>
+#include <util/uuid.h>
+#include <arch/i386/acpi.h>
 #include <system/process.h>
 #include <kernel.h>
 #include <memory/pmm.h>
@@ -30,6 +37,20 @@ struct terminfo {
 struct dirent {
     char name[256];
     uint32_t inode;
+};
+
+struct volinfo {
+    char name[64];
+    char uuid[37];
+};
+
+struct devinfo {
+    char name[64];
+    char uuid[37];
+};
+
+struct mntinfo {
+    char drive;
 };
 
 static void syscall_handler(isr_cpu_state_t *state);
@@ -232,6 +253,71 @@ static int32_t syscall_readdir(isr_cpu_state_t *state);
  */
 static int32_t syscall_closedir(isr_cpu_state_t *state);
 
+/**
+ * List volumes syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Index of the volume to query
+ *
+ * - ecx: Pointer to a user volinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the index is out of range or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_lsvol(isr_cpu_state_t *state);
+
+/**
+ * Power off syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * On success the machine powers off and the syscall never returns. It only
+ * returns -1 when the power off could not be performed.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_poweroff(isr_cpu_state_t *state);
+
+/**
+ * List devices syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Index of the device to query
+ *
+ * - ecx: Pointer to a user devinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the index is out of range or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_lsdev(isr_cpu_state_t *state);
+
+/**
+ * List mount points syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Index of the mount point to query
+ *
+ * - ecx: Pointer to a user mntinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the index is out of range or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_lsmnt(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -286,6 +372,22 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_CLOSEDIR: {
             state->eax = syscall_closedir(state);
+            break;
+        }
+        case SYSCALL_LSVOL: {
+            state->eax = syscall_lsvol(state);
+            break;
+        }
+        case SYSCALL_POWEROFF: {
+            state->eax = syscall_poweroff(state);
+            break;
+        }
+        case SYSCALL_LSDEV: {
+            state->eax = syscall_lsdev(state);
+            break;
+        }
+        case SYSCALL_LSMNT: {
+            state->eax = syscall_lsmnt(state);
             break;
         }
         default: {
@@ -578,4 +680,110 @@ static int32_t syscall_closedir(isr_cpu_state_t *state) {
     int32_t dd = state->ebx;
 
     return dir_close(dd);
+}
+
+static int32_t syscall_lsvol(isr_cpu_state_t *state) {
+    uint32_t index = state->ebx;
+    struct volinfo* info = (struct volinfo*) state->ecx;
+
+    if(!info) {
+        return -1;
+    }
+
+    // Index-based iterator over the global volume list, so userland can walk it
+    // by calling with 0, 1, 2, ... until -1 signals the end.
+    linked_list_node_t* node = linked_list_get((linked_list_t*) volume_get_all(), index);
+
+    if(!node) {
+        return -1;
+    }
+
+    volume_t* volume = (volume_t*) node->data;
+
+    strncpy(info->name, volume->name, sizeof(info->name));
+    info->name[sizeof(info->name) - 1] = '\0';
+
+    uuid_v4_to_string(&volume->id, info->uuid);
+
+    return 0;
+}
+
+static int32_t syscall_poweroff(isr_cpu_state_t *state) {
+    (void) state;
+
+    // On success the machine powers off here and never returns; a return value
+    // means the power off failed and is reported back to userland.
+    return acpi_poweroff();
+}
+
+struct lsdev_iterator {
+    uint32_t target_index;
+    uint32_t current_index;
+    device_t* result;
+};
+
+static void syscall_lsdev_callback(generic_tree_node_t* node, void* userdata) {
+    struct lsdev_iterator* iterator = (struct lsdev_iterator*) userdata;
+
+    if(iterator->current_index == iterator->target_index) {
+        iterator->result = (device_t*) node->data;
+    }
+
+    iterator->current_index++;
+}
+
+static int32_t syscall_lsdev(isr_cpu_state_t *state) {
+    uint32_t index = state->ebx;
+    struct devinfo* info = (struct devinfo*) state->ecx;
+
+    if(!info) {
+        return -1;
+    }
+
+    // The device manager stores devices in a tree without index access, so walk
+    // it in pre-order and pick the node at the requested index. Userland calls
+    // this with 0, 1, 2, ... until -1 signals the end.
+    struct lsdev_iterator iterator = { .target_index = index, .current_index = 0, .result = NULL };
+
+    generic_tree_foreach((generic_tree_t*) device_get_all(), syscall_lsdev_callback, &iterator);
+
+    if(!iterator.result) {
+        return -1;
+    }
+
+    device_t* device = iterator.result;
+
+    strncpy(info->name, device->name, sizeof(info->name));
+    info->name[sizeof(info->name) - 1] = '\0';
+
+    uuid_v4_to_string(&device->id, info->uuid);
+
+    return 0;
+}
+
+static int32_t syscall_lsmnt(isr_cpu_state_t *state) {
+    uint32_t index = state->ebx;
+    struct mntinfo* info = (struct mntinfo*) state->ecx;
+
+    if(!info) {
+        return -1;
+    }
+
+    // Mount points are keyed by drive letter (A-Z) and sparse, so walk the range
+    // and pick the index-th occupied slot. Userland calls this with 0, 1, 2, ...
+    // until -1 signals the end.
+    uint32_t current_index = 0;
+
+    for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
+        if(mnt_get_drive(drive) != NULL) {
+            if(current_index == index) {
+                info->drive = drive;
+                return 0;
+            }
+
+            current_index++;
+        }
+    }
+
+    return -1;
 }

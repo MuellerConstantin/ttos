@@ -15,6 +15,10 @@
 #define SYSCALL_OPENDIR 0x0C
 #define SYSCALL_READDIR 0x0D
 #define SYSCALL_CLOSEDIR 0x0E
+#define SYSCALL_LSVOL 0x0F
+#define SYSCALL_POWEROFF 0x10
+#define SYSCALL_LSDEV 0x11
+#define SYSCALL_LSMNT 0x12
 
 /**
  * Initializes the syscall handler.
