@@ -5,7 +5,7 @@
 ROOTDIR ?= $(realpath ..)
 USERLANDDIR := $(ROOTDIR)/userland
 
-DIRS := $(shell find $(USERLANDDIR) -mindepth 1 -maxdepth 1 -type d)
+DIRS := $(shell find $(USERLANDDIR) -mindepth 1 -maxdepth 1 -type d -not -name bin)
 
 all:
 

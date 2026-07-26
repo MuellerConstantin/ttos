@@ -79,6 +79,9 @@ $(INITRD):
 
 $(HDA):
 
+	-while mountpoint -q mnt; do sudo umount mnt; done
+	-sudo rm -rf mnt
+
 	dd if=/dev/zero of=$(HDA) bs=1M count=50
 	(echo n; echo p; echo 1; echo ; echo ; echo t; echo 83; echo w) | fdisk $(HDA)
 
@@ -92,6 +95,9 @@ $(HDA):
 
 	sudo cp -r hdd/* mnt
 
+	$(MAKE) -C $(ROOTDIR)/userland all
+	sudo cp -r $(ROOTDIR)/userland/bin/* mnt/bin
+
 	sudo umount mnt
 
 	sudo losetup -d $(LOOPDEV)
@@ -99,6 +105,9 @@ $(HDA):
 	rm -rf mnt
 
 $(SDA):
+
+	-while mountpoint -q mnt; do sudo umount mnt; done
+	-sudo rm -rf mnt
 
 	dd if=/dev/zero of=$(SDA) bs=1M count=50
 	(echo n; echo p; echo 1; echo ; echo ; echo t; echo 83; echo w) | fdisk $(SDA)
@@ -112,6 +121,9 @@ $(SDA):
 	sudo mount $(LOOPDEV)p1 mnt
 
 	sudo cp -r hdd/* mnt
+
+	$(MAKE) -C $(ROOTDIR)/userland all
+	sudo cp -r $(ROOTDIR)/userland/bin/* mnt/bin
 
 	sudo umount mnt
 
