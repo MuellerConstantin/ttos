@@ -24,6 +24,14 @@ HDA := hda.img
 SDA := sda.img
 IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
+# Userland binaries that must live on the initrd (bootstrap + rescue set).
+# Everything else built into userland/bin is deployed to the disk images.
+INITRD_BINS := init.elf
+
+# find-expression that excludes the initrd binaries when populating the disks,
+# keeping the initrd set and the disk set a single source of truth.
+INITRD_EXCLUDE := $(foreach bin,$(INITRD_BINS),! -name $(bin))
+
 QEMUFLAGS := -boot order=d -cdrom $(IMAGE) -display gtk,zoom-to-fit=on -vga std -m 2G -d int -no-reboot
 
 all: boot/grub/grub.cfg $(INITRD) $(TARGET)
@@ -75,7 +83,7 @@ $(INITRD):
 	$(MAKE) -C $(ROOTDIR)/userland all
 
 	rm -f initrd/*.elf
-	cp $(ROOTDIR)/userland/bin/init.elf initrd
+	for bin in $(INITRD_BINS); do cp $(ROOTDIR)/userland/bin/$$bin initrd/; done
 
 	./scripts/mkinitrd.py -o $(INITRD) -i initrd
 
@@ -98,7 +106,7 @@ $(HDA):
 	sudo cp -r hdd/* mnt
 
 	$(MAKE) -C $(ROOTDIR)/userland all
-	sudo find $(ROOTDIR)/userland/bin -maxdepth 1 -type f -name '*.elf' ! -name init.elf -exec cp {} mnt/bin/ \;
+	sudo find $(ROOTDIR)/userland/bin -maxdepth 1 -type f -name '*.elf' $(INITRD_EXCLUDE) -exec cp {} mnt/bin/ \;
 
 	sudo umount mnt
 
@@ -125,7 +133,7 @@ $(SDA):
 	sudo cp -r hdd/* mnt
 
 	$(MAKE) -C $(ROOTDIR)/userland all
-	sudo find $(ROOTDIR)/userland/bin -maxdepth 1 -type f -name '*.elf' ! -name init.elf -exec cp {} mnt/bin/ \;
+	sudo find $(ROOTDIR)/userland/bin -maxdepth 1 -type f -name '*.elf' $(INITRD_EXCLUDE) -exec cp {} mnt/bin/ \;
 
 	sudo umount mnt
 
