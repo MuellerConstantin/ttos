@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <util/string.h>
 #include <util/uuid.h>
+#include <util/shortid.h>
 #include <util/generic_tree.h>
 #include <util/linked_list.h>
 #include <device/keyboard.h>
@@ -54,7 +55,7 @@ struct bus {
  * Common device structure, holding essential information about a device.
  */
 struct device {
-    uuid_t id;
+    char id[SHORT_ID_LENGTH + 1];
     char* name;
     uint16_t type;
     bus_t bus;
@@ -114,12 +115,19 @@ int32_t device_register(device_t* parent, device_t* device);
 int32_t device_unregister(device_t* device);
 
 /**
- * Find a device by ID.
- * 
+ * Find a device by its short ID.
+ *
  * @param id The device ID.
  * @return The device.
  */
-const device_t* device_find_by_id(uuid_t id);
+const device_t* device_find_by_id(const char* id);
+
+/**
+ * Generates a unique short ID for a device.
+ *
+ * @param buffer The buffer to write the id to. Must be at least SHORT_ID_LENGTH + 1 bytes.
+ */
+void device_generate_id(char* buffer);
 
 /**
  * Find the first device by type.

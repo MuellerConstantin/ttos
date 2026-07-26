@@ -8,7 +8,7 @@ typedef struct devinfo devinfo_t;
 
 struct devinfo {
     char name[64];
-    char uuid[37];
+    char id[16];
 };
 
 /**

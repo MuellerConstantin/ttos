@@ -8,7 +8,7 @@ typedef struct volinfo volinfo_t;
 
 struct volinfo {
     char name[64];
-    char uuid[37];
+    char id[16];
 };
 
 /**

@@ -33,7 +33,7 @@ int32_t initrd_init(void* memory_base, size_t memory_size) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    generate_uuid_v4(&device->info.id);
+    device_generate_id(device->info.id);
     strcpy(device->info.name, "Initial Ramdisk");
     device->info.type = DEVICE_TYPE_STORAGE;
     device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;

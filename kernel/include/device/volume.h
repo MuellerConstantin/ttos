@@ -16,6 +16,7 @@
 #include <device/device.h>
 #include <util/linked_list.h>
 #include <util/uuid.h>
+#include <util/shortid.h>
 
 typedef struct volume volume_t;
 typedef struct volume_operations volume_operations_t;
@@ -27,7 +28,7 @@ struct volume_operations {
 };
 
 struct volume {
-    uuid_t id;
+    char id[SHORT_ID_LENGTH + 1];
     char* name;
     size_t offset;
     size_t size;
@@ -63,12 +64,12 @@ size_t volume_register_device(storage_device_t* device);
 void volume_unregister_device(storage_device_t* device);
 
 /**
- * Find a volume by its ID.
- * 
+ * Find a volume by its short ID.
+ *
  * @param id The volume ID.
  * @return The volume or NULL if not found.
  */
-const volume_t* volume_find_by_id(uuid_t id);
+const volume_t* volume_find_by_id(const char* id);
 
 /**
  * Find a volume by its name.

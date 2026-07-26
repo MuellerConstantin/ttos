@@ -41,12 +41,12 @@ struct dirent {
 
 struct volinfo {
     char name[64];
-    char uuid[37];
+    char id[16];
 };
 
 struct devinfo {
     char name[64];
-    char uuid[37];
+    char id[16];
 };
 
 struct mntinfo {
@@ -703,7 +703,8 @@ static int32_t syscall_lsvol(isr_cpu_state_t *state) {
     strncpy(info->name, volume->name, sizeof(info->name));
     info->name[sizeof(info->name) - 1] = '\0';
 
-    uuid_v4_to_string(&volume->id, info->uuid);
+    strncpy(info->id, volume->id, sizeof(info->id));
+    info->id[sizeof(info->id) - 1] = '\0';
 
     return 0;
 }
@@ -756,7 +757,8 @@ static int32_t syscall_lsdev(isr_cpu_state_t *state) {
     strncpy(info->name, device->name, sizeof(info->name));
     info->name[sizeof(info->name) - 1] = '\0';
 
-    uuid_v4_to_string(&device->id, info->uuid);
+    strncpy(info->id, device->id, sizeof(info->id));
+    info->id[sizeof(info->id) - 1] = '\0';
 
     return 0;
 }

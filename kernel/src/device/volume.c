@@ -1,10 +1,12 @@
 #include <device/volume.h>
 #include <util/string.h>
+#include <util/shortid.h>
 #include <fs/mbr.h>
 #include <system/kpanic.h>
 
 static linked_list_t* volumes;
 
+static bool volume_id_exists(const char* id);
 static bool volume_unregister_device_compare(void* node_data, void* compare_data);
 static bool volume_find_by_id_compare(void* node_data, void* compare_data);
 static bool volume_find_by_name_compare(void* node_data, void* compare_data);
@@ -33,7 +35,7 @@ size_t volume_register_device(storage_device_t* device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&volume->id);
+        generate_short_id(volume->id, volume_id_exists);
         volume->name = (char*) kmalloc(strlen(device->info.name));
 
         if(!volume->name) {
@@ -85,7 +87,7 @@ size_t volume_register_device(storage_device_t* device) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&volume->id);
+        generate_short_id(volume->id, volume_id_exists);
 
         volume->name = (char*) kmalloc(strlen(device->info.name) + 4);
 
@@ -154,19 +156,23 @@ void volume_unregister_device(storage_device_t* device) {
 
 static bool volume_find_by_id_compare(void* node_data, void* compare_data) {
     volume_t* volume = (volume_t*) node_data;
-    uuid_t* id = (uuid_t*) compare_data;
+    const char* id = (const char*) compare_data;
 
-    return uuid_v4_compare(&volume->id, id) == 0;
+    return strcmp(volume->id, id) == 0;
 }
 
-const volume_t* volume_find_by_id(uuid_t id) {
-    linked_list_node_t* node = linked_list_find(volumes, volume_find_by_id_compare, &id);
+const volume_t* volume_find_by_id(const char* id) {
+    linked_list_node_t* node = linked_list_find(volumes, volume_find_by_id_compare, (void*) id);
 
     if(!node) {
         return NULL;
     }
 
     return (volume_t*) node->data;
+}
+
+static bool volume_id_exists(const char* id) {
+    return volume_find_by_id(id) != NULL;
 }
 
 static bool volume_find_by_name_compare(void* node_data, void* compare_data) {

@@ -44,7 +44,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&device->info.id);
+        device_generate_id(device->info.id);
         strcpy(device->info.name, "ATA Primary Master Drive");
         device->info.type = DEVICE_TYPE_STORAGE;
         device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
@@ -77,7 +77,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&device->info.id);
+        device_generate_id(device->info.id);
         strcpy(device->info.name, "ATA Primary Slave Drive");
         device->info.type = DEVICE_TYPE_STORAGE;
         device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
@@ -110,7 +110,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&device->info.id);
+        device_generate_id(device->info.id);
         strcpy(device->info.name, "ATA Secondary Master Drive");
         device->info.type = DEVICE_TYPE_STORAGE;
         device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
@@ -143,7 +143,7 @@ int32_t ata_init() {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&device->info.id);
+        device_generate_id(device->info.id);
         strcpy(device->info.name, "ATA Secondary Slave Drive");
         device->info.type = DEVICE_TYPE_STORAGE;
         device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;

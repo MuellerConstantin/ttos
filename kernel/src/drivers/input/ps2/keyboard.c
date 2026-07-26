@@ -67,7 +67,7 @@ int32_t ps2_keyboard_init(void) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    generate_uuid_v4(&device->info.id);
+    device_generate_id(device->info.id);
     strcpy(device->info.name, "PS/2 Keyboard");
     device->info.type = DEVICE_TYPE_KEYBOARD;
     device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;

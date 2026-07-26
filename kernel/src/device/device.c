@@ -1,6 +1,9 @@
 #include <device/device.h>
 #include <device/volume.h>
+#include <util/shortid.h>
 #include <system/kpanic.h>
+
+static bool device_id_exists(const char* id);
 
 generic_tree_t* device_tree;
 
@@ -33,7 +36,7 @@ void device_init() {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    generate_uuid_v4(&root_device->id);
+    device_generate_id(root_device->id);
     strcpy(root_device->name, "Computer");
     root_device->type = DEVICE_TYPE_RESERVED;
     root_device->bus.type = DEVICE_BUS_TYPE_RESERVED;
@@ -166,19 +169,27 @@ const linked_list_t* device_find_all_by_type(uint16_t type) {
 
 static bool _device_find_by_id_compare(void* node_data, void* compare_data) {
     device_t* node_device = (device_t*) node_data;
-    uuid_t* id = (uuid_t*) compare_data;
+    const char* id = (const char*) compare_data;
 
-    return uuid_v4_compare(&node_device->id, id) == 0;
+    return strcmp(node_device->id, id) == 0;
 }
 
-const device_t* device_find_by_id(uuid_t id) {
-    generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_id_compare, &id);
+const device_t* device_find_by_id(const char* id) {
+    generic_tree_node_t* node = generic_tree_find(device_tree, _device_find_by_id_compare, (void*) id);
 
     if(!node) {
         return NULL;
     }
 
     return (device_t*) node->data;
+}
+
+static bool device_id_exists(const char* id) {
+    return device_find_by_id(id) != NULL;
+}
+
+void device_generate_id(char* buffer) {
+    generate_short_id(buffer, device_id_exists);
 }
 
 static bool _device_find_by_name_compare(void* node_data, void* compare_data) {

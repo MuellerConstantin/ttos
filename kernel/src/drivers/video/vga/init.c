@@ -48,7 +48,7 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        generate_uuid_v4(&device->info.id);
+        device_generate_id(device->info.id);
         strcpy(device->info.name, "VGA Controller");
         device->info.type = DEVICE_TYPE_VIDEO;
         device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
