@@ -16,6 +16,8 @@ QEMU := qemu-system-i386
 
 ISODIR := iso
 
+LOOPDEV := $(shell sudo losetup -f)
+
 TARGET := kernel/kernel.elf
 INITRD := initrd.img
 HDA := hda.img
@@ -80,19 +82,19 @@ $(HDA):
 	dd if=/dev/zero of=$(HDA) bs=1M count=50
 	(echo n; echo p; echo 1; echo ; echo ; echo t; echo b; echo w) | fdisk $(HDA)
 
-	sudo losetup -P /dev/loop1 $(HDA)
+	sudo losetup -P $(LOOPDEV) $(HDA)
 
-	sudo mkfs.fat -F 32 /dev/loop1p1
+	sudo mkfs.fat -F 32 $(LOOPDEV)p1
 
 	mkdir -p mnt
 
-	sudo mount /dev/loop1p1 mnt
+	sudo mount $(LOOPDEV)p1 mnt
 
 	sudo cp -r hdd/* mnt
 
 	sudo umount mnt
 
-	sudo losetup -d /dev/loop1
+	sudo losetup -d $(LOOPDEV)
 
 	rm -rf mnt
 
@@ -101,18 +103,18 @@ $(SDA):
 	dd if=/dev/zero of=$(SDA) bs=1M count=50
 	(echo n; echo p; echo 1; echo ; echo ; echo t; echo b; echo w) | fdisk $(SDA)
 
-	sudo losetup -P /dev/loop1 $(SDA)
+	sudo losetup -P $(LOOPDEV) $(SDA)
 
-	sudo mkfs.fat -F 32 /dev/loop1p1
+	sudo mkfs.fat -F 32 $(LOOPDEV)p1
 
 	mkdir -p mnt
 
-	sudo mount /dev/loop1p1 mnt
+	sudo mount $(LOOPDEV)p1 mnt
 
 	sudo cp -r hdd/* mnt
 
 	sudo umount mnt
 
-	sudo losetup -d /dev/loop1
+	sudo losetup -d $(LOOPDEV)
 
 	rm -rf mnt
