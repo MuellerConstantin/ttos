@@ -64,12 +64,14 @@ struct process {
  * 
  * @param name Name of the process.
  * @param path Path to the executable.
+ * @param argc Number of arguments passed to the process.
+ * @param argv Argument vector (argv[0] is conventionally the program path).
  * @param out Output stream.
  * @param in Input stream.
  * @param err Error stream.
  * @return The new process.
  */
-process_t* process_create(const char* name, const char* path, stream_t* out, stream_t* in, stream_t* err);
+process_t* process_create(const char* name, const char* path, int argc, const char** argv, stream_t* out, stream_t* in, stream_t* err);
 
 /**
  * Destroy a process.

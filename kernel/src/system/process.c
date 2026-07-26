@@ -5,12 +5,13 @@
 #include <system/elf.h>
 #include <memory/kheap.h>
 #include <shell/shell.h>
+#include <util/string.h>
 
 static process_t* current_process = NULL;
 
 static pid_t process_next_pid();
 
-process_t* process_create(const char* name, const char* path, stream_t* out, stream_t* in, stream_t* err) {
+process_t* process_create(const char* name, const char* path, int argc, const char** argv, stream_t* out, stream_t* in, stream_t* err) {
     // Read the executable file
 
     file_stat_t executable_stat;
@@ -114,11 +115,52 @@ process_t* process_create(const char* name, const char* path, stream_t* out, str
     process->heap_base = NULL;
     process->heap_limit = NULL;
 
+    /*
+     * Build the initial user stack. The kernel copies the argument strings onto the stack and
+     * lays out an argv pointer array so that, on entry, esp points at argc with the argv array
+     * (argv[0] .. argv[argc - 1], NULL) directly above it. This has to happen while the new
+     * address space is active, as the stack pages only exist there.
+     */
+    uint32_t user_esp = (uint32_t) user_stack_limit + PAGE_SIZE;
+
+    uint32_t* arg_addresses = (uint32_t*) kmalloc((argc > 0 ? argc : 1) * sizeof(uint32_t));
+
+    if(!arg_addresses) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    // Copy each argument string onto the stack and remember its user-space address.
+    for(int index = argc - 1; index >= 0; index--) {
+        size_t length = strlen(argv[index]) + 1;
+        user_esp -= length;
+        memcpy((void*) user_esp, argv[index], length);
+        arg_addresses[index] = user_esp;
+    }
+
+    // Align the stack pointer before pushing pointer-sized values.
+    user_esp &= ~0x3u;
+
+    // NULL terminator of the argv array.
+    user_esp -= sizeof(uint32_t);
+    *((uint32_t*) user_esp) = 0;
+
+    // argv pointers, highest index first so argv[0] ends up adjacent to argc.
+    for(int index = argc - 1; index >= 0; index--) {
+        user_esp -= sizeof(uint32_t);
+        *((uint32_t*) user_esp) = arg_addresses[index];
+    }
+
+    // argc, sitting at the top of the stack on entry.
+    user_esp -= sizeof(uint32_t);
+    *((uint32_t*) user_esp) = (uint32_t) argc;
+
+    kfree(arg_addresses);
+
     // Switch back to former address space after loading the executable
     vmm_switch_address_space(former_address_space);
 
     process->context.eip = (uint32_t) elf_get_entry_point(executable_data, executable_stat.size);
-    process->context.esp = (uint32_t) process->stack_base;
+    process->context.esp = user_esp;
     process->context.eflags = 0x200;
 
     kfree(executable_data);

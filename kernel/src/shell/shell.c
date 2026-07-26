@@ -569,7 +569,7 @@ static void shell_run(size_t argc, const char *argv[]) {
         return;
     }
 
-    process_t* process = process_create("uprogram", argv[1], out_stream, in_stream, err_stream);
+    process_t* process = process_create("uprogram", argv[1], argc - 1, &argv[1], out_stream, in_stream, err_stream);
 
     if(!process) {
         stream_puts(err_stream, "Failed to run user program\n");
