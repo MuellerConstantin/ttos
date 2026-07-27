@@ -618,7 +618,7 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
 
         stream_puts(current_process->out, message);
 
-        kfree(buffer);
+        kfree(message);
         return size;
     }
 
@@ -630,7 +630,7 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
 
         stream_puts(current_process->err, message);
 
-        kfree(buffer);
+        kfree(message);
         return size;
     }
 
