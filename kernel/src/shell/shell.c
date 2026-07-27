@@ -16,7 +16,6 @@ static void shell_display_banner();
 static void shell_process_instruction(char *instruction);
 static void shell_paging(const char* buffer);
 static void shell_help(size_t argc, const char *argv[]);
-static void shell_clear(size_t argc, const char *argv[]);
 static void shell_run(size_t argc, const char *argv[]);
 
 void shell_init(stream_t* out, stream_t* in, stream_t* err) {
@@ -125,8 +124,6 @@ static void shell_process_instruction(char *instruction) {
 
     if(strcmp(command, "help") == 0) {
         shell_help(argc, argv);
-    } else if(strcmp(command, "clear") == 0) {
-        shell_clear(argc, argv);
     } else if(strcmp(command, "run") == 0) {
         shell_run(argc, argv);
     } else {
@@ -184,15 +181,9 @@ static void shell_paging(const char* buffer) {
 static void shell_help(size_t argc, const char *argv[]) {
     const char* help_message = "Available commands:\n\n"
         "help - Display this help message\n"
-        "clear - Clear the screen\n"
         "run <path> - Run a user program\n";
 
     shell_paging(help_message);
-}
-
-static void shell_clear(size_t argc, const char *argv[]) {
-    tty_t* tty = out_stream->data;
-    tty_clear(tty);
 }
 
 static void shell_run(size_t argc, const char *argv[]) {

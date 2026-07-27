@@ -42,6 +42,14 @@ struct tty_keyboard_layout {
     size_t keymap_size;
 };
 
+#define TTY_ANSI_MAX_PARAMS 8
+
+typedef enum {
+    TTY_ANSI_STATE_NORMAL = 0,
+    TTY_ANSI_STATE_ESC = 1,
+    TTY_ANSI_STATE_CSI = 2
+} tty_ansi_state_t;
+
 typedef struct tty tty_t;
 
 struct tty {
@@ -56,6 +64,12 @@ struct tty {
     video_device_t* video;
     keyboard_device_t* keyboard;
     tty_keyboard_layout_t* layout;
+
+    // Terminal escape-sequence parser state (see tty_render in tty.c).
+    tty_ansi_state_t ansi_state;
+    uint32_t ansi_params[TTY_ANSI_MAX_PARAMS];
+    size_t ansi_param_count;
+    uint32_t ansi_current;
 };
 
 extern tty_keyboard_layout_t tty_keyboard_layout_de_DE;

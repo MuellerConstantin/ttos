@@ -7,6 +7,8 @@ static tty_t* tty_stdterm = NULL;
 
 static void tty_keyboard_listener(keyboard_event_t* event);
 static void tty_render(tty_t* tty, char ch);
+static void tty_render_char(tty_t* tty, char ch);
+static void tty_csi_dispatch(tty_t* tty, char command);
 static tty_stream_putchar(stream_t* stream, char ch);
 static char tty_stream_getchar(stream_t* stream);
 static void tty_stream_puts(stream_t* stream, const char* str);
@@ -42,6 +44,10 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     tty->video = video;
     tty->keyboard = keyboard;
     tty->layout = layout;
+
+    tty->ansi_state = TTY_ANSI_STATE_NORMAL;
+    tty->ansi_param_count = 0;
+    tty->ansi_current = 0;
 
     tty->input = circular_buffer_create(TTY_BUFFER_SIZE, sizeof(char));
 
@@ -109,6 +115,65 @@ void tty_flush(tty_t* tty) {
 }
 
 static void tty_render(tty_t* tty, char ch) {
+    /*
+     * Terminal escape-sequence parser. Output bytes are fed through a small
+     * state machine so that programs can drive the terminal (clear, cursor
+     * positioning, ...) by writing ANSI/VT100 CSI sequences of the form
+     * ESC '[' params command. Anything that is not part of a recognized
+     * sequence is rendered normally.
+     */
+    switch(tty->ansi_state) {
+        case TTY_ANSI_STATE_NORMAL:
+            // Begin an escape sequence on ESC, otherwise render the character.
+            if(ch == 0x1B) {
+                tty->ansi_state = TTY_ANSI_STATE_ESC;
+                return;
+            }
+
+            break;
+        case TTY_ANSI_STATE_ESC:
+            // Only CSI sequences (ESC '[') are recognized; drop anything else.
+            if(ch == '[') {
+                tty->ansi_state = TTY_ANSI_STATE_CSI;
+                tty->ansi_param_count = 0;
+                tty->ansi_current = 0;
+            } else {
+                tty->ansi_state = TTY_ANSI_STATE_NORMAL;
+            }
+
+            return;
+        case TTY_ANSI_STATE_CSI:
+            // Accumulate a numeric parameter.
+            if(ch >= '0' && ch <= '9') {
+                tty->ansi_current = tty->ansi_current * 10 + (uint32_t) (ch - '0');
+                return;
+            }
+
+            // Parameter separator: commit the current number and start the next.
+            if(ch == ';') {
+                if(tty->ansi_param_count < TTY_ANSI_MAX_PARAMS) {
+                    tty->ansi_params[tty->ansi_param_count++] = tty->ansi_current;
+                }
+
+                tty->ansi_current = 0;
+                return;
+            }
+
+            // Any other byte is the final byte: commit the pending number and
+            // dispatch the command.
+            if(tty->ansi_param_count < TTY_ANSI_MAX_PARAMS) {
+                tty->ansi_params[tty->ansi_param_count++] = tty->ansi_current;
+            }
+
+            tty_csi_dispatch(tty, ch);
+            tty->ansi_state = TTY_ANSI_STATE_NORMAL;
+            return;
+    }
+
+    tty_render_char(tty, ch);
+}
+
+static void tty_render_char(tty_t* tty, char ch) {
     switch(ch) {
         case '\n':
             tty->cursor_x = 0;
@@ -147,6 +212,41 @@ static void tty_render(tty_t* tty, char ch) {
     }
 
     tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+}
+
+static void tty_csi_dispatch(tty_t* tty, char command) {
+    switch(command) {
+        case 'J': {
+            // Erase display. Only mode 2 (entire screen) is supported for now.
+            if(tty->ansi_params[0] == 2) {
+                tty_clear(tty);
+            }
+
+            break;
+        }
+        case 'H':
+        case 'f': {
+            // Cursor position. Parameters are 1-based and default to top-left.
+            uint32_t row = tty->ansi_params[0] ? tty->ansi_params[0] : 1;
+            uint32_t col = (tty->ansi_param_count > 1 && tty->ansi_params[1]) ? tty->ansi_params[1] : 1;
+
+            if(row > tty->rows) {
+                row = tty->rows;
+            }
+
+            if(col > tty->columns) {
+                col = tty->columns;
+            }
+
+            tty->cursor_y = row - 1;
+            tty->cursor_x = col - 1;
+            tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            break;
+        }
+        default:
+            // Unsupported CSI command; ignore.
+            break;
+    }
 }
 
 stream_t* tty_get_out_stream(tty_t* tty) {
