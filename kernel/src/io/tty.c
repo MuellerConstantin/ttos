@@ -1,6 +1,7 @@
 #include <io/tty.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
+#include <system/process.h>
 #include <device/keyboard.h>
 
 static tty_t* tty_stdterm = NULL;
@@ -77,10 +78,15 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
     }
 
     static bool shift = false;
+    static bool ctrl = false;
 
     if(!event->pressed) {
         if(event->keycode == KEYBOARD_KEYCODE_LEFT_SHIFT || event->keycode == KEYBOARD_KEYCODE_RIGHT_SHIFT) {
             shift = false;
+        }
+
+        if(event->keycode == KEYBOARD_KEYCODE_LEFT_CONTROL || event->keycode == KEYBOARD_KEYCODE_RIGHT_CONTROL) {
+            ctrl = false;
         }
 
         return;
@@ -91,8 +97,33 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
         return;
     }
 
+    if(event->keycode == KEYBOARD_KEYCODE_LEFT_CONTROL || event->keycode == KEYBOARD_KEYCODE_RIGHT_CONTROL) {
+        ctrl = true;
+        return;
+    }
+
     if(event->keycode == KEYBOARD_KEYCODE_CAPS_LOCK) {
         shift = !shift;
+        return;
+    }
+
+    /*
+     * Ctrl+C interrupts the foreground process and hands control back to its
+     * parent. Only a process launched from the shell is interruptible (i.e. one
+     * that has a parent which itself has a parent), so the shell and init are
+     * never killed. The keystroke is always swallowed.
+     */
+    if(ctrl && event->keycode == KEYBOARD_KEYCODE_C) {
+        const process_t* current = process_get_current();
+
+        if(current != NULL && current->parent != NULL && current->parent->parent != NULL) {
+            tty_puts(tty, "^C\n");
+
+            // 128 + SIGINT(2), mirroring the conventional shell exit code.
+            // Does not return: the parent process is resumed.
+            process_kill_current(130);
+        }
+
         return;
     }
 

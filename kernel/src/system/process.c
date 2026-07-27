@@ -270,6 +270,18 @@ void process_terminate(process_t* process) {
     KPANIC(KPANIC_INIT_DIED_CODE, KPANIC_INIT_DIED_MESSAGE, NULL);
 }
 
+void process_kill_current(int32_t exit_code) {
+    if(current_process == NULL) {
+        return;
+    }
+
+    current_process->exit_code = exit_code;
+    current_process->exception_code = -1;
+
+    // Resumes the parent via process_terminate; does not return here.
+    process_terminate(current_process);
+}
+
 const process_t* process_get_current() {
     return current_process;
 }

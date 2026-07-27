@@ -101,10 +101,19 @@ void process_run(process_t* process);
 
 /**
  * Terminate a process.
- * 
+ *
  * @param process The process to terminate.
  */
 void process_terminate(process_t* process);
+
+/**
+ * Terminate the currently running process from outside a syscall (e.g. from an
+ * interrupt handler, for Ctrl+C) and resume its parent with the given exit code.
+ * Does not return when the current process has a userland parent.
+ *
+ * @param exit_code The exit code delivered to the resumed parent.
+ */
+void process_kill_current(int32_t exit_code);
 
 /**
  * Get the current process.
