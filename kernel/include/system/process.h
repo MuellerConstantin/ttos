@@ -49,7 +49,8 @@ struct process {
      * When this process spawns a child and blocks on it, its full CPU state at
      * the spawn syscall boundary is stored here so process_terminate can resume
      * it once the child exits. parent points at the process to resume, or NULL
-     * for processes without a userland parent (e.g. started from the shell).
+     * for a process without a userland parent (the init process launched by the
+     * kernel).
      */
     struct process* parent;
     isr_cpu_state_t saved_state;

@@ -22,6 +22,9 @@ char *gets(char *str) {
         index++;
     }
 
+    // Echo the newline that terminated the line, mirroring canonical-mode input.
+    putchar('\n');
+
     str[index] = '\0';
 
     return str;

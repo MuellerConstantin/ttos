@@ -26,7 +26,7 @@
 #include <fs/mount.h>
 #include <io/tty.h>
 #include <io/stream.h>
-#include <shell/shell.h>
+#include <system/process.h>
 
 static void init_platform(multiboot_info_t *multiboot_info);
 static void init_kernel(multiboot_info_t *multiboot_info);
@@ -172,8 +172,18 @@ static void init_console() {
     stream_t* in_stream = tty_get_in_stream(tty0);
     stream_t* err_stream = tty_get_err_stream(tty0);
 
-    // Initialize the CLI
+    // Launch the init process (PID 1). It runs in userland, never exits and is
+    // responsible for keeping a shell running. process_run does not return; if
+    // init ever exits, process_terminate raises a kernel panic.
 
-    shell_init(out_stream, in_stream, err_stream);
-    shell_execute();
+    const char* init_path = "A:/init.elf";
+    const char* init_argv[] = { init_path };
+
+    process_t* init = process_create("init", init_path, 1, init_argv, out_stream, in_stream, err_stream);
+
+    if(!init) {
+        KPANIC(KPANIC_INIT_START_FAILED_CODE, KPANIC_INIT_START_FAILED_MESSAGE, NULL);
+    }
+
+    process_run(init);
 }

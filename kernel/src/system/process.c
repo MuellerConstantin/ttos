@@ -4,7 +4,6 @@
 #include <system/kpanic.h>
 #include <system/elf.h>
 #include <memory/kheap.h>
-#include <shell/shell.h>
 #include <util/string.h>
 
 static process_t* current_process = NULL;
@@ -264,9 +263,11 @@ void process_terminate(process_t* process) {
         // context_restore does not return.
     }
 
-    // No userland parent: return to the kernel shell, later a scheduler will take control
-    isr_sti();
-    shell_revert(exit_code, exception_code);
+    /*
+     * A process without a userland parent is the init process (PID 1). It is
+     * expected to run forever, so its termination is a fatal condition.
+     */
+    KPANIC(KPANIC_INIT_DIED_CODE, KPANIC_INIT_DIED_MESSAGE, NULL);
 }
 
 const process_t* process_get_current() {

@@ -57,6 +57,12 @@
 #define KPANIC_NO_OUTPUT_DEVICE_FOUND_CODE      KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(3)
 #define KPANIC_NO_OUTPUT_DEVICE_FOUND_MESSAGE   "No output device found"
 
+#define KPANIC_INIT_START_FAILED_CODE           KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(4)
+#define KPANIC_INIT_START_FAILED_MESSAGE        "Failed to start the init process"
+
+#define KPANIC_INIT_DIED_CODE                   KPANIC_INFRASTRUCTURE_EXCEPTION_TYPE(5)
+#define KPANIC_INIT_DIED_MESSAGE                "The init process exited"
+
 /*
  * Memory exceptions
  *
