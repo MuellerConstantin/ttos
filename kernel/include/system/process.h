@@ -5,6 +5,7 @@
 #include <memory/vmm.h>
 #include <io/stream.h>
 #include <io/file.h>
+#include <arch/i386/isr.h>
 
 #define PROCESS_MAX_FILE_DESCRIPTORS 32
 
@@ -28,7 +29,8 @@ struct process_context {
 typedef enum {
     PROCESS_STATE_READY = 0,
     PROCESS_STATE_RUNNING = 1,
-    PROCESS_STATE_EXITED = 2
+    PROCESS_STATE_EXITED = 2,
+    PROCESS_STATE_WAITING = 3
 } process_state_t;
 
 typedef struct process process_t;
@@ -42,6 +44,15 @@ struct process {
 
     page_directory_t* address_space;
     process_context_t context;
+
+    /*
+     * When this process spawns a child and blocks on it, its full CPU state at
+     * the spawn syscall boundary is stored here so process_terminate can resume
+     * it once the child exits. parent points at the process to resume, or NULL
+     * for processes without a userland parent (e.g. started from the shell).
+     */
+    struct process* parent;
+    isr_cpu_state_t saved_state;
 
     void* stack_base;
     void* stack_limit;

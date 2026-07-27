@@ -177,6 +177,10 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
         process->files[index] = NULL;
     }
 
+    // Initialize the parent relationship (set by the spawn syscall if any)
+
+    process->parent = NULL;
+
     // Initialize the signals
 
     process->exit_code = 0;
@@ -232,10 +236,35 @@ void process_run(process_t* process) {
 void process_terminate(process_t* process) {
     int32_t exit_code = process->exit_code;
     int32_t exception_code = process->exception_code;
+    process_t* parent = process->parent;
 
+    /*
+     * Destroy the exiting process while its own address space is still the
+     * active one, so that vmm_destroy_address_space tears down the exiting
+     * process' user space (it operates on the current address space) and not
+     * some other process'. This leaves the kernel page directory active.
+     */
     process_destroy(process);
 
-    // For now return to the kernel shell, later a scheduler will take control
+    if(parent != NULL) {
+        /*
+         * The process was spawned by a waiting userland parent. Switch into the
+         * parent's address space and resume it right after its spawn syscall,
+         * handing it the child's exit code as the syscall return value. A child
+         * that faulted is reported as -1.
+         */
+        vmm_switch_address_space(parent->address_space);
+
+        current_process = parent;
+        parent->state = PROCESS_STATE_RUNNING;
+        parent->saved_state.eax = (exception_code != -1) ? (uint32_t) -1 : (uint32_t) exit_code;
+
+        context_restore(&parent->saved_state);
+
+        // context_restore does not return.
+    }
+
+    // No userland parent: return to the kernel shell, later a scheduler will take control
     isr_sti();
     shell_revert(exit_code, exception_code);
 }

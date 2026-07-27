@@ -25,6 +25,7 @@
 #define SYSCALL_UPTIME 0x16
 #define SYSCALL_MEMMAP 0x17
 #define SYSCALL_GET_KHEAPINFO 0x18
+#define SYSCALL_SPAWN 0x19
 
 /**
  * Initializes the syscall handler.

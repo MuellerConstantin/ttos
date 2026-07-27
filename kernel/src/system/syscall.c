@@ -428,6 +428,28 @@ static int32_t syscall_memmap(isr_cpu_state_t *state);
  */
 static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
 
+/**
+ * Spawn syscall handler.
+ *
+ * Creates a new child process from an executable and runs it to completion,
+ * blocking the caller until the child exits. The caller is resumed by
+ * process_terminate once the child exits.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Path to the executable (user pointer)
+ *
+ * - ecx: NULL terminated argument vector (user pointer, argv[0] is the path)
+ *
+ * On success this syscall returns the child's exit code (delivered when the
+ * child exits); it returns -1 if the child could not be created.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_spawn(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -522,6 +544,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_GET_KHEAPINFO: {
             state->eax = syscall_get_kheapinfo(state);
+            break;
+        }
+        case SYSCALL_SPAWN: {
+            state->eax = syscall_spawn(state);
             break;
         }
         default: {
@@ -1031,5 +1057,91 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state) {
     info->total = kheap_get_total_memory_size();
     info->free = kheap_get_available_memory_size();
 
+    return 0;
+}
+
+static int32_t syscall_spawn(isr_cpu_state_t *state) {
+    const char* user_path = (const char*) state->ebx;
+    char** user_argv = (char**) state->ecx;
+
+    process_t* parent = process_get_current();
+
+    if(!parent || !user_path) {
+        return -1;
+    }
+
+    /*
+     * Marshal the path and argument vector out of the parent's user address
+     * space into kernel memory. process_create copies the argv strings only
+     * after switching into the child's address space, where the parent's user
+     * pointers are no longer mapped. The kernel heap, on the other hand, is
+     * mapped in every address space, so the copies stay valid across the switch.
+     */
+
+    size_t path_length = strlen(user_path) + 1;
+    char* kernel_path = kmalloc(path_length);
+
+    if(!kernel_path) {
+        return -1;
+    }
+
+    memcpy(kernel_path, user_path, path_length);
+
+    // argv is NULL terminated; argv[0] is conventionally the executable path.
+    int argc = 0;
+
+    if(user_argv) {
+        while(user_argv[argc] != NULL) {
+            argc++;
+        }
+    }
+
+    char** kernel_argv = kmalloc((argc > 0 ? argc : 1) * sizeof(char*));
+
+    if(!kernel_argv) {
+        kfree(kernel_path);
+        return -1;
+    }
+
+    for(int index = 0; index < argc; index++) {
+        size_t length = strlen(user_argv[index]) + 1;
+        kernel_argv[index] = kmalloc(length);
+
+        if(!kernel_argv[index]) {
+            for(int cleanup = 0; cleanup < index; cleanup++) {
+                kfree(kernel_argv[cleanup]);
+            }
+
+            kfree(kernel_argv);
+            kfree(kernel_path);
+            return -1;
+        }
+
+        memcpy(kernel_argv[index], user_argv[index], length);
+    }
+
+    // Preserve the parent's context so it can be resumed once the child exits.
+    parent->saved_state = *state;
+
+    process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, parent->out, parent->in, parent->err);
+
+    // process_create has copied path and arguments onto the child's stack.
+    for(int index = 0; index < argc; index++) {
+        kfree(kernel_argv[index]);
+    }
+
+    kfree(kernel_argv);
+    kfree(kernel_path);
+
+    if(!child) {
+        return -1;
+    }
+
+    child->parent = parent;
+    parent->state = PROCESS_STATE_WAITING;
+
+    process_run(child);
+
+    // process_run does not return; the parent is resumed via process_terminate.
     return 0;
 }

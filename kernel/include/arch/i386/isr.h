@@ -160,6 +160,16 @@ uint32_t isr_register_listener(isr_interrupt_t selector, isr_interrupt_listener_
 uint32_t isr_unregister_listener(isr_interrupt_t selector);
 
 /**
+ * Restores a previously saved CPU state and returns into it via iret.
+ *
+ * Used to resume a userland process that was suspended at a syscall boundary
+ * (e.g. a parent waiting for a spawned child). Does not return.
+ *
+ * @param state The CPU state to restore.
+ */
+extern void context_restore(isr_cpu_state_t* state);
+
+/**
  * Enables maskable interrupts.
  */
 void isr_sti();

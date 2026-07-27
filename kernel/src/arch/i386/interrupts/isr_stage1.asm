@@ -38,6 +38,35 @@ isr_stage1:
 
     iret
 
+; void context_restore(isr_cpu_state_t* state)
+;
+; Resumes a previously saved CPU state by pointing esp at the saved frame and
+; running the same restore sequence as the isr_stage1 epilogue. Used to return
+; into a waiting userland parent after its child has exited.
+;
+; Note: no 'sti' is issued here. esp temporarily points into a kernel heap
+; buffer (the saved frame), so an interrupt firing before the iret could corrupt
+; adjacent memory. iret restores eflags (with IF set) atomically instead.
+
+[GLOBAL context_restore]
+
+context_restore:
+
+    mov eax, [esp + 0x04]   ; Pointer to the saved isr_cpu_state
+    mov esp, eax            ; Point esp at the saved frame (ds field first)
+
+    pop ebx                 ; Restore original data segment descriptor
+    mov ds, bx
+    mov es, bx
+    mov fs, bx
+    mov gs, bx
+
+    popa
+
+    add esp, 0x08           ; Skip saved interrupt number and error code
+
+    iret
+
 %macro EXC_CODELESS 1
 
 	[GLOBAL exc%1]
