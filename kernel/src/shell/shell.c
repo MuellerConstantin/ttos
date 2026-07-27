@@ -5,7 +5,6 @@
 #include <system/process.h>
 #include <memory/pmm.h>
 #include <arch/i386/isr.h>
-#include <system/kmessage.h>
 #include <system/timer.h>
 #include <io/file.h>
 #include <io/dir.h>
@@ -23,8 +22,6 @@ static void shell_clear(size_t argc, const char *argv[]);
 static void shell_echo(size_t argc, const char *argv[]);
 static void shell_memory_usage(size_t argc, const char *argv[]);
 static void shell_memory_map(size_t argc, const char *argv[]);
-static void shell_dmesg(size_t argc, const char *argv[]);
-static void shell_lsdir(size_t argc, const char *argv[]);
 static void shell_kheap_usage(size_t argc, const char *argv[]);
 static void shell_uptime(size_t argc, const char *argv[]);
 static void shell_run(size_t argc, const char *argv[]);
@@ -143,8 +140,6 @@ static void shell_process_instruction(char *instruction) {
         shell_kheap_usage(argc, argv);
     } else if(strcmp(command, "memmap") == 0) {
         shell_memory_map(argc, argv);
-    } else if(strcmp(command, "dmesg") == 0) {
-        shell_dmesg(argc, argv);
     } else if(strcmp(command, "uptime") == 0) {
         shell_uptime(argc, argv);
     } else if(strcmp(command, "run") == 0) {
@@ -208,7 +203,6 @@ static void shell_help(size_t argc, const char *argv[]) {
         "memusage - Display memory usage\n"
         "kheapusage - Display kernel heap usage\n"
         "memmap - Display memory map\n"
-        "dmesg - Display kernel messages\n"
         "uptime - Display system uptime\n"
         "run <path> - Run a user program\n";
 
@@ -252,38 +246,6 @@ static void shell_memory_map(size_t argc, const char *argv[]) {
 
         stream_printf(out_stream, "Memory region: %x - %x (%d bytes) Type: %x\n", region->base, region->base + region->length - 1, region->length, region->type);
     }
-}
-
-static void shell_dmesg(size_t argc, const char *argv[]) {
-    const linked_list_t* messages = kmessage_get_messages();
-    
-    char* message_buffer = kmalloc(1024);
-
-    if(message_buffer == NULL) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
-    }
-
-    message_buffer[0] = '\0';
-
-    linked_list_foreach(messages, node) {
-        kmessage_message_t* message = (kmessage_message_t*) node->data;
-
-        message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(message->level) + strlen(message->message) + 5);
-
-        if(message_buffer == NULL) {
-            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
-        }
-
-        strcat(message_buffer, "[");
-        strcat(message_buffer, message->level);
-        strcat(message_buffer, "] ");
-        strcat(message_buffer, message->message);
-        strcat(message_buffer, "\n");
-    }
-
-    shell_paging(message_buffer);
-
-    kfree(message_buffer);
 }
 
 static void shell_uptime(size_t argc, const char *argv[]) {

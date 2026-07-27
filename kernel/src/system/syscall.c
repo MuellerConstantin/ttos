@@ -7,6 +7,7 @@
 #include <device/device.h>
 #include <device/volume.h>
 #include <fs/mount.h>
+#include <system/kmessage.h>
 #include <util/generic_tree.h>
 #include <util/linked_list.h>
 #include <util/uuid.h>
@@ -51,6 +52,11 @@ struct devinfo {
 
 struct mntinfo {
     char drive;
+};
+
+struct dmesg_entry {
+    char level[16];
+    char message[256];
 };
 
 static void syscall_handler(isr_cpu_state_t *state);
@@ -352,6 +358,23 @@ static int32_t syscall_mount(isr_cpu_state_t *state);
  */
 static int32_t syscall_unmount(isr_cpu_state_t *state);
 
+/**
+ * Kernel message log syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Index of the message to query
+ *
+ * - ecx: Pointer to a user dmesg_entry struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the index is out of range or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_dmesg(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -430,6 +453,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_UNMOUNT: {
             state->eax = syscall_unmount(state);
+            break;
+        }
+        case SYSCALL_DMESG: {
+            state->eax = syscall_dmesg(state);
             break;
         }
         default: {
@@ -867,6 +894,33 @@ static int32_t syscall_unmount(isr_cpu_state_t *state) {
     if(mnt_volume_unmount(drive) != 0) {
         return -2;
     }
+
+    return 0;
+}
+
+static int32_t syscall_dmesg(isr_cpu_state_t *state) {
+    uint32_t index = state->ebx;
+    struct dmesg_entry* entry = (struct dmesg_entry*) state->ecx;
+
+    if(!entry) {
+        return -1;
+    }
+
+    // Index-based iterator over the kernel message log, so userland can walk it
+    // by calling with 0, 1, 2, ... until -1 signals the end.
+    linked_list_node_t* node = linked_list_get((linked_list_t*) kmessage_get_messages(), index);
+
+    if(!node) {
+        return -1;
+    }
+
+    kmessage_message_t* message = (kmessage_message_t*) node->data;
+
+    strncpy(entry->level, message->level, sizeof(entry->level));
+    entry->level[sizeof(entry->level) - 1] = '\0';
+
+    strncpy(entry->message, message->message, sizeof(entry->message));
+    entry->message[sizeof(entry->message) - 1] = '\0';
 
     return 0;
 }

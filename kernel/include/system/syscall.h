@@ -21,6 +21,7 @@
 #define SYSCALL_LSMNT 0x12
 #define SYSCALL_MOUNT 0x13
 #define SYSCALL_UNMOUNT 0x14
+#define SYSCALL_DMESG 0x15
 
 /**
  * Initializes the syscall handler.
