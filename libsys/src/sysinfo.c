@@ -40,6 +40,41 @@ int32_t sysinfo_get_meminfo(meminfo_t* info) {
     return return_value;
 }
 
+int32_t sysinfo_get_kheapinfo(meminfo_t* info) {
+    uint32_t return_value = 0;
+
+    __asm__ volatile(
+        "mov %1, %%ebx\n"
+        "mov $0x18, %%eax\n"
+        "int $0x80\n"
+        "mov %%eax, %0\n"
+        : "=r"(return_value)
+        : "r"(info)
+        : "%eax", "%ebx"
+    );
+
+    if(return_value < 0) {
+        return -1;
+    }
+
+    return return_value;
+}
+
+uint32_t sysinfo_get_uptime(void) {
+    uint32_t return_value = 0;
+
+    __asm__ volatile(
+        "mov $0x16, %%eax\n"
+        "int $0x80\n"
+        "mov %%eax, %0\n"
+        : "=r"(return_value)
+        :
+        : "%eax"
+    );
+
+    return return_value;
+}
+
 int32_t sysinfo_get_terminfo(terminfo_t* info) {
     uint32_t return_value = 0;
 

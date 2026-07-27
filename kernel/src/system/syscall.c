@@ -8,6 +8,8 @@
 #include <device/volume.h>
 #include <fs/mount.h>
 #include <system/kmessage.h>
+#include <system/timer.h>
+#include <memory/kheap.h>
 #include <util/generic_tree.h>
 #include <util/linked_list.h>
 #include <util/uuid.h>
@@ -57,6 +59,12 @@ struct mntinfo {
 struct dmesg_entry {
     char level[16];
     char message[256];
+};
+
+struct memregion {
+    uint32_t base;
+    uint32_t length;
+    uint32_t type;
 };
 
 static void syscall_handler(isr_cpu_state_t *state);
@@ -375,6 +383,51 @@ static int32_t syscall_unmount(isr_cpu_state_t *state);
  */
 static int32_t syscall_dmesg(isr_cpu_state_t *state);
 
+/**
+ * Uptime syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * Syscall returns the system uptime in seconds.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_uptime(isr_cpu_state_t *state);
+
+/**
+ * Memory map syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Index of the memory region to query
+ *
+ * - ecx: Pointer to a user memregion struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the index is out of range or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_memmap(isr_cpu_state_t *state);
+
+/**
+ * Get kernel heap info syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to a meminfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -457,6 +510,18 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_DMESG: {
             state->eax = syscall_dmesg(state);
+            break;
+        }
+        case SYSCALL_UPTIME: {
+            state->eax = syscall_uptime(state);
+            break;
+        }
+        case SYSCALL_MEMMAP: {
+            state->eax = syscall_memmap(state);
+            break;
+        }
+        case SYSCALL_GET_KHEAPINFO: {
+            state->eax = syscall_get_kheapinfo(state);
             break;
         }
         default: {
@@ -921,6 +986,50 @@ static int32_t syscall_dmesg(isr_cpu_state_t *state) {
 
     strncpy(entry->message, message->message, sizeof(entry->message));
     entry->message[sizeof(entry->message) - 1] = '\0';
+
+    return 0;
+}
+
+static int32_t syscall_uptime(isr_cpu_state_t *state) {
+    (void) state;
+
+    return (int32_t) timer_get_uptime();
+}
+
+static int32_t syscall_memmap(isr_cpu_state_t *state) {
+    uint32_t index = state->ebx;
+    struct memregion* region = (struct memregion*) state->ecx;
+
+    if(!region) {
+        return -1;
+    }
+
+    // Index-based iterator over the PMM memory regions, so userland can walk
+    // them by calling with 0, 1, 2, ... until -1 signals the end.
+    linked_list_node_t* node = linked_list_get((linked_list_t*) pmm_get_memory_regions(), index);
+
+    if(!node) {
+        return -1;
+    }
+
+    pmm_memory_region_t* memory_region = (pmm_memory_region_t*) node->data;
+
+    region->base = memory_region->base;
+    region->length = memory_region->length;
+    region->type = memory_region->type;
+
+    return 0;
+}
+
+static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state) {
+    struct meminfo* info = (struct meminfo*) state->ebx;
+
+    if(!info) {
+        return -1;
+    }
+
+    info->total = kheap_get_total_memory_size();
+    info->free = kheap_get_available_memory_size();
 
     return 0;
 }

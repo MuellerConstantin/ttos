@@ -26,7 +26,7 @@ IMAGE := ttos-$(VERSION)-$(PLATFORM)-$(ARCH).iso
 
 # Userland binaries that must live on the initrd (bootstrap + rescue set).
 # Everything else built into userland/bin is deployed to the disk images.
-INITRD_BINS := init.elf lsvol.elf poweroff.elf lsdev.elf lsmnt.elf mount.elf unmount.elf dmesg.elf
+INITRD_BINS := init.elf lsvol.elf poweroff.elf lsdev.elf lsmnt.elf mount.elf unmount.elf dmesg.elf uptime.elf memusage.elf memmap.elf kheapusage.elf
 
 # find-expression that excludes the initrd binaries when populating the disks,
 # keeping the initrd set and the disk set a single source of truth.

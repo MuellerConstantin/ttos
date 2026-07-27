@@ -22,6 +22,9 @@
 #define SYSCALL_MOUNT 0x13
 #define SYSCALL_UNMOUNT 0x14
 #define SYSCALL_DMESG 0x15
+#define SYSCALL_UPTIME 0x16
+#define SYSCALL_MEMMAP 0x17
+#define SYSCALL_GET_KHEAPINFO 0x18
 
 /**
  * Initializes the syscall handler.

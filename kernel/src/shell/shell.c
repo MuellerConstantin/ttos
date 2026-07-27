@@ -3,9 +3,7 @@
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 #include <system/process.h>
-#include <memory/pmm.h>
 #include <arch/i386/isr.h>
-#include <system/timer.h>
 #include <io/file.h>
 #include <io/dir.h>
 #include <io/tty.h>
@@ -19,11 +17,6 @@ static void shell_process_instruction(char *instruction);
 static void shell_paging(const char* buffer);
 static void shell_help(size_t argc, const char *argv[]);
 static void shell_clear(size_t argc, const char *argv[]);
-static void shell_echo(size_t argc, const char *argv[]);
-static void shell_memory_usage(size_t argc, const char *argv[]);
-static void shell_memory_map(size_t argc, const char *argv[]);
-static void shell_kheap_usage(size_t argc, const char *argv[]);
-static void shell_uptime(size_t argc, const char *argv[]);
 static void shell_run(size_t argc, const char *argv[]);
 
 void shell_init(stream_t* out, stream_t* in, stream_t* err) {
@@ -134,14 +127,6 @@ static void shell_process_instruction(char *instruction) {
         shell_help(argc, argv);
     } else if(strcmp(command, "clear") == 0) {
         shell_clear(argc, argv);
-    } else if(strcmp(command, "memusage") == 0) {
-        shell_memory_usage(argc, argv);
-    } else if(strcmp(command, "kheapusage") == 0) {
-        shell_kheap_usage(argc, argv);
-    } else if(strcmp(command, "memmap") == 0) {
-        shell_memory_map(argc, argv);
-    } else if(strcmp(command, "uptime") == 0) {
-        shell_uptime(argc, argv);
     } else if(strcmp(command, "run") == 0) {
         shell_run(argc, argv);
     } else {
@@ -200,10 +185,6 @@ static void shell_help(size_t argc, const char *argv[]) {
     const char* help_message = "Available commands:\n\n"
         "help - Display this help message\n"
         "clear - Clear the screen\n"
-        "memusage - Display memory usage\n"
-        "kheapusage - Display kernel heap usage\n"
-        "memmap - Display memory map\n"
-        "uptime - Display system uptime\n"
         "run <path> - Run a user program\n";
 
     shell_paging(help_message);
@@ -212,80 +193,6 @@ static void shell_help(size_t argc, const char *argv[]) {
 static void shell_clear(size_t argc, const char *argv[]) {
     tty_t* tty = out_stream->data;
     tty_clear(tty);
-}
-
-static void shell_memory_usage(size_t argc, const char *argv[]) {
-    size_t total_memory = pmm_get_total_memory_size();
-    size_t free_memory = pmm_get_available_memory_size();
-
-    double total_memory_mb = total_memory / 1024 / 1024;
-    double free_memory_mb = free_memory / 1024 / 1024;
-    double used_memory_mb = total_memory_mb - free_memory_mb;
-    double used_memory_percentage = (used_memory_mb / total_memory_mb) * 100;
-
-    stream_printf(out_stream, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
-}
-
-static void shell_kheap_usage(size_t argc, const char *argv[]) {
-    size_t total_memory = kheap_get_total_memory_size();
-    size_t free_memory = kheap_get_available_memory_size();
-
-    double total_memory_mb = total_memory / 1024 / 1024;
-    double free_memory_mb = free_memory / 1024 / 1024;
-    double used_memory_mb = total_memory_mb - free_memory_mb;
-    double used_memory_percentage = (used_memory_mb / total_memory_mb) * 100;
-
-    stream_printf(out_stream, "%f MB / %f MB (%f%%) used\n", used_memory_mb, total_memory_mb, used_memory_percentage);
-}
-
-static void shell_memory_map(size_t argc, const char *argv[]) {
-    const linked_list_t* pmm_memory_regions = pmm_get_memory_regions();
-
-    linked_list_foreach(pmm_memory_regions, node) {
-        pmm_memory_region_t* region = (pmm_memory_region_t*) node->data;
-
-        stream_printf(out_stream, "Memory region: %x - %x (%d bytes) Type: %x\n", region->base, region->base + region->length - 1, region->length, region->type);
-    }
-}
-
-static void shell_uptime(size_t argc, const char *argv[]) {
-    uint32_t uptime = timer_get_uptime();
-
-    uint32_t weeks, days, hours, minutes, seconds;
-
-    seconds = uptime;
-
-    weeks = seconds / (60 * 60 * 24 * 7);
-    seconds %= (60 * 60 * 24 * 7);
-
-    days = seconds / (60 * 60 * 24);
-    seconds %= (60 * 60 * 24);
-
-    hours = seconds / (60 * 60);
-    seconds %= (60 * 60);
-
-    minutes = seconds / 60;
-    seconds %= 60;
-
-    stream_printf(out_stream, "up ");
-
-    if(weeks > 0) {
-        stream_printf(out_stream, "%d weeks, ", weeks);
-    }
-
-    if(days > 0) {
-        stream_printf(out_stream, "%d days, ", days);
-    }
-
-    if(hours > 0) {
-        stream_printf(out_stream, "%d hours, ", hours);
-    }
-
-    if(minutes > 0) {
-        stream_printf(out_stream, "%d minutes, ", minutes);
-    }
-
-    stream_printf(out_stream, "%d seconds\n", seconds);
 }
 
 static void shell_run(size_t argc, const char *argv[]) {
