@@ -19,6 +19,8 @@
 #define SYSCALL_POWEROFF 0x10
 #define SYSCALL_LSDEV 0x11
 #define SYSCALL_LSMNT 0x12
+#define SYSCALL_MOUNT 0x13
+#define SYSCALL_UNMOUNT 0x14
 
 /**
  * Initializes the syscall handler.

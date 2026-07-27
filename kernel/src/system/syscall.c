@@ -318,6 +318,40 @@ static int32_t syscall_lsdev(isr_cpu_state_t *state);
  */
 static int32_t syscall_lsmnt(isr_cpu_state_t *state);
 
+/**
+ * Mount syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Drive letter to mount to
+ *
+ * - ecx: Pointer to the short id of the volume to mount
+ *
+ * Syscall returns 0 on success, -1 if the volume was not found, -2 if the
+ * drive is already in use, or -3 if the mount failed.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_mount(isr_cpu_state_t *state);
+
+/**
+ * Unmount syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Drive letter to unmount
+ *
+ * Syscall returns 0 on success, -1 if the drive is not mounted, or -2 if the
+ * unmount failed.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_unmount(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -388,6 +422,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_LSMNT: {
             state->eax = syscall_lsmnt(state);
+            break;
+        }
+        case SYSCALL_MOUNT: {
+            state->eax = syscall_mount(state);
+            break;
+        }
+        case SYSCALL_UNMOUNT: {
+            state->eax = syscall_unmount(state);
             break;
         }
         default: {
@@ -788,4 +830,43 @@ static int32_t syscall_lsmnt(isr_cpu_state_t *state) {
     }
 
     return -1;
+}
+
+static int32_t syscall_mount(isr_cpu_state_t *state) {
+    char drive = (char) state->ebx;
+    const char* id = (const char*) state->ecx;
+
+    if(!id) {
+        return -1;
+    }
+
+    const volume_t* volume = volume_find_by_id(id);
+
+    if(!volume) {
+        return -1;
+    }
+
+    if(mnt_get_drive(drive) != NULL) {
+        return -2;
+    }
+
+    if(mnt_volume_mount(drive, (volume_t*) volume) != 0) {
+        return -3;
+    }
+
+    return 0;
+}
+
+static int32_t syscall_unmount(isr_cpu_state_t *state) {
+    char drive = (char) state->ebx;
+
+    if(mnt_get_drive(drive) == NULL) {
+        return -1;
+    }
+
+    if(mnt_volume_unmount(drive) != 0) {
+        return -2;
+    }
+
+    return 0;
 }

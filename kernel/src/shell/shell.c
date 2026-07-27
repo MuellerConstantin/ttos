@@ -7,8 +7,6 @@
 #include <arch/i386/isr.h>
 #include <system/kmessage.h>
 #include <system/timer.h>
-#include <device/volume.h>
-#include <fs/mount.h>
 #include <io/file.h>
 #include <io/dir.h>
 #include <io/tty.h>
@@ -26,8 +24,6 @@ static void shell_echo(size_t argc, const char *argv[]);
 static void shell_memory_usage(size_t argc, const char *argv[]);
 static void shell_memory_map(size_t argc, const char *argv[]);
 static void shell_dmesg(size_t argc, const char *argv[]);
-static void shell_mount(size_t argc, const char *argv[]);
-static void shell_unmount(size_t argc, const char *argv[]);
 static void shell_lsdir(size_t argc, const char *argv[]);
 static void shell_kheap_usage(size_t argc, const char *argv[]);
 static void shell_uptime(size_t argc, const char *argv[]);
@@ -141,8 +137,6 @@ static void shell_process_instruction(char *instruction) {
         shell_help(argc, argv);
     } else if(strcmp(command, "clear") == 0) {
         shell_clear(argc, argv);
-    } else if(strcmp(command, "echo") == 0) {
-        shell_echo(argc, argv);
     } else if(strcmp(command, "memusage") == 0) {
         shell_memory_usage(argc, argv);
     } else if(strcmp(command, "kheapusage") == 0) {
@@ -153,12 +147,6 @@ static void shell_process_instruction(char *instruction) {
         shell_dmesg(argc, argv);
     } else if(strcmp(command, "uptime") == 0) {
         shell_uptime(argc, argv);
-    } else if(strcmp(command, "mount") == 0) {
-        shell_mount(argc, argv);
-    } else if(strcmp(command, "unmount") == 0) {
-        shell_unmount(argc, argv);
-    } else if(strcmp(command, "lsdir") == 0) {
-        shell_lsdir(argc, argv);
     } else if(strcmp(command, "run") == 0) {
         shell_run(argc, argv);
     } else {
@@ -217,15 +205,11 @@ static void shell_help(size_t argc, const char *argv[]) {
     const char* help_message = "Available commands:\n\n"
         "help - Display this help message\n"
         "clear - Clear the screen\n"
-        "echo <text> - Echo the text\n"
         "memusage - Display memory usage\n"
         "kheapusage - Display kernel heap usage\n"
         "memmap - Display memory map\n"
         "dmesg - Display kernel messages\n"
         "uptime - Display system uptime\n"
-        "mount <drive> <volume> - Mount a volume to a drive\n"
-        "unmount <drive> - Unmount a volume from a drive\n"
-        "lsdir <path> - List directory contents\n"
         "run <path> - Run a user program\n";
 
     shell_paging(help_message);
@@ -234,15 +218,6 @@ static void shell_help(size_t argc, const char *argv[]) {
 static void shell_clear(size_t argc, const char *argv[]) {
     tty_t* tty = out_stream->data;
     tty_clear(tty);
-}
-
-static void shell_echo(size_t argc, const char *argv[]) {
-    if(argc < 2) {
-        stream_printf(out_stream, "Usage: echo <text>\n");
-        return;
-    }
-
-    stream_printf(out_stream, "%s\n", argv[1]);
 }
 
 static void shell_memory_usage(size_t argc, const char *argv[]) {
@@ -279,7 +254,6 @@ static void shell_memory_map(size_t argc, const char *argv[]) {
     }
 }
 
-
 static void shell_dmesg(size_t argc, const char *argv[]) {
     const linked_list_t* messages = kmessage_get_messages();
     
@@ -306,98 +280,6 @@ static void shell_dmesg(size_t argc, const char *argv[]) {
         strcat(message_buffer, message->message);
         strcat(message_buffer, "\n");
     }
-
-    shell_paging(message_buffer);
-
-    kfree(message_buffer);
-}
-
-
-static void shell_mount(size_t argc, const char *argv[]) {
-    if(argc < 3) {
-        stream_printf(out_stream, "Usage: mount <drive> <volume>\n");
-        return;
-    }
-
-    char drive = argv[1][0];
-    volume_t* volume = volume_find_by_name(argv[2]);
-
-    if(volume == NULL) {
-        stream_printf(out_stream, "Volume not found\n");
-        return;
-    }
-
-    if(mnt_get_drive(drive) != NULL) {
-        stream_printf(out_stream, "Drive already mounted\n");
-        return;
-    }
-
-    if(mnt_volume_mount(drive, volume) != 0) {
-        stream_printf(out_stream, "Failed to mount volume, file system may not be supported\n");
-        return;
-    }
-
-    stream_printf(out_stream, "Volume mounted\n");
-}
-
-static void shell_unmount(size_t argc, const char *argv[]) {
-    if(argc < 2) {
-        stream_printf(out_stream, "Usage: unmount <drive>\n");
-        return;
-    }
-
-    char drive = argv[1][0];
-
-    if(mnt_get_drive(drive) == NULL) {
-        stream_printf(out_stream, "Drive not mounted\n");
-        return;
-    }
-
-    if(mnt_volume_unmount(drive) != 0) {
-        stream_printf(out_stream, "Failed to unmount volume\n");
-        return;
-    }
-
-    stream_printf(out_stream, "Volume unmounted\n");
-}
-
-static void shell_lsdir(size_t argc, const char *argv[]) {
-    if(argc < 2) {
-        stream_printf(out_stream, "Usage: lsdir <path>\n");
-        return;
-    }
-
-    int32_t dd = dir_open(argv[1]);
-
-    if(dd < 0) {
-        stream_printf(out_stream, "Invalid path\n");
-        return;
-    }
-
-    char* message_buffer = kmalloc(64);
-
-    if(message_buffer == NULL) {
-        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
-    }
-
-    message_buffer[0] = '\0';
-
-    const dir_dirent_t* dirent = NULL;
-
-    do {
-        dirent = dir_read(dd);
-
-        if(dirent != NULL) {
-            message_buffer = krealloc(message_buffer, strlen(message_buffer) + strlen(dirent->name) + 1);
-
-            strcat(message_buffer, dirent->name);
-            strcat(message_buffer, "\n");
-
-            kfree(dirent);
-        }
-    } while(dirent != NULL);
-
-    dir_close(dd);
 
     shell_paging(message_buffer);
 
