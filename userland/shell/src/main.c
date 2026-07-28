@@ -216,6 +216,44 @@ static int shell_run(char** argv) {
     return -1;
 }
 
+/*
+ * Reads a line of input character by character, echoing as it goes. Handles
+ * Enter (terminates the line) and Backspace (erases the previous character).
+ * Input that would overflow the buffer is dropped and not echoed, so the
+ * display stays in sync with the buffer. This is the shell's own line editor,
+ * replacing libc gets(), and is where escape-sequence handling (arrow keys,
+ * history) will later live.
+ */
+static void shell_read_line(char* buffer, size_t size) {
+    size_t index = 0;
+
+    for(;;) {
+        int ch = getchar();
+
+        if(ch == '\n') {
+            putchar('\n');
+            break;
+        }
+
+        if(ch == '\b') {
+            if(index > 0) {
+                index--;
+                putchar('\b');
+            }
+
+            continue;
+        }
+
+        // Leave room for the null terminator.
+        if(index + 1 < size) {
+            buffer[index++] = (char) ch;
+            putchar(ch);
+        }
+    }
+
+    buffer[index] = '\0';
+}
+
 int main(void) {
     shell_banner();
 
@@ -228,7 +266,7 @@ int main(void) {
     for(;;) {
         printf("> ");
 
-        gets(line);
+        shell_read_line(line, sizeof(line));
 
         size_t argc = shell_tokenize(line, argv, SHELL_MAX_ARGS);
 
