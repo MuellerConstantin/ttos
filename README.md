@@ -1,5 +1,13 @@
 # TTOS
 
+<pre>
+  ________________  ____
+ /_  __/_  __/ __ \/ __/
+  / /   / / / /_/ /\ \
+ /_/   /_/  \____/___/
+Tiny Toy Operating System
+</pre>
+
 > Just another Tiny Toy Operating System (TTOS) for learning purposes.
 
 ![](https://img.shields.io/badge/C-gray?logo=c)
