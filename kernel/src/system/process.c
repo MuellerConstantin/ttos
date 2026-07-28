@@ -256,7 +256,18 @@ void process_terminate(process_t* process) {
 
         current_process = parent;
         parent->state = PROCESS_STATE_RUNNING;
-        parent->saved_state.eax = (exception_code != -1) ? (uint32_t) -1 : (uint32_t) exit_code;
+
+        /*
+         * Encode the child's outcome as the spawn syscall's return value. It is
+         * always non-negative: a normal exit code (masked to a byte) or, for a
+         * process terminated by a CPU exception, 128 + the exception number.
+         * This lets the caller reserve negative values for "could not execute".
+         */
+        if(exception_code != -1) {
+            parent->saved_state.eax = (uint32_t) (128 + exception_code);
+        } else {
+            parent->saved_state.eax = (uint32_t) (exit_code & 0xFF);
+        }
 
         context_restore(&parent->saved_state);
 

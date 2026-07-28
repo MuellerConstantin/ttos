@@ -17,7 +17,9 @@ void _exit(int status);
  *
  * @param path The path to the executable
  * @param argv NULL terminated argument vector (argv[0] is conventionally the path)
- * @return The child's exit code, or -1 if the child could not be created
+ * @return A non-negative status if the program ran (its exit code, or
+ *         128 + the exception number if it was terminated by a fault), or a
+ *         negative value if the executable could not be started.
  */
 int spawn(const char* path, char* const argv[]);
 

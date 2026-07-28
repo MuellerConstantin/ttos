@@ -23,5 +23,7 @@ int main(int argc, char** argv) {
 
     fsio_close(fd);
 
+    puts("\n");
+
     return 0;
 }
