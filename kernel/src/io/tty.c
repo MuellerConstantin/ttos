@@ -127,6 +127,31 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
         return;
     }
 
+    /*
+     * Translate the arrow keys into ANSI cursor escape sequences (ESC [ A..D)
+     * and enqueue them as raw bytes, so line editors can consume them the same
+     * way they would on a real terminal.
+     */
+    char arrow = 0;
+
+    switch(event->keycode) {
+        case KEYBOARD_KEYCODE_UP:    arrow = 'A'; break;
+        case KEYBOARD_KEYCODE_DOWN:  arrow = 'B'; break;
+        case KEYBOARD_KEYCODE_RIGHT: arrow = 'C'; break;
+        case KEYBOARD_KEYCODE_LEFT:  arrow = 'D'; break;
+        default: break;
+    }
+
+    if(arrow) {
+        char escape = 0x1B;
+        char bracket = '[';
+
+        circular_buffer_enqueue(tty->input, &escape);
+        circular_buffer_enqueue(tty->input, &bracket);
+        circular_buffer_enqueue(tty->input, &arrow);
+        return;
+    }
+
     char ch = tty_keycode_to_char(tty, event->keycode, shift);
 
     // Wait for a displayable character
@@ -272,6 +297,16 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
             tty->cursor_y = row - 1;
             tty->cursor_x = col - 1;
             tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            break;
+        }
+        case 'K': {
+            // Erase in line. Only mode 0 (cursor to end of line) is supported.
+            if(tty->ansi_params[0] == 0) {
+                for(size_t x = tty->cursor_x; x < tty->columns; x++) {
+                    tty->video->driver->tm.write(tty->cursor_y * tty->columns + x, ' ', tty->fgcolor, tty->bgcolor);
+                }
+            }
+
             break;
         }
         default:

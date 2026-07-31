@@ -7,11 +7,16 @@
 #define SHELL_MAX_ARGS 32
 #define SHELL_PATH_MAX 128
 #define SHELL_MAX_PATHS 8
+#define SHELL_HISTORY_MAX 16
 
 // Directories searched for bare command names, in order. Starts with the initrd
 // root and can be extended at runtime with the `path` builtin.
 static char search_paths[SHELL_MAX_PATHS][SHELL_PATH_MAX];
 static size_t search_path_count = 0;
+
+// Ring of recently entered command lines, navigated with the up/down arrows.
+static char history[SHELL_HISTORY_MAX][SHELL_LINE_MAX];
+static size_t history_count = 0;
 
 static void shell_banner(void) {
     int32_t fd = fsio_open("A:/banner.txt", FSIO_RDONLY, 0);
@@ -216,16 +221,41 @@ static int shell_run(char** argv) {
     return -1;
 }
 
+static void shell_history_add(const char* line) {
+    // Ignore empty lines and consecutive duplicates.
+    if(line[0] == '\0') {
+        return;
+    }
+
+    if(history_count > 0 && strcmp(history[history_count - 1], line) == 0) {
+        return;
+    }
+
+    // Drop the oldest entry once the ring is full.
+    if(history_count == SHELL_HISTORY_MAX) {
+        for(size_t index = 0; index + 1 < SHELL_HISTORY_MAX; index++) {
+            strcpy(history[index], history[index + 1]);
+        }
+
+        history_count--;
+    }
+
+    strcpy(history[history_count], line);
+    history_count++;
+}
+
 /*
- * Reads a line of input character by character, echoing as it goes. Handles
- * Enter (terminates the line) and Backspace (erases the previous character).
- * Input that would overflow the buffer is dropped and not echoed, so the
- * display stays in sync with the buffer. This is the shell's own line editor,
- * replacing libc gets(), and is where escape-sequence handling (arrow keys,
- * history) will later live.
+ * Reads a line of input with echo, backspace and up/down history recall. The
+ * prompt is (re)printed by the reader itself so the line can be redrawn when a
+ * history entry is recalled. Left/right arrows are recognized but ignored for
+ * now. Assumes the input stays on a single terminal row.
  */
-static void shell_read_line(char* buffer, size_t size) {
+static void shell_read_line(const char* prompt, char* buffer, size_t size) {
     size_t index = 0;
+    size_t nav = history_count;
+
+    buffer[0] = '\0';
+    printf("%s", prompt);
 
     for(;;) {
         int ch = getchar();
@@ -238,20 +268,55 @@ static void shell_read_line(char* buffer, size_t size) {
         if(ch == '\b') {
             if(index > 0) {
                 index--;
+                buffer[index] = '\0';
                 putchar('\b');
             }
 
             continue;
         }
 
+        if(ch == 0x1B) {
+            // ANSI escape sequence: ESC '[' <final byte>.
+            if(getchar() != '[') {
+                continue;
+            }
+
+            int final = getchar();
+
+            if(final == 'A' && nav > 0) {
+                nav--;
+            } else if(final == 'B' && nav < history_count) {
+                nav++;
+            } else {
+                // Nothing to recall, or left/right (ignored for now).
+                continue;
+            }
+
+            if(nav < history_count) {
+                strcpy(buffer, history[nav]);
+            } else {
+                buffer[0] = '\0';
+            }
+
+            index = strlen(buffer);
+
+            // Redraw: return to the line start, reprint the prompt and the
+            // recalled content, and clear whatever a longer line left behind.
+            printf("\r%s%s\033[K", prompt, buffer);
+            continue;
+        }
+
         // Leave room for the null terminator.
         if(index + 1 < size) {
             buffer[index++] = (char) ch;
+            buffer[index] = '\0';
             putchar(ch);
         }
     }
 
     buffer[index] = '\0';
+
+    shell_history_add(buffer);
 }
 
 int main(void) {
@@ -264,9 +329,7 @@ int main(void) {
     char* argv[SHELL_MAX_ARGS + 1];
 
     for(;;) {
-        printf("> ");
-
-        shell_read_line(line, sizeof(line));
+        shell_read_line("> ", line, sizeof(line));
 
         size_t argc = shell_tokenize(line, argv, SHELL_MAX_ARGS);
 
