@@ -211,7 +211,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     }
                 // Extended key pressed
                 } else if(scancode <= 0x6D) {
-                    uint8_t keycode = PS2_KEYBOARD_SET1_EXTENDED_KEYCODES[scancode];
+                    uint32_t keycode = PS2_KEYBOARD_SET1_EXTENDED_KEYCODES[scancode];
 
                     if(keycode != 0x00) {
                         keyboard_event_t event = {
@@ -225,7 +225,7 @@ static void ps2_keyboard_interrupt_handler(isr_cpu_state_t *state) {
                     }
                 // Extended key released
                 } else if(scancode >= 0x80 && scancode <= 0xED) {
-                    uint8_t keycode = PS2_KEYBOARD_SET1_EXTENDED_KEYCODES[scancode - 0x80];
+                    uint32_t keycode = PS2_KEYBOARD_SET1_EXTENDED_KEYCODES[scancode - 0x80];
 
                     if(keycode != 0x00) {
                         keyboard_event_t event = {
