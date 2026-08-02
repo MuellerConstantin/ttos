@@ -245,13 +245,28 @@ static void shell_history_add(const char* line) {
 }
 
 /*
- * Reads a line of input with echo, backspace and up/down history recall. The
- * prompt is (re)printed by the reader itself so the line can be redrawn when a
- * history entry is recalled. Left/right arrows are recognized but ignored for
- * now. Assumes the input stays on a single terminal row.
+ * Redraws the whole input line: returns to the line start, reprints the prompt
+ * and buffer, clears whatever a longer line left behind, and places the cursor
+ * at `cursor`. Assumes the line stays on a single terminal row.
+ */
+static void shell_redraw(const char* prompt, const char* buffer, size_t length, size_t cursor) {
+    printf("\r%s%s\033[K", prompt, buffer);
+
+    // After reprinting, the terminal cursor is at the end of the buffer; move it
+    // back to the logical cursor position if it sits before the end.
+    if(cursor < length) {
+        printf("\033[%dD", (int) (length - cursor));
+    }
+}
+
+/*
+ * Reads a line of input with echo, in-line editing and history recall. Handles
+ * Enter, Backspace, up/down (history) and left/right (cursor movement, with
+ * mid-line insertion and deletion). Assumes the input stays on a single row.
  */
 static void shell_read_line(const char* prompt, char* buffer, size_t size) {
-    size_t index = 0;
+    size_t length = 0;
+    size_t cursor = 0;
     size_t nav = history_count;
 
     buffer[0] = '\0';
@@ -266,10 +281,16 @@ static void shell_read_line(const char* prompt, char* buffer, size_t size) {
         }
 
         if(ch == '\b') {
-            if(index > 0) {
-                index--;
-                buffer[index] = '\0';
-                putchar('\b');
+            if(cursor > 0) {
+                // Delete the character before the cursor, shifting the tail left.
+                for(size_t i = cursor - 1; i + 1 < length; i++) {
+                    buffer[i] = buffer[i + 1];
+                }
+
+                length--;
+                cursor--;
+                buffer[length] = '\0';
+                shell_redraw(prompt, buffer, length, cursor);
             }
 
             continue;
@@ -283,38 +304,73 @@ static void shell_read_line(const char* prompt, char* buffer, size_t size) {
 
             int final = getchar();
 
-            if(final == 'A' && nav > 0) {
-                nav--;
-            } else if(final == 'B' && nav < history_count) {
-                nav++;
-            } else {
-                // Nothing to recall, or left/right (ignored for now).
-                continue;
+            if(final == 'A' || final == 'B') {
+                // History navigation.
+                if(final == 'A') {
+                    if(nav > 0) {
+                        nav--;
+                    } else {
+                        continue;
+                    }
+                } else {
+                    if(nav < history_count) {
+                        nav++;
+                    } else {
+                        continue;
+                    }
+                }
+
+                if(nav < history_count) {
+                    strcpy(buffer, history[nav]);
+                } else {
+                    buffer[0] = '\0';
+                }
+
+                length = strlen(buffer);
+                cursor = length;
+                shell_redraw(prompt, buffer, length, cursor);
+            } else if(final == 'C') {
+                // Cursor right.
+                if(cursor < length) {
+                    cursor++;
+                    printf("\033[C");
+                }
+            } else if(final == 'D') {
+                // Cursor left.
+                if(cursor > 0) {
+                    cursor--;
+                    printf("\033[D");
+                }
             }
 
-            if(nav < history_count) {
-                strcpy(buffer, history[nav]);
-            } else {
-                buffer[0] = '\0';
-            }
-
-            index = strlen(buffer);
-
-            // Redraw: return to the line start, reprint the prompt and the
-            // recalled content, and clear whatever a longer line left behind.
-            printf("\r%s%s\033[K", prompt, buffer);
             continue;
         }
 
-        // Leave room for the null terminator.
-        if(index + 1 < size) {
-            buffer[index++] = (char) ch;
-            buffer[index] = '\0';
-            putchar(ch);
+        // Printable input: insert at the cursor. Leave room for the terminator.
+        if(length + 1 < size) {
+            if(cursor == length) {
+                // Fast path: appending at the end of the line.
+                buffer[length] = (char) ch;
+                length++;
+                cursor++;
+                buffer[length] = '\0';
+                putchar(ch);
+            } else {
+                // Insert in the middle: shift the tail right, then redraw.
+                for(size_t i = length; i > cursor; i--) {
+                    buffer[i] = buffer[i - 1];
+                }
+
+                buffer[cursor] = (char) ch;
+                length++;
+                cursor++;
+                buffer[length] = '\0';
+                shell_redraw(prompt, buffer, length, cursor);
+            }
         }
     }
 
-    buffer[index] = '\0';
+    buffer[length] = '\0';
 
     shell_history_add(buffer);
 }

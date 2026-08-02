@@ -309,6 +309,23 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
 
             break;
         }
+        case 'C': {
+            // Cursor forward (non-destructive), default 1, clamped to the row.
+            uint32_t amount = tty->ansi_params[0] ? tty->ansi_params[0] : 1;
+            size_t max_x = tty->columns - 1;
+
+            tty->cursor_x = (tty->cursor_x + amount > max_x) ? max_x : tty->cursor_x + amount;
+            tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            break;
+        }
+        case 'D': {
+            // Cursor back (non-destructive), default 1, clamped to the row start.
+            uint32_t amount = tty->ansi_params[0] ? tty->ansi_params[0] : 1;
+
+            tty->cursor_x = (amount > tty->cursor_x) ? 0 : tty->cursor_x - amount;
+            tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            break;
+        }
         default:
             // Unsupported CSI command; ignore.
             break;
