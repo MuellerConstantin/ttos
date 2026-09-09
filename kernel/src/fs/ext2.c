@@ -11,6 +11,7 @@ typedef struct ext2_fs {
     ext2_superblock_t superblock;   // Cached copy of the superblock
     uint32_t block_size;            // Block size in bytes (1024 << s_log_block_size)
     uint32_t inode_size;            // Size of an on-disk inode (with rev-0 fallback)
+    uint32_t first_inode;           // First non-reserved inode (with rev-0 fallback)
     uint32_t inodes_per_group;      // Number of inodes per block group
     uint32_t blocks_per_group;      // Number of blocks per block group
     uint32_t bgd_table_block;       // Block number of the block group descriptor table
@@ -39,8 +40,20 @@ static int32_t ext2_rename(vfs_node_t* node, char* new_name);
 // Internal helpers
 
 static size_t ext2_read_block(vfs_filesystem_t* filesystem, uint32_t block, void* buffer);
+static size_t ext2_write_block(vfs_filesystem_t* filesystem, uint32_t block, void* buffer);
 static int32_t ext2_read_bgd(vfs_filesystem_t* filesystem, uint32_t group, ext2_block_group_descriptor_t* out);
+static int32_t ext2_write_bgd(vfs_filesystem_t* filesystem, uint32_t group, ext2_block_group_descriptor_t* bgd);
+static int32_t ext2_write_superblock(vfs_filesystem_t* filesystem);
 static int32_t ext2_read_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, ext2_inode_t* out);
+static int32_t ext2_write_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, ext2_inode_t* inode);
+static bool ext2_bitmap_test(uint8_t* bitmap, uint32_t index);
+static void ext2_bitmap_set(uint8_t* bitmap, uint32_t index);
+static void ext2_bitmap_clear(uint8_t* bitmap, uint32_t index);
+static uint32_t ext2_bitmap_find_free(uint8_t* bitmap, uint32_t count, uint32_t from);
+static uint32_t ext2_alloc_block(vfs_filesystem_t* filesystem);
+static int32_t ext2_free_block(vfs_filesystem_t* filesystem, uint32_t block);
+static uint32_t ext2_alloc_inode(vfs_filesystem_t* filesystem, bool directory);
+static int32_t ext2_free_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, bool directory);
 static uint32_t ext2_inode_block(vfs_filesystem_t* filesystem, ext2_inode_t* inode, uint32_t index);
 static vfs_node_t* ext2_build_node(vfs_filesystem_t* filesystem, uint32_t inode_no, const char* name, ext2_inode_t* inode);
 
@@ -127,8 +140,10 @@ static int32_t ext2_mount(vfs_filesystem_t* filesystem) {
     data->blocks_per_group = data->superblock.s_blocks_per_group;
     data->inodes_per_group = data->superblock.s_inodes_per_group;
     data->inode_size = (data->superblock.s_rev_level >= 1) ? data->superblock.s_inode_size : 128;
+    data->first_inode = (data->superblock.s_rev_level >= 1) ? data->superblock.s_first_ino : 11;
     data->bgd_table_block = data->superblock.s_first_data_block + 1;
-    data->num_block_groups = (data->superblock.s_blocks_count + data->blocks_per_group - 1) / data->blocks_per_group;
+    data->num_block_groups = (data->superblock.s_blocks_count - data->superblock.s_first_data_block
+        + data->blocks_per_group - 1) / data->blocks_per_group;
 
     // fs_data has to be set before reading the root inode, as the helpers rely on it.
     filesystem->fs_data = data;
@@ -218,6 +233,375 @@ static int32_t ext2_read_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, 
     memcpy(out, block_buffer + offset_in_block, sizeof(ext2_inode_t));
 
     kfree(block_buffer);
+
+    return 0;
+}
+
+static size_t ext2_write_block(vfs_filesystem_t* filesystem, uint32_t block, void* buffer) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    return filesystem->volume->operations->write(filesystem->volume, block * data->block_size, data->block_size, (char*) buffer);
+}
+
+/**
+ * Flush the cached superblock back to the volume. The cached copy spans the full 1024 bytes that
+ * were read at mount time, so fields this driver does not know about are preserved.
+ */
+static int32_t ext2_write_superblock(vfs_filesystem_t* filesystem) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    size_t written = filesystem->volume->operations->write(filesystem->volume, EXT2_SUPERBLOCK_OFFSET, sizeof(ext2_superblock_t), (char*) &data->superblock);
+
+    return (written == sizeof(ext2_superblock_t)) ? 0 : -1;
+}
+
+static int32_t ext2_write_bgd(vfs_filesystem_t* filesystem, uint32_t group, ext2_block_group_descriptor_t* bgd) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(group >= data->num_block_groups) {
+        return -1;
+    }
+
+    uint32_t offset = group * sizeof(ext2_block_group_descriptor_t);
+    uint32_t block = data->bgd_table_block + (offset / data->block_size);
+    uint32_t offset_in_block = offset % data->block_size;
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    // Read-modify-write, because the block holds the descriptors of the neighbouring groups too.
+    ext2_read_block(filesystem, block, block_buffer);
+    memcpy(block_buffer + offset_in_block, bgd, sizeof(ext2_block_group_descriptor_t));
+    ext2_write_block(filesystem, block, block_buffer);
+
+    kfree(block_buffer);
+
+    return 0;
+}
+
+static int32_t ext2_write_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, ext2_inode_t* inode) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(inode_no == 0) {
+        return -1;
+    }
+
+    uint32_t group = (inode_no - 1) / data->inodes_per_group;
+    uint32_t index = (inode_no - 1) % data->inodes_per_group;
+
+    ext2_block_group_descriptor_t bgd;
+
+    if(ext2_read_bgd(filesystem, group, &bgd) != 0) {
+        return -1;
+    }
+
+    uint32_t offset = index * data->inode_size;
+    uint32_t block = bgd.bg_inode_table + (offset / data->block_size);
+    uint32_t offset_in_block = offset % data->block_size;
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    // Read-modify-write, mirroring ext2_read_inode: only the base 128-byte inode is touched, so a
+    // larger on-disk inode keeps whatever follows it.
+    ext2_read_block(filesystem, block, block_buffer);
+    memcpy(block_buffer + offset_in_block, inode, sizeof(ext2_inode_t));
+    ext2_write_block(filesystem, block, block_buffer);
+
+    kfree(block_buffer);
+
+    return 0;
+}
+
+static bool ext2_bitmap_test(uint8_t* bitmap, uint32_t index) {
+    return (bitmap[index / 8] >> (index % 8)) & 1;
+}
+
+static void ext2_bitmap_set(uint8_t* bitmap, uint32_t index) {
+    bitmap[index / 8] |= 1 << (index % 8);
+}
+
+static void ext2_bitmap_clear(uint8_t* bitmap, uint32_t index) {
+    bitmap[index / 8] &= ~(1 << (index % 8));
+}
+
+/**
+ * Find the first clear bit in a bitmap, starting the search at the from-th bit. Returns count when
+ * all of the first count bits are set.
+ */
+static uint32_t ext2_bitmap_find_free(uint8_t* bitmap, uint32_t count, uint32_t from) {
+    for(uint32_t index = from; index < count; index++) {
+        // Skip over fully occupied bytes, but only where the whole byte is in range.
+        if(index % 8 == 0 && index + 8 <= count && bitmap[index / 8] == 0xFF) {
+            index += 7;
+            continue;
+        }
+
+        if(!ext2_bitmap_test(bitmap, index)) {
+            return index;
+        }
+    }
+
+    return count;
+}
+
+/**
+ * Allocate a single block. Scans the block bitmaps group by group, marks the first free block as
+ * used and keeps the free counters of the group descriptor and the superblock in sync. The block
+ * is zeroed before it is handed out, so callers can use it as an indirect or directory block
+ * without clearing it first and no stale data leaks into a new file.
+ *
+ * @return The allocated block number or 0 if the file system is full. Block 0 is never allocatable
+ *         (it holds the superblock or precedes s_first_data_block), so it works as an error value.
+ */
+static uint32_t ext2_alloc_block(vfs_filesystem_t* filesystem) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(data->superblock.s_free_blocks_count == 0) {
+        return 0;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    for(uint32_t group = 0; group < data->num_block_groups; group++) {
+        ext2_block_group_descriptor_t bgd;
+
+        if(ext2_read_bgd(filesystem, group, &bgd) != 0) {
+            break;
+        }
+
+        if(bgd.bg_free_blocks_count == 0) {
+            continue;
+        }
+
+        // The last group is usually shorter than a full one, so its bitmap has padding bits that
+        // must not be handed out.
+        uint32_t first_block = data->superblock.s_first_data_block + group * data->blocks_per_group;
+
+        if(first_block >= data->superblock.s_blocks_count) {
+            break;
+        }
+
+        uint32_t blocks_in_group = data->superblock.s_blocks_count - first_block;
+
+        if(blocks_in_group > data->blocks_per_group) {
+            blocks_in_group = data->blocks_per_group;
+        }
+
+        ext2_read_block(filesystem, bgd.bg_block_bitmap, block_buffer);
+
+        uint32_t index = ext2_bitmap_find_free(block_buffer, blocks_in_group, 0);
+
+        if(index >= blocks_in_group) {
+            // The descriptor claims free blocks the bitmap does not have. Skip the group instead of
+            // trusting the counter.
+            continue;
+        }
+
+        ext2_bitmap_set(block_buffer, index);
+        ext2_write_block(filesystem, bgd.bg_block_bitmap, block_buffer);
+
+        bgd.bg_free_blocks_count--;
+        ext2_write_bgd(filesystem, group, &bgd);
+
+        data->superblock.s_free_blocks_count--;
+        ext2_write_superblock(filesystem);
+
+        memset(block_buffer, 0, data->block_size);
+        ext2_write_block(filesystem, first_block + index, block_buffer);
+
+        kfree(block_buffer);
+
+        return first_block + index;
+    }
+
+    kfree(block_buffer);
+
+    return 0;
+}
+
+/**
+ * Release a block and give it back to its group. Freeing a block that is already marked free is
+ * refused, as counting it twice would corrupt the free counters.
+ */
+static int32_t ext2_free_block(vfs_filesystem_t* filesystem, uint32_t block) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(block < data->superblock.s_first_data_block || block >= data->superblock.s_blocks_count) {
+        return -1;
+    }
+
+    uint32_t group = (block - data->superblock.s_first_data_block) / data->blocks_per_group;
+    uint32_t index = (block - data->superblock.s_first_data_block) % data->blocks_per_group;
+
+    ext2_block_group_descriptor_t bgd;
+
+    if(ext2_read_bgd(filesystem, group, &bgd) != 0) {
+        return -1;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    ext2_read_block(filesystem, bgd.bg_block_bitmap, block_buffer);
+
+    if(!ext2_bitmap_test(block_buffer, index)) {
+        kfree(block_buffer);
+        return -1;
+    }
+
+    ext2_bitmap_clear(block_buffer, index);
+    ext2_write_block(filesystem, bgd.bg_block_bitmap, block_buffer);
+
+    kfree(block_buffer);
+
+    bgd.bg_free_blocks_count++;
+    ext2_write_bgd(filesystem, group, &bgd);
+
+    data->superblock.s_free_blocks_count++;
+    ext2_write_superblock(filesystem);
+
+    return 0;
+}
+
+/**
+ * Allocate a single inode. Works like ext2_alloc_block, but additionally maintains the directory
+ * count of the group, which e2fsck checks against the inodes it finds. The on-disk inode is zeroed
+ * so a caller that only fills in part of it cannot inherit the block pointers of a deleted file.
+ *
+ * @param directory True if the inode will hold a directory.
+ * @return The allocated inode number or 0 if no inode is free. Inode 0 does not exist, so it works
+ *         as an error value.
+ */
+static uint32_t ext2_alloc_inode(vfs_filesystem_t* filesystem, bool directory) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(data->superblock.s_free_inodes_count == 0) {
+        return 0;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    for(uint32_t group = 0; group < data->num_block_groups; group++) {
+        ext2_block_group_descriptor_t bgd;
+
+        if(ext2_read_bgd(filesystem, group, &bgd) != 0) {
+            break;
+        }
+
+        if(bgd.bg_free_inodes_count == 0) {
+            continue;
+        }
+
+        ext2_read_block(filesystem, bgd.bg_inode_bitmap, block_buffer);
+
+        // The reserved inodes all live in the first group and are marked used by mkfs, but the
+        // search starts behind them so a stale bitmap cannot hand out the root inode.
+        uint32_t from = (group == 0) ? data->first_inode - 1 : 0;
+        uint32_t index = ext2_bitmap_find_free(block_buffer, data->inodes_per_group, from);
+
+        if(index >= data->inodes_per_group) {
+            continue;
+        }
+
+        ext2_bitmap_set(block_buffer, index);
+        ext2_write_block(filesystem, bgd.bg_inode_bitmap, block_buffer);
+
+        bgd.bg_free_inodes_count--;
+
+        if(directory) {
+            bgd.bg_used_dirs_count++;
+        }
+
+        ext2_write_bgd(filesystem, group, &bgd);
+
+        data->superblock.s_free_inodes_count--;
+        ext2_write_superblock(filesystem);
+
+        kfree(block_buffer);
+
+        uint32_t inode_no = group * data->inodes_per_group + index + 1;
+
+        ext2_inode_t inode;
+        memset(&inode, 0, sizeof(ext2_inode_t));
+        ext2_write_inode(filesystem, inode_no, &inode);
+
+        return inode_no;
+    }
+
+    kfree(block_buffer);
+
+    return 0;
+}
+
+/**
+ * Release an inode and give it back to its group. The reserved inodes, the root inode among them,
+ * are never freed. Detaching the data blocks is the caller's job, as only it knows whether the
+ * inode still has links left.
+ *
+ * @param directory True if the inode held a directory, so bg_used_dirs_count is corrected.
+ */
+static int32_t ext2_free_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, bool directory) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(inode_no < data->first_inode || inode_no > data->superblock.s_inodes_count) {
+        return -1;
+    }
+
+    uint32_t group = (inode_no - 1) / data->inodes_per_group;
+    uint32_t index = (inode_no - 1) % data->inodes_per_group;
+
+    ext2_block_group_descriptor_t bgd;
+
+    if(ext2_read_bgd(filesystem, group, &bgd) != 0) {
+        return -1;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    ext2_read_block(filesystem, bgd.bg_inode_bitmap, block_buffer);
+
+    if(!ext2_bitmap_test(block_buffer, index)) {
+        kfree(block_buffer);
+        return -1;
+    }
+
+    ext2_bitmap_clear(block_buffer, index);
+    ext2_write_block(filesystem, bgd.bg_inode_bitmap, block_buffer);
+
+    kfree(block_buffer);
+
+    bgd.bg_free_inodes_count++;
+
+    if(directory && bgd.bg_used_dirs_count > 0) {
+        bgd.bg_used_dirs_count--;
+    }
+
+    ext2_write_bgd(filesystem, group, &bgd);
+
+    data->superblock.s_free_inodes_count++;
+    ext2_write_superblock(filesystem);
 
     return 0;
 }
