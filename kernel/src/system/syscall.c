@@ -481,6 +481,23 @@ static int32_t syscall_unlink(isr_cpu_state_t *state);
  */
 static int32_t syscall_rmdir(isr_cpu_state_t *state);
 
+/**
+ * Make directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Path of the directory to create
+ *
+ * - ecx: Permissions of the new directory
+ *
+ * Syscall returns 0 on success or -1 when the path already exists or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_mkdir(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -587,6 +604,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_RMDIR: {
             state->eax = syscall_rmdir(state);
+            break;
+        }
+        case SYSCALL_MKDIR: {
+            state->eax = syscall_mkdir(state);
             break;
         }
         default: {
@@ -732,6 +753,17 @@ static int32_t syscall_rmdir(isr_cpu_state_t *state) {
     }
 
     return file_rmdir((char*) path);
+}
+
+static int32_t syscall_mkdir(isr_cpu_state_t *state) {
+    const char* path = (const char*) state->ebx;
+    int32_t mode = state->ecx;
+
+    if(!path) {
+        return -1;
+    }
+
+    return file_mkdir((char*) path, (uint32_t) mode);
 }
 
 static int32_t syscall_close(isr_cpu_state_t *state) {

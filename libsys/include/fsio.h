@@ -46,6 +46,31 @@ int32_t fsio_write(int32_t fd, const void* buffer, size_t size);
 int32_t fsio_open(const char* path, int32_t flags, int32_t mode);
 
 /**
+ * Deletes a file.
+ *
+ * @param path The path to the file.
+ * @return 0 on success or -1 on error.
+ */
+int32_t fsio_unlink(const char* path);
+
+/**
+ * Creates a directory.
+ *
+ * @param path The path to the directory to create.
+ * @param mode The permissions of the new directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t fsio_mkdir(const char* path, int32_t mode);
+
+/**
+ * Deletes an empty directory.
+ *
+ * @param path The path to the directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t fsio_rmdir(const char* path);
+
+/**
  * Closes a file descriptor.
  * 
  * @param fd The file descriptor to close.

@@ -54,6 +54,55 @@ int32_t fsio_open(const char* path, int32_t flags, int32_t mode) {
     return return_value;
 }
 
+int32_t fsio_unlink(const char* path) {
+    int32_t return_value = 0;
+
+    __asm__ volatile(
+        "mov %1, %%ebx\n"
+        "mov $0x1A, %%eax\n"
+        "int $0x80\n"
+        "mov %%eax, %0\n"
+        : "=r"(return_value)
+        : "g"(path)
+        : "%eax", "%ebx"
+    );
+
+    return return_value;
+}
+
+int32_t fsio_mkdir(const char* path, int32_t mode) {
+    int32_t return_value = 0;
+
+    __asm__ volatile(
+        "mov %1, %%ebx\n"
+        "mov %2, %%ecx\n"
+        "mov $0x1C, %%eax\n"
+        "int $0x80\n"
+        "mov %%eax, %0\n"
+        : "=r"(return_value)
+        : "g"(path), "g"(mode)
+        : "%eax", "%ebx", "%ecx"
+    );
+
+    return return_value;
+}
+
+int32_t fsio_rmdir(const char* path) {
+    int32_t return_value = 0;
+
+    __asm__ volatile(
+        "mov %1, %%ebx\n"
+        "mov $0x1B, %%eax\n"
+        "int $0x80\n"
+        "mov %%eax, %0\n"
+        : "=r"(return_value)
+        : "g"(path)
+        : "%eax", "%ebx"
+    );
+
+    return return_value;
+}
+
 int32_t fsio_close(int32_t fd) {
     int32_t return_value = 0;
 

@@ -83,6 +83,37 @@ static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path
 }
 
 /**
+ * Resolve an absolute path down to the directory holding its last component. Creating and removing
+ * an entry are operations on that directory, so they all start here.
+ *
+ * @param mountpoint Receives the mount point the path resolved against.
+ * @param name Receives a pointer to the last component of the path.
+ * @return The directory node, to be released with file_release_directory, or NULL on error.
+ */
+static vfs_node_t* file_resolve_parent(char* path, vfs_filesystem_t** mountpoint, char** name) {
+    if(!vfs_is_abs_path(path)) {
+        return NULL;
+    }
+
+    vfs_filesystem_t* found = (vfs_filesystem_t*) mnt_get_mountpoint(path);
+
+    if(!found || !found->root) {
+        return NULL;
+    }
+
+    vfs_node_t* parent = file_parent_directory(found, path + 3, name);
+
+    if(!parent || **name == '\0') {
+        file_release_directory(found, parent);
+        return NULL;
+    }
+
+    *mountpoint = found;
+
+    return parent;
+}
+
+/**
  * Remove an entry from the directory that holds it.
  *
  * Note that nothing keeps an entry alive while a file descriptor still refers to it: unlike a full
@@ -92,21 +123,12 @@ static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path
  * @return 0 on success or -1 on error.
  */
 static int32_t file_remove(char* path, bool directory) {
-    if(!vfs_is_abs_path(path)) {
-        return -1;
-    }
-
-    vfs_filesystem_t* mountpoint = (vfs_filesystem_t*) mnt_get_mountpoint(path);
-
-    if(!mountpoint || !mountpoint->root) {
-        return -1;
-    }
-
+    vfs_filesystem_t* mountpoint;
     char* name;
-    vfs_node_t* parent = file_parent_directory(mountpoint, path + 3, &name);
 
-    if(!parent || *name == '\0') {
-        file_release_directory(mountpoint, parent);
+    vfs_node_t* parent = file_resolve_parent(path, &mountpoint, &name);
+
+    if(!parent) {
         return -1;
     }
 
@@ -123,6 +145,23 @@ int32_t file_unlink(char* path) {
 
 int32_t file_rmdir(char* path) {
     return file_remove(path, true);
+}
+
+int32_t file_mkdir(char* path, uint32_t permissions) {
+    vfs_filesystem_t* mountpoint;
+    char* name;
+
+    vfs_node_t* parent = file_resolve_parent(path, &mountpoint, &name);
+
+    if(!parent) {
+        return -1;
+    }
+
+    int32_t result = vfs_mkdir(parent, name, permissions);
+
+    file_release_directory(mountpoint, parent);
+
+    return result;
 }
 
 file_descriptor_t* file_open(char* path, uint32_t flags, uint32_t permissions) {

@@ -28,6 +28,7 @@
 #define SYSCALL_SPAWN 0x19
 #define SYSCALL_UNLINK 0x1A
 #define SYSCALL_RMDIR 0x1B
+#define SYSCALL_MKDIR 0x1C
 
 /**
  * Initializes the syscall handler.

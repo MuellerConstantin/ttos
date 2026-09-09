@@ -61,6 +61,15 @@ file_descriptor_t* file_open(char* path, uint32_t flags, uint32_t permissions);
 int32_t file_unlink(char* path);
 
 /**
+ * Create a directory.
+ *
+ * @param path The path to the directory to create.
+ * @param permissions The permissions of the new directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t file_mkdir(char* path, uint32_t permissions);
+
+/**
  * Delete an empty directory.
  *
  * @param path The path to the directory.

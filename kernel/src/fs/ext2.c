@@ -1606,8 +1606,97 @@ static int32_t ext2_unlink(vfs_node_t* node, char* name) {
 }
 
 static int32_t ext2_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
-    // Not implemented yet.
-    return -1;
+    if(node->type != VFS_DIRECTORY) {
+        return -1;
+    }
+
+    if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        return -1;
+    }
+
+    ext2_fs_t* data = (ext2_fs_t*) node->filesystem->fs_data;
+
+    vfs_node_t* existing = ext2_finddir(node, name);
+
+    if(existing) {
+        kfree(existing);
+        return -1;
+    }
+
+    uint32_t inode_no = ext2_alloc_inode(node->filesystem, true);
+
+    if(inode_no == 0) {
+        return -1;
+    }
+
+    ext2_inode_t inode;
+
+    memset(&inode, 0, sizeof(ext2_inode_t));
+
+    inode.i_mode = EXT2_S_IFDIR | (permissions & 0x0FFF);
+
+    // The "." entry below is a link to the directory itself, the entry in the parent is the second.
+    inode.i_links_count = 2;
+
+    uint32_t block = ext2_inode_alloc_block(node->filesystem, &inode, 0);
+
+    if(block == 0) {
+        ext2_free_inode(node->filesystem, inode_no, true);
+        return -1;
+    }
+
+    // A directory is always a whole number of blocks long, however little of it is in use.
+    inode.i_size = data->block_size;
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    memset(block_buffer, 0, data->block_size);
+
+    ext2_dir_entry_t* self = (ext2_dir_entry_t*) block_buffer;
+
+    self->inode = inode_no;
+    self->rec_len = (uint16_t) ext2_dir_entry_size(1);
+    self->name_len = 1;
+    self->file_type = EXT2_FT_DIR;
+
+    memcpy((uint8_t*) self + sizeof(ext2_dir_entry_t), ".", 1);
+
+    // The parent entry takes the rest of the block, as the last record of a block always does.
+    ext2_dir_entry_t* parent_entry = (ext2_dir_entry_t*) (block_buffer + self->rec_len);
+
+    parent_entry->inode = node->inode;
+    parent_entry->rec_len = (uint16_t) (data->block_size - self->rec_len);
+    parent_entry->name_len = 2;
+    parent_entry->file_type = EXT2_FT_DIR;
+
+    memcpy((uint8_t*) parent_entry + sizeof(ext2_dir_entry_t), "..", 2);
+
+    ext2_write_block(node->filesystem, block, block_buffer);
+
+    kfree(block_buffer);
+
+    if(ext2_write_inode(node->filesystem, inode_no, &inode) != 0 ||
+       ext2_dir_insert(node->filesystem, node->inode, name, inode_no, EXT2_FT_DIR) != 0) {
+        // The directory never became reachable, so everything it took goes straight back.
+        ext2_release_blocks(node->filesystem, &inode);
+        ext2_free_inode(node->filesystem, inode_no, true);
+        return -1;
+    }
+
+    // The new directory's ".." is an additional link to the parent.
+    ext2_inode_t parent;
+
+    if(ext2_read_inode(node->filesystem, node->inode, &parent) != 0) {
+        return -1;
+    }
+
+    parent.i_links_count++;
+
+    return ext2_write_inode(node->filesystem, node->inode, &parent);
 }
 
 static int32_t ext2_rmdir(vfs_node_t* node, char* name) {
