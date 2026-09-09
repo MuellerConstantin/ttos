@@ -30,6 +30,12 @@
 #define EXT2_S_IFLNK 0xA000     // Symbolic link
 
 /**
+ * Stand-in timestamp for events this driver has to record without a wall clock being available.
+ * Zero is not usable for a deletion time, as ext2 reserves it to mean "not deleted".
+ */
+#define EXT2_UNKNOWN_TIME 1
+
+/**
  * Directory entry file types. Only valid when the filetype feature is enabled, which is the case
  * for the images this driver is built against.
  */

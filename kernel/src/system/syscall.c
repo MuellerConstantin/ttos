@@ -450,6 +450,37 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
  */
 static int32_t syscall_spawn(isr_cpu_state_t *state);
 
+/**
+ * Unlink syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Path of the file to delete
+ *
+ * Syscall returns 0 on success or -1 on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_unlink(isr_cpu_state_t *state);
+
+/**
+ * Remove directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Path of the directory to delete
+ *
+ * Syscall returns 0 on success or -1 when the path is no directory, the directory is not empty or
+ * on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_rmdir(isr_cpu_state_t *state);
+
 void syscall_init() {
     isr_register_listener(SYSCALL_INTERRUPT, syscall_handler);
 }
@@ -548,6 +579,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_SPAWN: {
             state->eax = syscall_spawn(state);
+            break;
+        }
+        case SYSCALL_UNLINK: {
+            state->eax = syscall_unlink(state);
+            break;
+        }
+        case SYSCALL_RMDIR: {
+            state->eax = syscall_rmdir(state);
             break;
         }
         default: {
@@ -673,6 +712,26 @@ static int32_t syscall_open(isr_cpu_state_t *state) {
     }
 
     return -1;
+}
+
+static int32_t syscall_unlink(isr_cpu_state_t *state) {
+    const char* path = (const char*) state->ebx;
+
+    if(!path) {
+        return -1;
+    }
+
+    return file_unlink((char*) path);
+}
+
+static int32_t syscall_rmdir(isr_cpu_state_t *state) {
+    const char* path = (const char*) state->ebx;
+
+    if(!path) {
+        return -1;
+    }
+
+    return file_rmdir((char*) path);
 }
 
 static int32_t syscall_close(isr_cpu_state_t *state) {

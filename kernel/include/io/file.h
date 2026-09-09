@@ -53,6 +53,22 @@ struct file_stat {
 file_descriptor_t* file_open(char* path, uint32_t flags, uint32_t permissions);
 
 /**
+ * Delete a file.
+ *
+ * @param path The path to the file.
+ * @return 0 on success or -1 on error.
+ */
+int32_t file_unlink(char* path);
+
+/**
+ * Delete an empty directory.
+ *
+ * @param path The path to the directory.
+ * @return 0 on success or -1 on error.
+ */
+int32_t file_rmdir(char* path);
+
+/**
  * Close a file.
  * 
  * @param fd The file descriptor to close.

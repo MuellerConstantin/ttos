@@ -61,6 +61,10 @@ static uint32_t ext2_inode_alloc_block(vfs_filesystem_t* filesystem, ext2_inode_
 static void ext2_free_indirect(vfs_filesystem_t* filesystem, uint32_t block, uint32_t level);
 static uint32_t ext2_dir_entry_size(uint8_t name_len);
 static int32_t ext2_dir_insert(vfs_filesystem_t* filesystem, uint32_t dir_inode_no, const char* name, uint32_t inode_no, uint8_t file_type);
+static bool ext2_dir_is_empty(vfs_filesystem_t* filesystem, uint32_t dir_inode_no);
+static uint32_t ext2_dir_remove(vfs_filesystem_t* filesystem, uint32_t dir_inode_no, const char* name);
+static void ext2_release_blocks(vfs_filesystem_t* filesystem, ext2_inode_t* inode);
+static int32_t ext2_release_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, ext2_inode_t* inode, bool directory);
 static vfs_node_t* ext2_build_node(vfs_filesystem_t* filesystem, uint32_t inode_no, const char* name, ext2_inode_t* inode);
 
 static vfs_node_operations_t ext2_directory_operations = {
@@ -984,6 +988,185 @@ static int32_t ext2_dir_insert(vfs_filesystem_t* filesystem, uint32_t dir_inode_
 }
 
 /**
+ * Check whether a directory holds anything besides the . and .. entries.
+ */
+static bool ext2_dir_is_empty(vfs_filesystem_t* filesystem, uint32_t dir_inode_no) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    ext2_inode_t inode;
+
+    if(ext2_read_inode(filesystem, dir_inode_no, &inode) != 0) {
+        return false;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    uint32_t total_blocks = (inode.i_size + data->block_size - 1) / data->block_size;
+    bool empty = true;
+
+    for(uint32_t b = 0; b < total_blocks && empty; b++) {
+        uint32_t physical_block = ext2_inode_block(filesystem, &inode, b);
+
+        if(physical_block == 0) {
+            continue;
+        }
+
+        ext2_read_block(filesystem, physical_block, block_buffer);
+
+        uint32_t position = 0;
+
+        while(position < data->block_size) {
+            ext2_dir_entry_t* entry = (ext2_dir_entry_t*) (block_buffer + position);
+
+            if(entry->rec_len == 0) {
+                break;
+            }
+
+            if(entry->inode != 0) {
+                const char* name = (const char*) entry + sizeof(ext2_dir_entry_t);
+
+                bool dot = (entry->name_len == 1 && name[0] == '.');
+                bool dotdot = (entry->name_len == 2 && name[0] == '.' && name[1] == '.');
+
+                if(!dot && !dotdot) {
+                    empty = false;
+                    break;
+                }
+            }
+
+            position += entry->rec_len;
+        }
+    }
+
+    kfree(block_buffer);
+
+    return empty;
+}
+
+/**
+ * Remove an entry from a directory. The record is folded into the one in front of it, which is how
+ * ext2 reclaims the space; an entry at the start of a block has no predecessor to grow and is only
+ * marked unused, leaving a gap that ext2_dir_insert can take over again.
+ *
+ * @return The inode the entry pointed at, or 0 if the name is not in the directory.
+ */
+static uint32_t ext2_dir_remove(vfs_filesystem_t* filesystem, uint32_t dir_inode_no, const char* name) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    ext2_inode_t dir_inode;
+
+    if(ext2_read_inode(filesystem, dir_inode_no, &dir_inode) != 0) {
+        return 0;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    uint32_t total_blocks = (dir_inode.i_size + data->block_size - 1) / data->block_size;
+    size_t name_len = strlen(name);
+
+    for(uint32_t b = 0; b < total_blocks; b++) {
+        uint32_t physical_block = ext2_inode_block(filesystem, &dir_inode, b);
+
+        if(physical_block == 0) {
+            continue;
+        }
+
+        ext2_read_block(filesystem, physical_block, block_buffer);
+
+        uint32_t position = 0;
+        uint32_t previous = 0;
+        bool has_previous = false;
+
+        while(position < data->block_size) {
+            ext2_dir_entry_t* entry = (ext2_dir_entry_t*) (block_buffer + position);
+
+            if(entry->rec_len == 0) {
+                break;
+            }
+
+            if(entry->inode != 0 && entry->name_len == name_len &&
+               memcmp(name, (uint8_t*) entry + sizeof(ext2_dir_entry_t), name_len) == 0) {
+                uint32_t inode_no = entry->inode;
+
+                if(has_previous) {
+                    ext2_dir_entry_t* predecessor = (ext2_dir_entry_t*) (block_buffer + previous);
+                    predecessor->rec_len += entry->rec_len;
+                } else {
+                    entry->inode = 0;
+                }
+
+                ext2_write_block(filesystem, physical_block, block_buffer);
+
+                kfree(block_buffer);
+                return inode_no;
+            }
+
+            previous = position;
+            has_previous = true;
+
+            position += entry->rec_len;
+        }
+    }
+
+    kfree(block_buffer);
+    return 0;
+}
+
+/**
+ * Hand every block of an inode back and reset its size. Writing the inode is left to the caller,
+ * which usually has further changes to make to it.
+ */
+static void ext2_release_blocks(vfs_filesystem_t* filesystem, ext2_inode_t* inode) {
+    for(uint32_t index = 0; index < 12; index++) {
+        if(inode->i_block[index] != 0) {
+            ext2_free_block(filesystem, inode->i_block[index]);
+        }
+    }
+
+    ext2_free_indirect(filesystem, inode->i_block[12], 1);
+    ext2_free_indirect(filesystem, inode->i_block[13], 2);
+    ext2_free_indirect(filesystem, inode->i_block[14], 3);
+
+    memset(inode->i_block, 0, sizeof(inode->i_block));
+
+    inode->i_size = 0;
+    inode->i_blocks = 0;
+}
+
+/**
+ * Drop the last link to an inode: release its blocks, stamp it as deleted and give it back to its
+ * block group.
+ *
+ * @param directory True if the inode held a directory, so the group's directory count is corrected.
+ */
+static int32_t ext2_release_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, ext2_inode_t* inode, bool directory) {
+    ext2_release_blocks(filesystem, inode);
+
+    inode->i_links_count = 0;
+
+    /*
+     * A freed inode has to carry a non-zero deletion time, otherwise it reads as a live inode that
+     * lost its links. There is no wall clock in the system, so the smallest value that satisfies
+     * the rule stands in, matching the epoch that every other timestamp here already carries.
+     */
+    inode->i_dtime = EXT2_UNKNOWN_TIME;
+
+    if(ext2_write_inode(filesystem, inode_no, inode) != 0) {
+        return -1;
+    }
+
+    return ext2_free_inode(filesystem, inode_no, directory);
+}
+
+/**
  * Allocate and populate a vfs_node from an inode. The type, size and ownership are taken directly
  * from the inode, and the matching operation table is selected based on the file type.
  */
@@ -1326,20 +1509,7 @@ static int32_t ext2_truncate(vfs_node_t* node, uint32_t length) {
 
     ext2_inode_t* inode = (ext2_inode_t*) node->inode_data;
 
-    for(uint32_t index = 0; index < 12; index++) {
-        if(inode->i_block[index] != 0) {
-            ext2_free_block(node->filesystem, inode->i_block[index]);
-        }
-    }
-
-    ext2_free_indirect(node->filesystem, inode->i_block[12], 1);
-    ext2_free_indirect(node->filesystem, inode->i_block[13], 2);
-    ext2_free_indirect(node->filesystem, inode->i_block[14], 3);
-
-    memset(inode->i_block, 0, sizeof(inode->i_block));
-
-    inode->i_size = 0;
-    inode->i_blocks = 0;
+    ext2_release_blocks(node->filesystem, inode);
 
     node->length = 0;
 
@@ -1388,8 +1558,51 @@ static int32_t ext2_create(vfs_node_t* node, char* name, uint32_t permissions) {
 }
 
 static int32_t ext2_unlink(vfs_node_t* node, char* name) {
-    // Not implemented yet.
-    return -1;
+    if(node->type != VFS_DIRECTORY) {
+        return -1;
+    }
+
+    if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        return -1;
+    }
+
+    // A directory has to be taken down with rmdir, which also corrects the parent's link count.
+    vfs_node_t* target = ext2_finddir(node, name);
+
+    if(!target) {
+        return -1;
+    }
+
+    bool is_directory = (target->type == VFS_DIRECTORY);
+
+    kfree(target);
+
+    if(is_directory) {
+        return -1;
+    }
+
+    uint32_t inode_no = ext2_dir_remove(node->filesystem, node->inode, name);
+
+    if(inode_no == 0) {
+        return -1;
+    }
+
+    ext2_inode_t inode;
+
+    if(ext2_read_inode(node->filesystem, inode_no, &inode) != 0) {
+        return -1;
+    }
+
+    if(inode.i_links_count > 0) {
+        inode.i_links_count--;
+    }
+
+    // Another name still reaches the inode, so only the link count changes.
+    if(inode.i_links_count > 0) {
+        return ext2_write_inode(node->filesystem, inode_no, &inode);
+    }
+
+    return ext2_release_inode(node->filesystem, inode_no, &inode, false);
 }
 
 static int32_t ext2_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
@@ -1398,6 +1611,60 @@ static int32_t ext2_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
 }
 
 static int32_t ext2_rmdir(vfs_node_t* node, char* name) {
-    // Not implemented yet.
-    return -1;
+    if(node->type != VFS_DIRECTORY) {
+        return -1;
+    }
+
+    if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        return -1;
+    }
+
+    vfs_node_t* target = ext2_finddir(node, name);
+
+    if(!target) {
+        return -1;
+    }
+
+    bool is_directory = (target->type == VFS_DIRECTORY);
+    uint32_t inode_no = target->inode;
+
+    kfree(target);
+
+    if(!is_directory) {
+        return -1;
+    }
+
+    if(!ext2_dir_is_empty(node->filesystem, inode_no)) {
+        return -1;
+    }
+
+    if(ext2_dir_remove(node->filesystem, node->inode, name) == 0) {
+        return -1;
+    }
+
+    ext2_inode_t inode;
+
+    if(ext2_read_inode(node->filesystem, inode_no, &inode) != 0) {
+        return -1;
+    }
+
+    if(ext2_release_inode(node->filesystem, inode_no, &inode, true) != 0) {
+        return -1;
+    }
+
+    /*
+     * The removed directory's ".." was a link to the parent, so the parent loses one now that the
+     * child is gone.
+     */
+    ext2_inode_t parent;
+
+    if(ext2_read_inode(node->filesystem, node->inode, &parent) != 0) {
+        return -1;
+    }
+
+    if(parent.i_links_count > 0) {
+        parent.i_links_count--;
+    }
+
+    return ext2_write_inode(node->filesystem, node->inode, &parent);
 }

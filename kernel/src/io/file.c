@@ -4,13 +4,15 @@
 #include <system/kpanic.h>
 
 /**
- * Create a file at a path that does not exist yet. Splits the path into the directory that will
- * hold the new entry and the name of the entry itself, because a file system expects the create
- * operation on the directory rather than on the file.
+ * Resolve the directory that holds the last component of a path and report that component. Creating
+ * and removing an entry are both operations on the directory the entry lives in rather than on the
+ * entry itself, so both start here.
  *
- * @return The node of the created file or NULL on error.
+ * @param name Receives a pointer into relative_path at the last component.
+ * @return The directory node, to be released with file_release_directory, or NULL if the path in
+ *         front of the last component does not resolve.
  */
-static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path, uint32_t permissions) {
+static vfs_node_t* file_parent_directory(vfs_filesystem_t* mountpoint, char* relative_path, char** name) {
     char* separator = NULL;
 
     for(char* cursor = relative_path; *cursor != '\0'; cursor++) {
@@ -19,38 +21,59 @@ static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path
         }
     }
 
-    vfs_node_t* directory = mountpoint->root;
-    char* name = relative_path;
-
-    if(separator != NULL) {
-        size_t length = separator - relative_path;
-
-        char* parent = (char*) kmalloc(length + 1);
-
-        if(!parent) {
-            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-        }
-
-        memcpy(parent, relative_path, length);
-        parent[length] = '\0';
-
-        directory = vfs_findpath(mountpoint->root, parent);
-        name = separator + 1;
-
-        kfree(parent);
+    if(separator == NULL) {
+        *name = relative_path;
+        return mountpoint->root;
     }
 
+    size_t length = separator - relative_path;
+
+    char* parent = (char*) kmalloc(length + 1);
+
+    if(!parent) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    memcpy(parent, relative_path, length);
+    parent[length] = '\0';
+
+    vfs_node_t* directory = vfs_findpath(mountpoint->root, parent);
+
+    kfree(parent);
+
+    *name = separator + 1;
+
+    return directory;
+}
+
+/**
+ * Release a directory obtained from file_parent_directory. findpath hands out a fresh node for
+ * anything below the root, but the root itself belongs to the mount point and must not be freed
+ * with it.
+ */
+static void file_release_directory(vfs_filesystem_t* mountpoint, vfs_node_t* directory) {
+    if(directory != NULL && directory != mountpoint->root) {
+        kfree(directory);
+    }
+}
+
+/**
+ * Create a file at a path that does not exist yet.
+ *
+ * @return The node of the created file or NULL on error.
+ */
+static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path, uint32_t permissions) {
+    char* name;
+    vfs_node_t* directory = file_parent_directory(mountpoint, relative_path, &name);
+
     if(!directory || *name == '\0') {
+        file_release_directory(mountpoint, directory);
         return NULL;
     }
 
     int32_t result = vfs_create(directory, name, permissions);
 
-    // findpath hands out a fresh node for anything below the root; the root itself belongs to the
-    // mount point and must not be freed with it.
-    if(directory != mountpoint->root) {
-        kfree(directory);
-    }
+    file_release_directory(mountpoint, directory);
 
     if(result != 0) {
         return NULL;
@@ -59,12 +82,55 @@ static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path
     return vfs_findpath(mountpoint->root, relative_path);
 }
 
+/**
+ * Remove an entry from the directory that holds it.
+ *
+ * Note that nothing keeps an entry alive while a file descriptor still refers to it: unlike a full
+ * unix, removing a file that is still open frees its inode right away.
+ *
+ * @param directory True to remove a directory, false to remove a file.
+ * @return 0 on success or -1 on error.
+ */
+static int32_t file_remove(char* path, bool directory) {
+    if(!vfs_is_abs_path(path)) {
+        return -1;
+    }
+
+    vfs_filesystem_t* mountpoint = (vfs_filesystem_t*) mnt_get_mountpoint(path);
+
+    if(!mountpoint || !mountpoint->root) {
+        return -1;
+    }
+
+    char* name;
+    vfs_node_t* parent = file_parent_directory(mountpoint, path + 3, &name);
+
+    if(!parent || *name == '\0') {
+        file_release_directory(mountpoint, parent);
+        return -1;
+    }
+
+    int32_t result = directory ? vfs_rmdir(parent, name) : vfs_unlink(parent, name);
+
+    file_release_directory(mountpoint, parent);
+
+    return result;
+}
+
+int32_t file_unlink(char* path) {
+    return file_remove(path, false);
+}
+
+int32_t file_rmdir(char* path) {
+    return file_remove(path, true);
+}
+
 file_descriptor_t* file_open(char* path, uint32_t flags, uint32_t permissions) {
     if(!vfs_is_abs_path(path)) {
         return NULL;
     }
 
-    vfs_filesystem_t* mountpoint = mnt_get_mountpoint(path);
+    vfs_filesystem_t* mountpoint = (vfs_filesystem_t*) mnt_get_mountpoint(path);
 
     if(!mountpoint || !mountpoint->root) {
         return NULL;
@@ -235,7 +301,7 @@ int32_t file_stat(const char* path, file_stat_t* stat) {
         return -1;
     }
 
-    vfs_filesystem_t* mountpoint = mnt_get_mountpoint(path);
+    vfs_filesystem_t* mountpoint = (vfs_filesystem_t*) mnt_get_mountpoint(path);
 
     if(!mountpoint || !mountpoint->root) {
         return -1;
