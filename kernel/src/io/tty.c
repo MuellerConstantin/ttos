@@ -10,6 +10,7 @@ static void tty_keyboard_listener(keyboard_event_t* event);
 static void tty_render(tty_t* tty, char ch);
 static void tty_render_char(tty_t* tty, char ch);
 static void tty_csi_dispatch(tty_t* tty, char command);
+static void tty_sgr_apply(tty_t* tty, uint32_t param);
 static tty_stream_putchar(stream_t* stream, char ch);
 static char tty_stream_getchar(stream_t* stream);
 static void tty_stream_puts(stream_t* stream, const char* str);
@@ -40,8 +41,8 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     tty->columns = video->driver->tm.total_columns();
     tty->cursor_x = 0;
     tty->cursor_y = 0;
-    tty->fgcolor = TTY_WHITE;
-    tty->bgcolor = TTY_BLACK;
+    tty->fgcolor = TTY_DEFAULT_FGCOLOR;
+    tty->bgcolor = TTY_DEFAULT_BGCOLOR;
     tty->video = video;
     tty->keyboard = keyboard;
     tty->layout = layout;
@@ -352,9 +353,74 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
             tty->video->driver->tm.move_cursor(position);
             break;
         }
+        case 'm': {
+            /*
+             * Select Graphic Rendition. Parameters apply in order, so a
+             * compound sequence such as ESC [ 1 ; 31 ; 44 m reads left to right.
+             */
+            for(size_t index = 0; index < tty->ansi_param_count; index++) {
+                tty_sgr_apply(tty, tty->ansi_params[index]);
+            }
+
+            break;
+        }
         default:
             // Unsupported CSI command; ignore.
             break;
+    }
+}
+
+/*
+ * ANSI numbers its colors black, red, green, yellow, blue, magenta, cyan, white.
+ * The VGA attribute nibble swaps the red/blue pairs, so codes translate through
+ * this table rather than by arithmetic.
+ */
+static const uint8_t tty_ansi_colors[8] = {
+    TTY_BLACK,
+    TTY_RED,
+    TTY_GREEN,
+    TTY_BROWN,
+    TTY_BLUE,
+    TTY_MAGENTA,
+    TTY_CYAN,
+    TTY_LIGHT_GREY
+};
+
+/*
+ * Applies a single SGR parameter to the terminal's current colors. Attributes
+ * with no text mode equivalent (italics, underline, reverse video) are ignored.
+ */
+static void tty_sgr_apply(tty_t* tty, uint32_t param) {
+    switch(param) {
+        case 0:
+            // Reset. A bare ESC [ m parses as parameter 0 and lands here too.
+            tty->fgcolor = TTY_DEFAULT_FGCOLOR;
+            tty->bgcolor = TTY_DEFAULT_BGCOLOR;
+            return;
+        case 1:
+            // Bold. Text mode has no heavier font, so brighten instead.
+            tty->fgcolor |= TTY_COLOR_BRIGHT;
+            return;
+        case 22:
+            tty->fgcolor &= ~TTY_COLOR_BRIGHT;
+            return;
+        case 39:
+            tty->fgcolor = TTY_DEFAULT_FGCOLOR;
+            return;
+        case 49:
+            tty->bgcolor = TTY_DEFAULT_BGCOLOR;
+            return;
+    }
+
+    if(param >= 30 && param <= 37) {
+        // Keep an active bold from being dropped by a later color change.
+        tty->fgcolor = tty_ansi_colors[param - 30] | (tty->fgcolor & TTY_COLOR_BRIGHT);
+    } else if(param >= 40 && param <= 47) {
+        tty->bgcolor = tty_ansi_colors[param - 40];
+    } else if(param >= 90 && param <= 97) {
+        tty->fgcolor = tty_ansi_colors[param - 90] | TTY_COLOR_BRIGHT;
+    } else if(param >= 100 && param <= 107) {
+        tty->bgcolor = tty_ansi_colors[param - 100] | TTY_COLOR_BRIGHT;
     }
 }
 

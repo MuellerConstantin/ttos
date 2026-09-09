@@ -23,6 +23,19 @@
 #define VGA_TM_LIGHT_BROWN		0x0E
 #define VGA_TM_WHITE			0x0F
 
+/*
+ * The system's background shade. VGA's own blue is a saturated #0000AA, which is
+ * far too loud to sit behind a whole screen of text, so the DAC entry it points
+ * at is reprogrammed at init to this darker blue-grey. Attribute color 1 —
+ * TTY_BLUE, and with it ESC [ 34 m and ESC [ 44 m — renders in it afterwards.
+ *
+ * Components are 6 bit (0-63). The values below are roughly #2A4A66.
+ */
+#define VGA_TM_THEME_COLOR_INDEX    0x01
+#define VGA_TM_THEME_COLOR_RED      10
+#define VGA_TM_THEME_COLOR_GREEN    18
+#define VGA_TM_THEME_COLOR_BLUE     25
+
 #define VGA_TM_CURSOR_MIN_SCANLINE 0x00
 #define VGA_TM_CURSOR_MAX_SCANLINE 0x0F
 
@@ -32,6 +45,24 @@
  * @return 0 if successful, -1 if the driver failed to initialize.
  */
 int32_t vga_tm_init();
+
+/**
+ * Rewrite one entry of the DAC color table.
+ *
+ * @param index The color index to change.
+ * @param red The red component, 0 to 63.
+ * @param green The green component, 0 to 63.
+ * @param blue The blue component, 0 to 63.
+ */
+void vga_tm_set_palette_color(uint8_t index, uint8_t red, uint8_t green, uint8_t blue);
+
+/**
+ * Enable or disable blinking text. While blinking is on, the high bit of the
+ * background nibble makes text flash instead of selecting a bright background.
+ *
+ * @param enabled Whether the blink attribute is honored.
+ */
+void vga_tm_set_blink(bool enabled);
 
 /**
  * Enable the VGA text mode cursor.

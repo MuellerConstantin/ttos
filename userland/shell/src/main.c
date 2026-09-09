@@ -10,6 +10,23 @@
 #define SHELL_HISTORY_MAX 16
 
 /*
+ * The shell paints the terminal in its own background once it takes over, so
+ * anything that resets attributes has to restore that background rather than
+ * the terminal default, which is black.
+ */
+#define SHELL_BACKGROUND "\033[44m"
+#define SHELL_RESET "\033[0m" SHELL_BACKGROUND
+
+/*
+ * Prompt text and the attributes it is drawn with, kept apart on purpose: the
+ * redraw counts strlen(prompt) as the prompt's width on screen, so escape
+ * sequences must never be part of the string itself. An empty style leaves the
+ * prompt in the terminal's default foreground.
+ */
+#define SHELL_PROMPT "> "
+#define SHELL_PROMPT_STYLE ""
+
+/*
  * Directories searched for bare command names, in order. Starts with the initrd
  * root and can be extended at runtime with the `path` builtin.
  */
@@ -263,7 +280,11 @@ static void shell_redraw(const char* prompt, const char* buffer, size_t length, 
         printf("\033[%dD", (int) offset);
     }
 
-    printf("%s%s\033[0J", prompt, buffer);
+    /*
+     * Reset attributes first: a program may have exited mid-color, and \033[0J
+     * would otherwise smear that background across the rest of the screen.
+     */
+    printf(SHELL_RESET SHELL_PROMPT_STYLE "%s" SHELL_RESET "%s\033[0J", prompt, buffer);
 
     /*
      * Reprinting left the terminal cursor at the end of the buffer; move it back
@@ -285,7 +306,7 @@ static void shell_read_line(const char* prompt, char* buffer, size_t size) {
     size_t nav = history_count;
 
     buffer[0] = '\0';
-    printf("%s", prompt);
+    printf(SHELL_RESET SHELL_PROMPT_STYLE "%s" SHELL_RESET, prompt);
 
     for(;;) {
         int ch = getchar();
@@ -405,6 +426,12 @@ static void shell_read_line(const char* prompt, char* buffer, size_t size) {
 }
 
 int main(void) {
+    /*
+     * Take over the terminal: set the background, then clear so it covers the
+     * whole screen rather than only the cells written from here on.
+     */
+    printf(SHELL_BACKGROUND "\033[2J\033[H");
+
     shell_banner();
 
     strcpy(search_paths[0], "A:/");
@@ -414,7 +441,7 @@ int main(void) {
     char* argv[SHELL_MAX_ARGS + 1];
 
     for(;;) {
-        shell_read_line("> ", line, sizeof(line));
+        shell_read_line(SHELL_PROMPT, line, sizeof(line));
 
         size_t argc = shell_tokenize(line, argv, SHELL_MAX_ARGS);
 

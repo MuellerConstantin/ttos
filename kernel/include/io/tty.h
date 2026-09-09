@@ -27,6 +27,13 @@
 #define TTY_LIGHT_BROWN		0x0E
 #define TTY_WHITE			0x0F
 
+// Set in the color nibble to pick the bright variant of a color.
+#define TTY_COLOR_BRIGHT    0x08
+
+// Colors a terminal starts with and returns to on a reset (ESC [ 0 m).
+#define TTY_DEFAULT_FGCOLOR TTY_WHITE
+#define TTY_DEFAULT_BGCOLOR TTY_BLACK
+
 typedef struct tty_keymap_entry tty_keymap_entry_t;
 typedef struct tty_keyboard_layout tty_keyboard_layout_t;
 
