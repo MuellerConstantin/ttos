@@ -38,8 +38,9 @@ struct vfs_node_operations {
 
     int32_t (*read)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
     int32_t (*write)(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
-    vfs_node_t* (*create)(vfs_node_t* node, char* name, uint32_t permissions);
+    int32_t (*create)(vfs_node_t* node, char* name, uint32_t permissions);
     int32_t (*unlink)(vfs_node_t* node, char* name);
+    int32_t (*truncate)(vfs_node_t* node, uint32_t length);
 
     // Directory specific operations
 
@@ -150,6 +151,15 @@ int32_t vfs_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
  * @return The number of bytes written or -1 on error.
  */
 int32_t vfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+
+/**
+ * Truncate a file to a given length.
+ *
+ * @param node The file to truncate.
+ * @param length The length to truncate to.
+ * @return 0 on success or -1 on error.
+ */
+int32_t vfs_truncate(vfs_node_t* node, uint32_t length);
 
 /**
  * Create a file.

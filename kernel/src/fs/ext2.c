@@ -29,6 +29,7 @@ static int32_t ext2_open(vfs_node_t* node);
 static int32_t ext2_close(vfs_node_t* node);
 static int32_t ext2_read(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
 static int32_t ext2_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer);
+static int32_t ext2_truncate(vfs_node_t* node, uint32_t length);
 static int32_t ext2_create(vfs_node_t* node, char* name, uint32_t permissions);
 static int32_t ext2_unlink(vfs_node_t* node, char* name);
 static int32_t ext2_mkdir(vfs_node_t* node, char* name, uint32_t permissions);
@@ -55,6 +56,11 @@ static int32_t ext2_free_block(vfs_filesystem_t* filesystem, uint32_t block);
 static uint32_t ext2_alloc_inode(vfs_filesystem_t* filesystem, bool directory);
 static int32_t ext2_free_inode(vfs_filesystem_t* filesystem, uint32_t inode_no, bool directory);
 static uint32_t ext2_inode_block(vfs_filesystem_t* filesystem, ext2_inode_t* inode, uint32_t index);
+static uint32_t ext2_indirect_slot(vfs_filesystem_t* filesystem, ext2_inode_t* inode, uint32_t indirect_block, uint32_t slot);
+static uint32_t ext2_inode_alloc_block(vfs_filesystem_t* filesystem, ext2_inode_t* inode, uint32_t index);
+static void ext2_free_indirect(vfs_filesystem_t* filesystem, uint32_t block, uint32_t level);
+static uint32_t ext2_dir_entry_size(uint8_t name_len);
+static int32_t ext2_dir_insert(vfs_filesystem_t* filesystem, uint32_t dir_inode_no, const char* name, uint32_t inode_no, uint8_t file_type);
 static vfs_node_t* ext2_build_node(vfs_filesystem_t* filesystem, uint32_t inode_no, const char* name, ext2_inode_t* inode);
 
 static vfs_node_operations_t ext2_directory_operations = {
@@ -63,8 +69,9 @@ static vfs_node_operations_t ext2_directory_operations = {
     .rename = &ext2_rename,
     .read = NULL,
     .write = NULL,
-    .create = NULL,
-    .unlink = NULL,
+    .truncate = NULL,
+    .create = &ext2_create,
+    .unlink = &ext2_unlink,
     .mkdir = &ext2_mkdir,
     .rmdir = &ext2_rmdir,
     .readdir = &ext2_readdir,
@@ -77,8 +84,9 @@ static vfs_node_operations_t ext2_file_operations = {
     .rename = &ext2_rename,
     .read = &ext2_read,
     .write = &ext2_write,
-    .create = &ext2_create,
-    .unlink = &ext2_unlink,
+    .truncate = &ext2_truncate,
+    .create = NULL,
+    .unlink = NULL,
     .mkdir = NULL,
     .rmdir = NULL,
     .readdir = NULL,
@@ -684,6 +692,298 @@ static uint32_t ext2_inode_block(vfs_filesystem_t* filesystem, ext2_inode_t* ino
 }
 
 /**
+ * Follow one slot of an indirect block, allocating the block it points at when the slot is still
+ * empty. The indirect block is written back whenever a new pointer is stored, and i_blocks is
+ * charged for the allocation.
+ *
+ * @return The block number the slot points at or 0 when the file system is full.
+ */
+static uint32_t ext2_indirect_slot(vfs_filesystem_t* filesystem, ext2_inode_t* inode, uint32_t indirect_block, uint32_t slot) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    uint32_t* block_buffer = (uint32_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    ext2_read_block(filesystem, indirect_block, block_buffer);
+
+    uint32_t block = block_buffer[slot];
+
+    if(block == 0) {
+        block = ext2_alloc_block(filesystem);
+
+        if(block != 0) {
+            block_buffer[slot] = block;
+            ext2_write_block(filesystem, indirect_block, block_buffer);
+
+            inode->i_blocks += data->block_size / 512;
+        }
+    }
+
+    kfree(block_buffer);
+
+    return block;
+}
+
+/**
+ * Resolve the absolute block number of the index-th block of a file, allocating the block and every
+ * indirect block on the way to it when they are still missing. The counterpart of ext2_inode_block,
+ * which reports holes rather than filling them.
+ *
+ * The caller owns the inode struct and is responsible for writing it back, as i_block and i_blocks
+ * are updated in place here. Indirect blocks count towards i_blocks as well, which is what ext2
+ * expects and what e2fsck verifies.
+ *
+ * @return The block number or 0 when the file system is full or the index is out of range.
+ */
+static uint32_t ext2_inode_alloc_block(vfs_filesystem_t* filesystem, ext2_inode_t* inode, uint32_t index) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    uint32_t pointers_per_block = data->block_size / sizeof(uint32_t);
+    uint32_t sectors_per_block = data->block_size / 512;
+
+    // 12 direct block pointers
+    if(index < 12) {
+        if(inode->i_block[index] == 0) {
+            uint32_t block = ext2_alloc_block(filesystem);
+
+            if(block == 0) {
+                return 0;
+            }
+
+            inode->i_block[index] = block;
+            inode->i_blocks += sectors_per_block;
+        }
+
+        return inode->i_block[index];
+    }
+
+    index -= 12;
+
+    /*
+     * Pick the indirection level and break the remaining index down into one slot per level. The
+     * walk below is then the same for all three levels.
+     */
+    uint32_t root;
+    uint32_t slots[3];
+    uint32_t depth;
+
+    if(index < pointers_per_block) {
+        root = 12;
+        depth = 1;
+        slots[0] = index;
+    } else if(index - pointers_per_block < pointers_per_block * pointers_per_block) {
+        index -= pointers_per_block;
+
+        root = 13;
+        depth = 2;
+        slots[0] = index / pointers_per_block;
+        slots[1] = index % pointers_per_block;
+    } else {
+        index -= pointers_per_block + pointers_per_block * pointers_per_block;
+
+        if(index >= pointers_per_block * pointers_per_block * pointers_per_block) {
+            return 0;
+        }
+
+        root = 14;
+        depth = 3;
+        slots[0] = index / (pointers_per_block * pointers_per_block);
+        slots[1] = (index % (pointers_per_block * pointers_per_block)) / pointers_per_block;
+        slots[2] = index % pointers_per_block;
+    }
+
+    if(inode->i_block[root] == 0) {
+        uint32_t block = ext2_alloc_block(filesystem);
+
+        if(block == 0) {
+            return 0;
+        }
+
+        // ext2_alloc_block hands out a zeroed block, so the fresh indirect block reads back as a
+        // table of empty slots without any extra clearing.
+        inode->i_block[root] = block;
+        inode->i_blocks += sectors_per_block;
+    }
+
+    uint32_t block = inode->i_block[root];
+
+    for(uint32_t level = 0; level < depth; level++) {
+        block = ext2_indirect_slot(filesystem, inode, block, slots[level]);
+
+        if(block == 0) {
+            return 0;
+        }
+    }
+
+    return block;
+}
+
+/**
+ * Free an indirect block and everything below it. Level 1 is a single indirect block whose slots
+ * are data blocks, level 2 a double and level 3 a triple indirect block.
+ */
+static void ext2_free_indirect(vfs_filesystem_t* filesystem, uint32_t block, uint32_t level) {
+    if(block == 0) {
+        return;
+    }
+
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    uint32_t pointers_per_block = data->block_size / sizeof(uint32_t);
+
+    uint32_t* block_buffer = (uint32_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    ext2_read_block(filesystem, block, block_buffer);
+
+    for(uint32_t slot = 0; slot < pointers_per_block; slot++) {
+        if(block_buffer[slot] == 0) {
+            continue;
+        }
+
+        if(level > 1) {
+            ext2_free_indirect(filesystem, block_buffer[slot], level - 1);
+        } else {
+            ext2_free_block(filesystem, block_buffer[slot]);
+        }
+    }
+
+    kfree(block_buffer);
+
+    ext2_free_block(filesystem, block);
+}
+
+/**
+ * Size an on-disk directory entry needs for a given name: the header plus the name, rounded up to
+ * the 4-byte alignment ext2 requires.
+ */
+static uint32_t ext2_dir_entry_size(uint8_t name_len) {
+    return (sizeof(ext2_dir_entry_t) + name_len + 3) & ~3u;
+}
+
+/**
+ * Add an entry to a directory. Walks the directory blocks looking for a record with enough slack,
+ * either an entry marked unused or the padding behind a live entry, and splits that record in two.
+ * When no block has room, a further block is appended to the directory and the new entry spans it
+ * whole.
+ *
+ * @return 0 on success or -1 on error.
+ */
+static int32_t ext2_dir_insert(vfs_filesystem_t* filesystem, uint32_t dir_inode_no, const char* name, uint32_t inode_no, uint8_t file_type) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    size_t name_len = strlen(name);
+
+    if(name_len == 0 || name_len > 255) {
+        return -1;
+    }
+
+    uint32_t needed = ext2_dir_entry_size((uint8_t) name_len);
+
+    if(needed > data->block_size) {
+        return -1;
+    }
+
+    ext2_inode_t dir_inode;
+
+    if(ext2_read_inode(filesystem, dir_inode_no, &dir_inode) != 0) {
+        return -1;
+    }
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    uint32_t total_blocks = (dir_inode.i_size + data->block_size - 1) / data->block_size;
+
+    for(uint32_t b = 0; b < total_blocks; b++) {
+        uint32_t physical_block = ext2_inode_block(filesystem, &dir_inode, b);
+
+        if(physical_block == 0) {
+            continue;
+        }
+
+        ext2_read_block(filesystem, physical_block, block_buffer);
+
+        uint32_t position = 0;
+
+        while(position < data->block_size) {
+            ext2_dir_entry_t* entry = (ext2_dir_entry_t*) (block_buffer + position);
+
+            if(entry->rec_len == 0) {
+                break;
+            }
+
+            // An unused entry can be taken over whole; a live one only lends its trailing padding.
+            uint32_t used = (entry->inode == 0) ? 0 : ext2_dir_entry_size(entry->name_len);
+
+            if(entry->rec_len - used >= needed) {
+                ext2_dir_entry_t* target;
+
+                if(used == 0) {
+                    target = entry;
+                } else {
+                    target = (ext2_dir_entry_t*) (block_buffer + position + used);
+                    target->rec_len = entry->rec_len - used;
+                    entry->rec_len = used;
+                }
+
+                target->inode = inode_no;
+                target->name_len = (uint8_t) name_len;
+                target->file_type = file_type;
+
+                memcpy((uint8_t*) target + sizeof(ext2_dir_entry_t), name, name_len);
+
+                ext2_write_block(filesystem, physical_block, block_buffer);
+
+                kfree(block_buffer);
+                return 0;
+            }
+
+            position += entry->rec_len;
+        }
+    }
+
+    /*
+     * No room anywhere: append a block. A directory is always a whole number of blocks long, so
+     * the new block sits at index i_size / block_size and grows i_size by exactly one block.
+     */
+    uint32_t physical_block = ext2_inode_alloc_block(filesystem, &dir_inode, dir_inode.i_size / data->block_size);
+
+    if(physical_block == 0) {
+        kfree(block_buffer);
+        return -1;
+    }
+
+    memset(block_buffer, 0, data->block_size);
+
+    ext2_dir_entry_t* entry = (ext2_dir_entry_t*) block_buffer;
+
+    entry->inode = inode_no;
+    entry->rec_len = (uint16_t) data->block_size;
+    entry->name_len = (uint8_t) name_len;
+    entry->file_type = file_type;
+
+    memcpy((uint8_t*) entry + sizeof(ext2_dir_entry_t), name, name_len);
+
+    ext2_write_block(filesystem, physical_block, block_buffer);
+
+    kfree(block_buffer);
+
+    dir_inode.i_size += data->block_size;
+
+    return ext2_write_inode(filesystem, dir_inode_no, &dir_inode);
+}
+
+/**
  * Allocate and populate a vfs_node from an inode. The type, size and ownership are taken directly
  * from the inode, and the matching operation table is selected based on the file type.
  */
@@ -936,31 +1236,168 @@ static vfs_node_t* ext2_finddir(vfs_node_t* node, char* name) {
 }
 
 static int32_t ext2_rename(vfs_node_t* node, char* new_name) {
-    // Unsupported because the driver is read-only for now.
+    // Not implemented yet.
     return -1;
 }
 
 static int32_t ext2_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) {
-    // Unsupported because the driver is read-only for now.
-    return -1;
+    if(node->inode_data == NULL) {
+        return -1;
+    }
+
+    if(size == 0) {
+        return 0;
+    }
+
+    ext2_inode_t* inode = (ext2_inode_t*) node->inode_data;
+    ext2_fs_t* data = (ext2_fs_t*) node->filesystem->fs_data;
+
+    uint8_t* block_buffer = (uint8_t*) kmalloc(data->block_size);
+
+    if(!block_buffer) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    size_t bytes_written = 0;
+
+    while(bytes_written < size) {
+        uint32_t file_block = (offset + bytes_written) / data->block_size;
+        uint32_t offset_in_block = (offset + bytes_written) % data->block_size;
+
+        uint32_t chunk = data->block_size - offset_in_block;
+
+        if(chunk > size - bytes_written) {
+            chunk = size - bytes_written;
+        }
+
+        uint32_t physical_block = ext2_inode_alloc_block(node->filesystem, inode, file_block);
+
+        if(physical_block == 0) {
+            // Out of space. Report the part that made it rather than discarding it silently.
+            break;
+        }
+
+        if(chunk == data->block_size) {
+            memcpy(block_buffer, (uint8_t*) buffer + bytes_written, chunk);
+        } else {
+            // Partial block, so the surrounding bytes have to be preserved. A freshly allocated
+            // block reads back as zeros, which is exactly what a sparse region should look like.
+            ext2_read_block(node->filesystem, physical_block, block_buffer);
+            memcpy(block_buffer + offset_in_block, (uint8_t*) buffer + bytes_written, chunk);
+        }
+
+        ext2_write_block(node->filesystem, physical_block, block_buffer);
+
+        bytes_written += chunk;
+    }
+
+    kfree(block_buffer);
+
+    if(bytes_written == 0) {
+        return -1;
+    }
+
+    if(offset + bytes_written > inode->i_size) {
+        inode->i_size = offset + bytes_written;
+        node->length = inode->i_size;
+    }
+
+    // i_block and i_blocks were updated in place while allocating, so the inode has to go back to
+    // disk even when the file did not grow.
+    if(ext2_write_inode(node->filesystem, node->inode, inode) != 0) {
+        return -1;
+    }
+
+    return (int32_t) bytes_written;
+}
+
+static int32_t ext2_truncate(vfs_node_t* node, uint32_t length) {
+    if(node->inode_data == NULL) {
+        return -1;
+    }
+
+    /*
+     * Only truncating to zero is supported. Cutting a file short at an arbitrary length also has to
+     * prune the indirect blocks that fall empty in the process, and no caller needs that yet.
+     */
+    if(length != 0) {
+        return -1;
+    }
+
+    ext2_inode_t* inode = (ext2_inode_t*) node->inode_data;
+
+    for(uint32_t index = 0; index < 12; index++) {
+        if(inode->i_block[index] != 0) {
+            ext2_free_block(node->filesystem, inode->i_block[index]);
+        }
+    }
+
+    ext2_free_indirect(node->filesystem, inode->i_block[12], 1);
+    ext2_free_indirect(node->filesystem, inode->i_block[13], 2);
+    ext2_free_indirect(node->filesystem, inode->i_block[14], 3);
+
+    memset(inode->i_block, 0, sizeof(inode->i_block));
+
+    inode->i_size = 0;
+    inode->i_blocks = 0;
+
+    node->length = 0;
+
+    return ext2_write_inode(node->filesystem, node->inode, inode);
 }
 
 static int32_t ext2_create(vfs_node_t* node, char* name, uint32_t permissions) {
-    // Unsupported because the driver is read-only for now.
-    return -1;
+    if(node->type != VFS_DIRECTORY) {
+        return -1;
+    }
+
+    // Refuse to shadow an existing name instead of leaving two entries behind that resolve
+    // differently depending on which one finddir reaches first.
+    vfs_node_t* existing = ext2_finddir(node, name);
+
+    if(existing) {
+        kfree(existing);
+        return -1;
+    }
+
+    uint32_t inode_no = ext2_alloc_inode(node->filesystem, false);
+
+    if(inode_no == 0) {
+        return -1;
+    }
+
+    ext2_inode_t inode;
+
+    memset(&inode, 0, sizeof(ext2_inode_t));
+
+    inode.i_mode = EXT2_S_IFREG | (permissions & 0x0FFF);
+    inode.i_links_count = 1;
+
+    if(ext2_write_inode(node->filesystem, inode_no, &inode) != 0) {
+        ext2_free_inode(node->filesystem, inode_no, false);
+        return -1;
+    }
+
+    if(ext2_dir_insert(node->filesystem, node->inode, name, inode_no, EXT2_FT_REG_FILE) != 0) {
+        // The inode never became reachable, so handing it straight back keeps the counters right.
+        ext2_free_inode(node->filesystem, inode_no, false);
+        return -1;
+    }
+
+    return 0;
 }
 
 static int32_t ext2_unlink(vfs_node_t* node, char* name) {
-    // Unsupported because the driver is read-only for now.
+    // Not implemented yet.
     return -1;
 }
 
 static int32_t ext2_mkdir(vfs_node_t* node, char* name, uint32_t permissions) {
-    // Unsupported because the driver is read-only for now.
+    // Not implemented yet.
     return -1;
 }
 
 static int32_t ext2_rmdir(vfs_node_t* node, char* name) {
-    // Unsupported because the driver is read-only for now.
+    // Not implemented yet.
     return -1;
 }

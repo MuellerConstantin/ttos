@@ -3,7 +3,63 @@
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 
-file_descriptor_t* file_open(char* path, uint32_t flags) {
+/**
+ * Create a file at a path that does not exist yet. Splits the path into the directory that will
+ * hold the new entry and the name of the entry itself, because a file system expects the create
+ * operation on the directory rather than on the file.
+ *
+ * @return The node of the created file or NULL on error.
+ */
+static vfs_node_t* file_create(vfs_filesystem_t* mountpoint, char* relative_path, uint32_t permissions) {
+    char* separator = NULL;
+
+    for(char* cursor = relative_path; *cursor != '\0'; cursor++) {
+        if(*cursor == '/') {
+            separator = cursor;
+        }
+    }
+
+    vfs_node_t* directory = mountpoint->root;
+    char* name = relative_path;
+
+    if(separator != NULL) {
+        size_t length = separator - relative_path;
+
+        char* parent = (char*) kmalloc(length + 1);
+
+        if(!parent) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        memcpy(parent, relative_path, length);
+        parent[length] = '\0';
+
+        directory = vfs_findpath(mountpoint->root, parent);
+        name = separator + 1;
+
+        kfree(parent);
+    }
+
+    if(!directory || *name == '\0') {
+        return NULL;
+    }
+
+    int32_t result = vfs_create(directory, name, permissions);
+
+    // findpath hands out a fresh node for anything below the root; the root itself belongs to the
+    // mount point and must not be freed with it.
+    if(directory != mountpoint->root) {
+        kfree(directory);
+    }
+
+    if(result != 0) {
+        return NULL;
+    }
+
+    return vfs_findpath(mountpoint->root, relative_path);
+}
+
+file_descriptor_t* file_open(char* path, uint32_t flags, uint32_t permissions) {
     if(!vfs_is_abs_path(path)) {
         return NULL;
     }
@@ -18,8 +74,11 @@ file_descriptor_t* file_open(char* path, uint32_t flags) {
 
     vfs_node_t* node = vfs_findpath(mountpoint->root, relative_path);
 
+    if(!node && (flags & FILE_CREAT)) {
+        node = file_create(mountpoint, relative_path, permissions);
+    }
+
     if(!node) {
-        kfree(node);
         return NULL;
     }
 
@@ -36,9 +95,20 @@ file_descriptor_t* file_open(char* path, uint32_t flags) {
 
     if(vfs_open(node) != 0) {
         kfree(file_descriptor);
-        kfree(node->name);
         kfree(node);
         return NULL;
+    }
+
+    // Discarding the previous contents needs the inode loaded, so it has to happen after the open.
+    if(flags & FILE_TRUNC) {
+        if(vfs_truncate(node, 0) != 0) {
+            vfs_close(node);
+            kfree(file_descriptor);
+            kfree(node);
+            return NULL;
+        }
+
+        file_descriptor->size = 0;
     }
 
     return file_descriptor;
@@ -103,8 +173,10 @@ int32_t file_write(file_descriptor_t* fd, void* buffer, size_t size) {
         return -1;
     }
 
-    if(fd->offset + size > fd->size) {
-        size = fd->size - fd->offset;
+    // An appending descriptor always writes at the current end of the file, wherever an earlier
+    // write or seek left the offset.
+    if(fd->flags & FILE_APPEND) {
+        fd->offset = fd->node->length;
     }
 
     int32_t bytes_written = vfs_write(fd->node, fd->offset, size, buffer);
@@ -114,6 +186,12 @@ int32_t file_write(file_descriptor_t* fd, void* buffer, size_t size) {
     }
 
     fd->offset += bytes_written;
+
+    // Writing past the end grows the file, so the size this descriptor reads and seeks against has
+    // to follow along.
+    if(fd->offset > fd->size) {
+        fd->size = fd->offset;
+    }
 
     return bytes_written;
 }

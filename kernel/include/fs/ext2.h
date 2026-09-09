@@ -29,6 +29,13 @@
 #define EXT2_S_IFDIR 0x4000     // Directory
 #define EXT2_S_IFLNK 0xA000     // Symbolic link
 
+/**
+ * Directory entry file types. Only valid when the filetype feature is enabled, which is the case
+ * for the images this driver is built against.
+ */
+#define EXT2_FT_REG_FILE 1
+#define EXT2_FT_DIR      2
+
 struct ext2_superblock {
     uint32_t s_inodes_count;        // Total number of inodes
     uint32_t s_blocks_count;        // Total number of blocks

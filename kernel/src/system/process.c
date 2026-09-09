@@ -21,7 +21,7 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
         return NULL;
     }
 
-    if((executable_fd = file_open(path, FILE_RDONLY)) < 0) {
+    if((executable_fd = file_open((char*) path, FILE_RDONLY, 0)) == NULL) {
         return NULL;
     }
 

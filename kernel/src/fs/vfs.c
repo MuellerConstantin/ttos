@@ -66,6 +66,14 @@ int32_t vfs_write(vfs_node_t* node, uint32_t offset, size_t size, void* buffer) 
     return -1;
 }
 
+int32_t vfs_truncate(vfs_node_t* node, uint32_t length) {
+    if (node && node->operations->truncate != NULL && node->type == VFS_FILE) {
+        return node->operations->truncate(node, length);
+    }
+
+    return -1;
+}
+
 int32_t vfs_create(vfs_node_t* node, char* name, uint32_t permissions) {
     if (node && node->operations->create != NULL && node->type == VFS_DIRECTORY) {
         return node->operations->create(node, name, permissions);
@@ -131,11 +139,15 @@ vfs_node_t* vfs_findpath(vfs_node_t* node, char* path) {
 
     strcpy(path_copy, path);
 
-    if(path_copy[0] == '/') {
-        path_copy++;
+    // The cursor may skip the leading separator, but the allocation itself has to be freed from
+    // its own start.
+    char* cursor = path_copy;
+
+    if(cursor[0] == '/') {
+        cursor++;
     }
 
-    vfs_node_t* found_node = vfs_findpath_recursive(node, path_copy);
+    vfs_node_t* found_node = vfs_findpath_recursive(node, cursor);
 
     kfree(path_copy);
 

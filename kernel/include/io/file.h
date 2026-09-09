@@ -47,9 +47,10 @@ struct file_stat {
  * 
  * @param path The path to the file.
  * @param flags The flags to open the file with.
+ * @param permissions The permissions to give the file if FILE_CREAT creates it.
  * @return The file descriptor or NULL on error.
  */
-file_descriptor_t* file_open(char* path, uint32_t flags);
+file_descriptor_t* file_open(char* path, uint32_t flags, uint32_t permissions);
 
 /**
  * Close a file.

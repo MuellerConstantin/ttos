@@ -650,11 +650,6 @@ static int32_t syscall_open(isr_cpu_state_t *state) {
     process_t* current_process = process_get_current();
 
     if(current_process) {
-        // Creating files is not supported yet
-        if(flags & FILE_CREAT) {
-            return -1;
-        }
-
         int32_t fd = -1;
 
         // Find first free file descriptor, skip over stdin/stdout/stderr
@@ -669,7 +664,7 @@ static int32_t syscall_open(isr_cpu_state_t *state) {
             return -1;
         }
 
-        file_descriptor_t* file_descriptor = file_open(name, flags);
+        file_descriptor_t* file_descriptor = file_open((char*) name, flags, (uint32_t) mode);
 
         if(file_descriptor) {
             current_process->files[fd] = file_descriptor;
