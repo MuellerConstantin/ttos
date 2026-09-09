@@ -131,6 +131,19 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
     }
 
     /*
+     * Ctrl+D is enqueued as a raw EOT byte (0x04) instead of being translated
+     * through the keymap. There is no canonical mode that could turn it into an
+     * end-of-input condition, so a reader decides for itself where
+     * its input ends.
+     */
+    if(ctrl && event->keycode == KEYBOARD_KEYCODE_D) {
+        char eot = 0x04;
+
+        circular_buffer_enqueue(tty->input, &eot);
+        return;
+    }
+
+    /*
      * Translate the arrow keys into ANSI cursor escape sequences (ESC [ A..D)
      * and enqueue them as raw bytes, so line editors can consume them the same
      * way they would on a real terminal.
