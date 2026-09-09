@@ -119,8 +119,10 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
         if(current != NULL && current->parent != NULL && current->parent->parent != NULL) {
             tty_puts(tty, "^C\n");
 
-            // 128 + SIGINT(2), mirroring the conventional shell exit code.
-            // Does not return: the parent process is resumed.
+            /*
+             * 128 + SIGINT(2), mirroring the conventional shell exit code.
+             * Does not return: the parent process is resumed.
+             */
             process_kill_current(130);
         }
 
@@ -215,8 +217,10 @@ static void tty_render(tty_t* tty, char ch) {
                 return;
             }
 
-            // Any other byte is the final byte: commit the pending number and
-            // dispatch the command.
+            /*
+             * Any other byte is the final byte: commit the pending number and
+             * dispatch the command.
+             */
             if(tty->ansi_param_count < TTY_ANSI_MAX_PARAMS) {
                 tty->ansi_params[tty->ansi_param_count++] = tty->ansi_current;
             }
@@ -273,8 +277,17 @@ static void tty_render_char(tty_t* tty, char ch) {
 static void tty_csi_dispatch(tty_t* tty, char command) {
     switch(command) {
         case 'J': {
-            // Erase display. Only mode 2 (entire screen) is supported for now.
-            if(tty->ansi_params[0] == 2) {
+            /*
+             * Erase display. Mode 0 clears from the cursor to the end of the
+             * screen, mode 2 the entire screen.
+             */
+            if(tty->ansi_params[0] == 0) {
+                size_t start = tty->cursor_y * tty->columns + tty->cursor_x;
+
+                for(size_t cell = start; cell < tty->rows * tty->columns; cell++) {
+                    tty->video->driver->tm.write(cell, ' ', tty->fgcolor, tty->bgcolor);
+                }
+            } else if(tty->ansi_params[0] == 2) {
                 tty_clear(tty);
             }
 
@@ -310,20 +323,33 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
             break;
         }
         case 'C': {
-            // Cursor forward (non-destructive), default 1, clamped to the row.
+            /*
+             * Cursor forward (non-destructive), default 1. Unlike a conforming
+             * terminal this deliberately carries over into the next row, so a
+             * line that wrapped can be walked from end to end as one string.
+             */
             uint32_t amount = tty->ansi_params[0] ? tty->ansi_params[0] : 1;
-            size_t max_x = tty->columns - 1;
+            size_t position = tty->cursor_y * tty->columns + tty->cursor_x;
+            size_t last = tty->rows * tty->columns - 1;
 
-            tty->cursor_x = (tty->cursor_x + amount > max_x) ? max_x : tty->cursor_x + amount;
-            tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            position = (position + amount > last) ? last : position + amount;
+
+            tty->cursor_y = position / tty->columns;
+            tty->cursor_x = position % tty->columns;
+            tty->video->driver->tm.move_cursor(position);
             break;
         }
         case 'D': {
-            // Cursor back (non-destructive), default 1, clamped to the row start.
+            // Cursor back (non-destructive), default 1. Carries over into the
+            // previous row for the same reason as 'C', clamped to the top left.
             uint32_t amount = tty->ansi_params[0] ? tty->ansi_params[0] : 1;
+            size_t position = tty->cursor_y * tty->columns + tty->cursor_x;
 
-            tty->cursor_x = (amount > tty->cursor_x) ? 0 : tty->cursor_x - amount;
-            tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            position = (amount > position) ? 0 : position - amount;
+
+            tty->cursor_y = position / tty->columns;
+            tty->cursor_x = position % tty->columns;
+            tty->video->driver->tm.move_cursor(position);
             break;
         }
         default:
