@@ -13,6 +13,9 @@ static ata_device_t ata_devices[4] = {
 static uint16_t ata_get_io_base(ata_device_t* device);
 static bool ata_is_master(ata_device_t* device);
 static bool ata_device_probe(ata_device_t* device);
+static void ata_wait_busy(uint16_t io_base);
+static bool ata_wait_data(uint16_t io_base);
+static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba);
 static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
 static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
 
@@ -440,53 +443,96 @@ size_t ata_read(ata_device_t* device, size_t offset, size_t size, char* buffer) 
     return total_size;
 }
 
-static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
-    uint16_t io_base = ata_get_io_base(device);
+/**
+ * Block until the drive clears BSY. Its registers must not be touched while it is set, so every
+ * command has to start and end with this.
+ */
+static void ata_wait_busy(uint16_t io_base) {
+    while(inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_BSY);
+}
+
+/**
+ * Wait for the drive to announce that a block of data can be transferred.
+ *
+ * @return True once DRQ is set, false if the drive reported an error instead.
+ */
+static bool ata_wait_data(uint16_t io_base) {
+    for(;;) {
+        uint8_t status = inb(io_base + ATA_STATUS_REGISTER);
+
+        if(status & (ATA_STATUS_ERR | ATA_STATUS_DF)) {
+            return false;
+        }
+
+        if(!(status & ATA_STATUS_BSY) && (status & ATA_STATUS_DRQ)) {
+            return true;
+        }
+    }
+}
+
+/**
+ * Select a drive and program the LBA registers for a single-sector transfer. Selecting a drive only
+ * takes effect after a short settling time, for which reading the status register four times is the
+ * conventional stand-in.
+ */
+static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba) {
+    ata_wait_busy(io_base);
 
     // Choose master/slave drives and set the LBA mode
     outb(io_base + ATA_DRIVE_REGISTER, 0xE0 | ((lba >> 24) & 0x0F));
 
-    // Set number of sectors to write
+    for(uint8_t i = 0; i < 4; i++) {
+        inb(io_base + ATA_STATUS_REGISTER);
+    }
+
+    // Set number of sectors to transfer
     outb(io_base + ATA_SECTOR_COUNT_REGISTER, 0x01);
 
     // Set the LBA
     outb(io_base + ATA_LBA_LOW_REGISTER, (lba & 0x000000FF) >> 0);
     outb(io_base + ATA_LBA_MID_REGISTER, (lba & 0x0000FF00) >> 8);
     outb(io_base + ATA_LBA_HIGH_REGISTER, (lba & 0x00FF0000) >> 16);
+}
 
-    // Send the write command
-    outb(io_base + ATA_COMMAND_REGISTER, 0x30);
+static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
+    uint16_t io_base = ata_get_io_base(device);
 
-    // Wait for the drive to be ready
-    while(inb(io_base + ATA_STATUS_REGISTER) & 0x80);
+    ata_select_sector_lba28(io_base, lba);
 
-    // Write the sector
+    outb(io_base + ATA_COMMAND_REGISTER, ATA_COMMAND_WRITE_SECTORS);
+
+    // The drive raises DRQ once it is ready to take the data. Pushing it out earlier loses it.
+    if(!ata_wait_data(io_base)) {
+        return;
+    }
+
     for(uint16_t i = 0; i < 256; i++) {
         outw(io_base + ATA_DATA_REGISTER, ((uint16_t*) buffer)[i]);
     }
+
+    /*
+     * The transfer only queues the sector. Flushing the cache waits for it to reach the medium,
+     * which also keeps the next command from programming the registers while this write is still
+     * in flight -- writing a 1 KiB block means two of these back to back.
+     */
+    ata_wait_busy(io_base);
+
+    outb(io_base + ATA_COMMAND_REGISTER, ATA_COMMAND_CACHE_FLUSH);
+
+    ata_wait_busy(io_base);
 }
 
 static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
     uint16_t io_base = ata_get_io_base(device);
 
-    // Choose master/slave drives and set the LBA mode
-    outb(io_base + ATA_DRIVE_REGISTER, 0xE0 | ((lba >> 24) & 0x0F));
+    ata_select_sector_lba28(io_base, lba);
 
-    // Set number of sectors to read
-    outb(io_base + ATA_SECTOR_COUNT_REGISTER, 0x01);
+    outb(io_base + ATA_COMMAND_REGISTER, ATA_COMMAND_READ_SECTORS);
 
-    // Set the LBA
-    outb(io_base + ATA_LBA_LOW_REGISTER, (lba & 0x000000FF) >> 0);
-    outb(io_base + ATA_LBA_MID_REGISTER, (lba & 0x0000FF00) >> 8);
-    outb(io_base + ATA_LBA_HIGH_REGISTER, (lba & 0x00FF0000) >> 16);
+    if(!ata_wait_data(io_base)) {
+        return;
+    }
 
-    // Send the read command
-    outb(io_base + ATA_COMMAND_REGISTER, 0x20);
-
-    // Wait for the drive to be ready
-    while(inb(io_base + ATA_STATUS_REGISTER) & 0x80);
-
-    // Read the sector
     for(uint16_t i = 0; i < 256; i++) {
         ((uint16_t*) buffer)[i] = inw(io_base + ATA_DATA_REGISTER);
     }

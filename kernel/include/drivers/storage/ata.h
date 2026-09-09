@@ -32,6 +32,15 @@
 #define ATA_STATUS_REGISTER 0x07
 #define ATA_COMMAND_REGISTER 0x07
 
+#define ATA_STATUS_ERR 0x01     // An error occurred during the last command
+#define ATA_STATUS_DRQ 0x08     // The drive is ready to transfer a block of data
+#define ATA_STATUS_DF  0x20     // Drive fault
+#define ATA_STATUS_BSY 0x80     // The drive is busy and the registers must not be touched
+
+#define ATA_COMMAND_READ_SECTORS 0x20
+#define ATA_COMMAND_WRITE_SECTORS 0x30
+#define ATA_COMMAND_CACHE_FLUSH 0xE7
+
 #define ATA_ALT_STATUS_REGISTER 0x00
 #define ATA_DEVICE_CONTROL_REGISTER 0x00
 #define ATA_DRIVE_ADDRESS_REGISTER 0x01
