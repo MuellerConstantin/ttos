@@ -31,9 +31,13 @@
 
 /**
  * Stand-in timestamp for events this driver has to record without a wall clock being available.
- * Zero is not usable for a deletion time, as ext2 reserves it to mean "not deleted".
+ *
+ * The value cannot be small. Zero means "not deleted", and ext2 threads its list of orphaned
+ * inodes through i_dtime, so any deletion time below the inode count reads as a link in that list
+ * rather than as a time. 2000-01-01 sits clear of that range and stays recognisable as a
+ * placeholder.
  */
-#define EXT2_UNKNOWN_TIME 1
+#define EXT2_UNKNOWN_TIME 946684800
 
 /**
  * Directory entry file types. Only valid when the filetype feature is enabled, which is the case
