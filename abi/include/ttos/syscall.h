@@ -8,6 +8,37 @@
 extern "C" {
 #endif
 
+// Interrupt vector a system call is issued through.
+#define SYSCALL_INTERRUPT 0x80
+
+// System call numbers, passed in eax.
+#define SYSCALL_READ 0x00
+#define SYSCALL_WRITE 0x01
+#define SYSCALL_OPEN 0x02
+#define SYSCALL_CLOSE 0x03
+#define SYSCALL_GET_OSINFO 0x04
+#define SYSCALL_GET_MEMINFO 0x05
+#define SYSCALL_GET_TERMINFO 0x06
+#define SYSCALL_ALLOC_HEAP 0x0A
+#define SYSCALL_EXIT 0x0B
+#define SYSCALL_OPENDIR 0x0C
+#define SYSCALL_READDIR 0x0D
+#define SYSCALL_CLOSEDIR 0x0E
+#define SYSCALL_LSVOL 0x0F
+#define SYSCALL_POWEROFF 0x10
+#define SYSCALL_LSDEV 0x11
+#define SYSCALL_LSMNT 0x12
+#define SYSCALL_MOUNT 0x13
+#define SYSCALL_UNMOUNT 0x14
+#define SYSCALL_DMESG 0x15
+#define SYSCALL_UPTIME 0x16
+#define SYSCALL_MEMMAP 0x17
+#define SYSCALL_GET_KHEAPINFO 0x18
+#define SYSCALL_SPAWN 0x19
+#define SYSCALL_UNLINK 0x1A
+#define SYSCALL_RMDIR 0x1B
+#define SYSCALL_MKDIR 0x1C
+
 typedef struct osinfo osinfo_t;
 
 /**

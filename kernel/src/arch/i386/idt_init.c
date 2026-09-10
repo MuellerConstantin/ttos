@@ -1,5 +1,6 @@
 #include <arch/i386/idt.h>
 #include <arch/i386/isr.h>
+#include <ttos/syscall.h>
 #include <system/kmessage.h>
 
 static idt_table_t idt;

@@ -1,120 +1,30 @@
 #include <fsio.h>
+#include <syscall.h>
 
 int32_t fsio_read(int32_t fd, void* buffer, size_t size) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov %3, %%edx\n"
-        "mov $0x00, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(fd), "g"(buffer), "g"(size)
-        : "%eax", "%ebx", "%ecx", "%edx"
-    );
-
-    return return_value;
+    return syscall3(SYSCALL_READ, (uint32_t) fd, (uint32_t) buffer, size);
 }
 
 int32_t fsio_write(int32_t fd, const void* buffer, size_t size) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov %3, %%edx\n"
-        "mov $0x01, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(fd), "g"(buffer), "g"(size)
-        : "%eax", "%ebx", "%ecx", "%edx"
-    );
-
-    return return_value;
+    return syscall3(SYSCALL_WRITE, (uint32_t) fd, (uint32_t) buffer, size);
 }
 
 int32_t fsio_open(const char* path, int32_t flags, int32_t mode) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov %3, %%edx\n"
-        "mov $0x02, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(path), "g"(flags), "g"(mode)
-        : "%eax", "%ebx", "%ecx", "%edx"
-    );
-
-    return return_value;
+    return syscall3(SYSCALL_OPEN, (uint32_t) path, (uint32_t) flags, (uint32_t) mode);
 }
 
 int32_t fsio_unlink(const char* path) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x1A, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(path)
-        : "%eax", "%ebx"
-    );
-
-    return return_value;
+    return syscall1(SYSCALL_UNLINK, (uint32_t) path);
 }
 
 int32_t fsio_mkdir(const char* path, int32_t mode) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov $0x1C, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(path), "g"(mode)
-        : "%eax", "%ebx", "%ecx"
-    );
-
-    return return_value;
+    return syscall2(SYSCALL_MKDIR, (uint32_t) path, (uint32_t) mode);
 }
 
 int32_t fsio_rmdir(const char* path) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x1B, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(path)
-        : "%eax", "%ebx"
-    );
-
-    return return_value;
+    return syscall1(SYSCALL_RMDIR, (uint32_t) path);
 }
 
 int32_t fsio_close(int32_t fd) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x03, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(fd)
-        : "%eax", "%ebx"
-    );
-
-    return return_value;
+    return syscall1(SYSCALL_CLOSE, (uint32_t) fd);
 }

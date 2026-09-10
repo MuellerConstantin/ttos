@@ -1,96 +1,22 @@
 #include <sysinfo.h>
+#include <syscall.h>
 
 int32_t sysinfo_get_osinfo(osinfo_t* info) {
-    uint32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x04, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(info)
-        : "%eax", "%ebx"
-    );
-
-    if(return_value < 0) {
-        return -1;
-    }
-
-    return return_value;
+    return syscall1(SYSCALL_GET_OSINFO, (uint32_t) info);
 }
 
 int32_t sysinfo_get_meminfo(meminfo_t* info) {
-    uint32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x05, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(info)
-        : "%eax", "%ebx"
-    );
-
-    if(return_value < 0) {
-        return -1;
-    }
-
-    return return_value;
+    return syscall1(SYSCALL_GET_MEMINFO, (uint32_t) info);
 }
 
 int32_t sysinfo_get_kheapinfo(meminfo_t* info) {
-    uint32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x18, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(info)
-        : "%eax", "%ebx"
-    );
-
-    if(return_value < 0) {
-        return -1;
-    }
-
-    return return_value;
+    return syscall1(SYSCALL_GET_KHEAPINFO, (uint32_t) info);
 }
 
 uint32_t sysinfo_get_uptime(void) {
-    uint32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov $0x16, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        :
-        : "%eax"
-    );
-
-    return return_value;
+    return (uint32_t) syscall0(SYSCALL_UPTIME);
 }
 
 int32_t sysinfo_get_terminfo(terminfo_t* info) {
-    uint32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x06, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(info)
-        : "%eax", "%ebx"
-    );
-
-    if(return_value < 0) {
-        return -1;
-    }
-
-    return return_value;
+    return syscall1(SYSCALL_GET_TERMINFO, (uint32_t) info);
 }

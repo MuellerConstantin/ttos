@@ -1,50 +1,14 @@
 #include <dirio.h>
+#include <syscall.h>
 
 int32_t dirio_open(const char* path) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x0C, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(path)
-        : "%eax", "%ebx"
-    );
-
-    return return_value;
+    return syscall1(SYSCALL_OPENDIR, (uint32_t) path);
 }
 
 int32_t dirio_read(int32_t dd, dirent_t* entry) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov $0x0D, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "g"(dd), "g"(entry)
-        : "%eax", "%ebx", "%ecx"
-    );
-
-    return return_value;
+    return syscall2(SYSCALL_READDIR, (uint32_t) dd, (uint32_t) entry);
 }
 
 int32_t dirio_close(int32_t dd) {
-    int32_t return_value = 0;
-
-    __asm__ volatile(
-        "mov %1, %%ebx\n"
-        "mov $0x0E, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(dd)
-        : "%eax", "%ebx"
-    );
-
-    return return_value;
+    return syscall1(SYSCALL_CLOSEDIR, (uint32_t) dd);
 }
