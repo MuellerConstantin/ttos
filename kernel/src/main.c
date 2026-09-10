@@ -98,7 +98,12 @@ static void init_platform(multiboot_info_t *multiboot_info) {
         // Map the initrd's virtual address space
         void* initrd_start_virtual = vmm_map_memory(NULL, initrd_size, initrd_start_physical, true, true);
 
+        /*
+         * Both ends have to move, otherwise the module looks like it spans the
+         * distance between the two address spaces rather than its own length.
+         */
         initrd_module->mod_start = (uint32_t) initrd_start_virtual;
+        initrd_module->mod_end = (uint32_t) initrd_start_virtual + initrd_size;
     }
 }
 
