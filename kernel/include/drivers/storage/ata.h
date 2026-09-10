@@ -47,6 +47,16 @@
 
 #define ATA_SECTOR_SIZE 512
 
+/*
+ * Upper bound for the drive size the driver is able to report. The storage
+ * interface addresses a drive by byte offset in a size_t, which is 32 bit wide
+ * on i386, so nothing beyond 4 GiB can be addressed at all. Reading and writing
+ * is implemented with LBA28 only, which would allow 128 GiB, so the byte offset
+ * is the binding limit. Capacities beyond it are reported clamped instead of
+ * wrapped around.
+ */
+#define ATA_MAX_ADDRESSABLE_SECTORS (0xFFFFFFFFUL / ATA_SECTOR_SIZE)
+
 typedef enum {
     ATA_PRIMARY_MASTER_DRIVE,
     ATA_PRIMARY_SLAVE_DRIVE,

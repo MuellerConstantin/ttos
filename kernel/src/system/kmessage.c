@@ -23,7 +23,7 @@ void kmessage(const char* level, const char* message) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
     }
 
-    kmessage_message->level = KMESSAGE_LEVEL_INFO;
+    kmessage_message->level = level;
     kmessage_message->message = message;
 
     linked_list_node_t* node = linked_list_create_node(kmessage_message);

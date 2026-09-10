@@ -1,6 +1,7 @@
 #include <drivers/storage/ata.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
+#include <system/kmessage.h>
 #include <device/device.h>
 
 static ata_device_t ata_devices[4] = {
@@ -300,17 +301,34 @@ static bool ata_device_probe(ata_device_t* device) {
         device->lba_supported = true;
     }
 
-    // Check if LBA48 is supported
-    if(identify_data[83] & (1 << 10)) {
+    /*
+     * Check if LBA48 is supported. Bits 15:14 of word 83 must read 01 for the
+     * word to carry valid data at all, otherwise the remaining bits are
+     * whatever the drive happened to leave in there.
+     */
+    if((identify_data[83] & 0xC000) == 0x4000 && identify_data[83] & (1 << 10)) {
         device->lba48_supported = true;
     }
+
+    uint64_t total_sectors = 0;
 
     // Get the drive's size
     if(device->lba_supported) {
         if(device->lba48_supported) {
-            device->size = (identify_data[100] | (identify_data[101] << 16) | (identify_data[102] << 32) | (identify_data[103] << 48)) * ATA_SECTOR_SIZE;
-        } else {
-            device->size = (identify_data[60] | (identify_data[61] << 16)) * ATA_SECTOR_SIZE;
+            total_sectors = ((uint64_t) identify_data[100])
+                          | ((uint64_t) identify_data[101] << 16)
+                          | ((uint64_t) identify_data[102] << 32)
+                          | ((uint64_t) identify_data[103] << 48);
+        }
+
+        /*
+         * Words 60 and 61 hold the LBA28 capacity. They are the source for
+         * drives without LBA48 and the fallback for drives that advertise
+         * LBA48 but leave the LBA48 capacity empty.
+         */
+        if(total_sectors == 0) {
+            total_sectors = ((uint32_t) identify_data[60])
+                          | ((uint32_t) identify_data[61] << 16);
         }
     } else {
         /*
@@ -321,9 +339,17 @@ static bool ata_device_probe(ata_device_t* device) {
         uint16_t cylinders = identify_data[1];
         uint16_t heads = identify_data[3];
         uint16_t sectors = identify_data[6];
-        
-        device->size = (cylinders * heads * sectors) * ATA_SECTOR_SIZE;
+
+        total_sectors = (uint64_t) cylinders * heads * sectors;
     }
+
+    if(total_sectors > ATA_MAX_ADDRESSABLE_SECTORS) {
+        kmessage(KMESSAGE_LEVEL_WARN, "ATA drive exceeds the addressable range, reported size clamped");
+
+        total_sectors = ATA_MAX_ADDRESSABLE_SECTORS;
+    }
+
+    device->size = (uint32_t) (total_sectors * ATA_SECTOR_SIZE);
 
     device->present = true;
 
