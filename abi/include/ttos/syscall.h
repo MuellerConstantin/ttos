@@ -93,6 +93,21 @@ struct volinfo {
     uint32_t size;
 };
 
+// Device types, as reported in devinfo.
+#define DEVICE_TYPE_UNKNOWN     0x0000
+#define DEVICE_TYPE_KEYBOARD    0x0100
+#define DEVICE_TYPE_STORAGE     0x0200
+#define DEVICE_TYPE_VIDEO       0x0300
+#define DEVICE_TYPE_CONTROLLER  0x0400
+#define DEVICE_TYPE_RESERVED    0xFF00
+
+// Bus types a device can be attached to, as reported in devinfo.
+#define DEVICE_BUS_TYPE_PLATFORM    0x00
+#define DEVICE_BUS_TYPE_ISA         0x01
+#define DEVICE_BUS_TYPE_PCI         0x02
+#define DEVICE_BUS_TYPE_USB         0x03
+#define DEVICE_BUS_TYPE_RESERVED    0xFF
+
 typedef struct devinfo devinfo_t;
 
 /**
@@ -101,6 +116,11 @@ typedef struct devinfo devinfo_t;
 struct devinfo {
     char name[64];
     char id[16];
+    uint16_t type;
+    uint8_t bus_type;
+
+    // Distance from the root of the device tree, zero for the root itself.
+    uint8_t depth;
 };
 
 typedef struct mntinfo mntinfo_t;

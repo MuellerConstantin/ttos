@@ -922,14 +922,14 @@ static int32_t syscall_poweroff(isr_cpu_state_t *state) {
 struct lsdev_iterator {
     uint32_t target_index;
     uint32_t current_index;
-    device_t* result;
+    generic_tree_node_t* result;
 };
 
 static void syscall_lsdev_callback(generic_tree_node_t* node, void* userdata) {
     struct lsdev_iterator* iterator = (struct lsdev_iterator*) userdata;
 
     if(iterator->current_index == iterator->target_index) {
-        iterator->result = (device_t*) node->data;
+        iterator->result = node;
     }
 
     iterator->current_index++;
@@ -954,13 +954,29 @@ static int32_t syscall_lsdev(isr_cpu_state_t *state) {
         return -1;
     }
 
-    device_t* device = iterator.result;
+    device_t* device = (device_t*) iterator.result->data;
 
     strncpy(info->name, device->name, sizeof(info->name));
     info->name[sizeof(info->name) - 1] = '\0';
 
     strncpy(info->id, device->id, sizeof(info->id));
     info->id[sizeof(info->id) - 1] = '\0';
+
+    info->type = device->type;
+    info->bus_type = device->bus.type;
+
+    /*
+     * The pre-order walk hands out a flat list, so the position in the tree
+     * would be lost. Walking back up to the root restores it and lets userland
+     * indent the listing.
+     */
+    uint8_t depth = 0;
+
+    for(generic_tree_node_t* node = iterator.result->parent; node != NULL; node = node->parent) {
+        depth++;
+    }
+
+    info->depth = depth;
 
     return 0;
 }
