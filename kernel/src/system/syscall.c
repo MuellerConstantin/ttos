@@ -978,6 +978,23 @@ static int32_t syscall_lsdev(isr_cpu_state_t *state) {
 
     info->depth = depth;
 
+    /*
+     * Nodes are appended to the sibling chain, so the last child is the one
+     * without a successor.
+     */
+    uint32_t last_child_mask = 0;
+    uint8_t level = depth;
+
+    for(generic_tree_node_t* node = iterator.result; node->parent != NULL; node = node->parent) {
+        if(node->next == NULL && level < 32) {
+            last_child_mask |= 1u << level;
+        }
+
+        level--;
+    }
+
+    info->last_child_mask = last_child_mask;
+
     return 0;
 }
 

@@ -121,6 +121,14 @@ struct devinfo {
 
     // Distance from the root of the device tree, zero for the root itself.
     uint8_t depth;
+
+    /*
+     * Bit n tells whether the device on the path from the root at depth n is
+     * the last of its siblings. A listing needs that for every level it draws
+     * through, to know whether that branch still continues further down. Bit 0
+     * belongs to the root and is never set.
+     */
+    uint32_t last_child_mask;
 };
 
 typedef struct mntinfo mntinfo_t;
