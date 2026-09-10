@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <ttos/syscall.h>
 
 // Return codes for mntio_mount.
 #define MOUNT_OK              0
@@ -14,12 +15,6 @@
 #define UNMOUNT_OK               0
 #define UNMOUNT_ERR_NOT_MOUNTED -1
 #define UNMOUNT_ERR_FAILED      -2
-
-typedef struct mntinfo mntinfo_t;
-
-struct mntinfo {
-    char drive;
-};
 
 /**
  * Queries a mount point by its index in the system's mount table.

@@ -12,7 +12,7 @@ OBJDIR := obj
 
 TARGET := libsys.a
 
-INCLUDE := -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
+INCLUDE := -I '$(ROOTDIR)/abi/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
 
 CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra
 ARFLAGS := rcs

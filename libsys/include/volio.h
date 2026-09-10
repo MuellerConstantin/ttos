@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct volinfo volinfo_t;
-
-struct volinfo {
-    char name[64];
-    char id[16];
-};
+#include <ttos/syscall.h>
 
 /**
  * Queries a volume by its index in the system's volume list.

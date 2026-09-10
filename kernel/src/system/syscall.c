@@ -19,53 +19,7 @@
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <util/string.h>
-
-struct osinfo {
-    char name[16];
-    char arch[16];
-    char version[32];
-    char platform[16];
-};
-
-struct meminfo {
-    size_t total;
-    size_t free;
-};
-
-struct terminfo {
-    uint32_t rows;
-    uint32_t cols;
-};
-
-struct dirent {
-    char name[256];
-    uint32_t inode;
-};
-
-struct volinfo {
-    char name[64];
-    char id[16];
-};
-
-struct devinfo {
-    char name[64];
-    char id[16];
-};
-
-struct mntinfo {
-    char drive;
-};
-
-struct dmesg_entry {
-    char level[16];
-    char message[256];
-};
-
-struct memregion {
-    uint32_t base;
-    uint32_t length;
-    uint32_t type;
-};
+#include <ttos/syscall.h>
 
 static void syscall_handler(isr_cpu_state_t *state);
 
@@ -375,7 +329,7 @@ static int32_t syscall_unmount(isr_cpu_state_t *state);
  *
  * - ebx: Index of the message to query
  *
- * - ecx: Pointer to a user dmesg_entry struct to fill
+ * - ecx: Pointer to a user kmsg_entry struct to fill
  *
  * Syscall returns 0 on success or -1 when the index is out of range or on error.
  *
@@ -1077,7 +1031,7 @@ static int32_t syscall_unmount(isr_cpu_state_t *state) {
 
 static int32_t syscall_dmesg(isr_cpu_state_t *state) {
     uint32_t index = state->ebx;
-    struct dmesg_entry* entry = (struct dmesg_entry*) state->ecx;
+    struct kmsg_entry* entry = (struct kmsg_entry*) state->ecx;
 
     if(!entry) {
         return -1;

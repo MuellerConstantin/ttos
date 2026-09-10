@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct kmsg_entry kmsg_entry_t;
-
-struct kmsg_entry {
-    char level[16];
-    char message[256];
-};
+#include <ttos/syscall.h>
 
 /**
  * Reads a kernel log message by its index in the message log.

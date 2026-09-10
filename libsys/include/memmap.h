@@ -3,14 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct memregion memregion_t;
-
-struct memregion {
-    uint32_t base;
-    uint32_t length;
-    uint32_t type;
-};
+#include <ttos/syscall.h>
 
 /**
  * Queries a physical memory region by its index in the memory map.

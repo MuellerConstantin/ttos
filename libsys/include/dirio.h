@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct dirent dirent_t;
-
-struct dirent {
-    char name[256];
-    uint32_t inode;
-};
+#include <ttos/syscall.h>
 
 /**
  * Opens a directory for reading.

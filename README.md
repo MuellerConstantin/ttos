@@ -50,6 +50,9 @@ The project itself is divided into multiple parts:
 - **userland**: A subproject that contains the source code for userland applications
   provided by the operating system by default. See [here](userland/README.md) for
   more information.
+- **abi**: The binary interface between the kernel and userland. It contains the
+  definitions both sides have to agree on and consists of headers only. See
+  [here](abi/README.md) for more information.
 
 ## Build Instructions
 

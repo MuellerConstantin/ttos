@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct devinfo devinfo_t;
-
-struct devinfo {
-    char name[64];
-    char id[16];
-};
+#include <ttos/syscall.h>
 
 /**
  * Queries a device by its index in the system's device tree.

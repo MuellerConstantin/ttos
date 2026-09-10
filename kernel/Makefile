@@ -26,7 +26,7 @@ OBJDIR := obj
 FORMAT := elf_i386
 TARGET := kernel.elf
 
-INCLUDE := -I '$(ROOTDIR)/kernel/include'
+INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/abi/include'
 
 CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __KERNEL_VERSION__=\"$(VERSION)\" -D __KERNEL_ARCH__=\"$(ARCH)\" -D __KERNEL_PLATFORM__=\"$(PLATFORM)\"
 ASFLAGS := -f elf32 -g

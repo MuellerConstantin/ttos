@@ -3,29 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct osinfo osinfo_t;
-
-struct osinfo {
-    char name[16];
-    char arch[16];
-    char version[32];
-    char platform[16];
-};
-
-typedef struct meminfo meminfo_t;
-
-struct meminfo {
-    size_t total;
-    size_t free;
-};
-
-typedef struct terminfo terminfo_t;
-
-struct terminfo {
-    uint32_t rows;
-    uint32_t cols;
-};
+#include <ttos/syscall.h>
 
 /**
  * Gets system information.

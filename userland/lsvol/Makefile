@@ -16,7 +16,7 @@ TARGET := lsvol.elf
 LIBC := $(ROOTDIR)/libc/libc.a
 LIBSYS := $(ROOTDIR)/libsys/libsys.a
 
-INCLUDE := -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
+INCLUDE := -I '$(ROOTDIR)/abi/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
 
 CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O0 -fno-stack-protector -g
 LDFLAGS := -m $(FORMAT) -e _start -nostdlib
