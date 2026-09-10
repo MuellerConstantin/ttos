@@ -17,13 +17,21 @@ static void pci_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t off
 int32_t pci_init() {
     for(uint16_t bus = 0; bus < PCI_MAX_NUM_BUSES; bus++) {
         for(uint8_t slot = 0; slot < PCI_DEVICES_PER_BUS; slot++) {
-            device_t* slot_device = NULL;
-
             for(uint8_t function = 0; function < PCI_FUNCTIONS_PER_DEVICE; function++) {
                 pci_device_t* pci_device = pci_probe_device(bus, slot, function);
 
+                /*
+                 * The function numbers of a multi function device need not be
+                 * contiguous. An absent function therefore only means that this
+                 * one is missing, not that the ones behind it are: the PIIX3
+                 * for instance answers on functions 0, 1 and 3.
+                 */
                 if(!pci_device) {
-                    break;
+                    if(function == 0) {
+                        break;
+                    }
+
+                    continue;
                 }
 
                 device_t* device = (device_t*) kmalloc(sizeof(device_t));
@@ -38,12 +46,16 @@ int32_t pci_init() {
                 device->bus.type = DEVICE_BUS_TYPE_PCI;
                 device->bus.data = pci_device;
 
-                if(!slot_device) {
-                    slot_device = device;
-                    device_register(NULL, slot_device);
-                } else {
-                    device_register(slot_device, device);
-                }
+                // Nobody drives the device yet, the scan only reports that it exists.
+                device->driver.raw = NULL;
+
+                /*
+                 * The functions of a multi function device sit next to each
+                 * other on the bus and share nothing but their address. None of
+                 * them is above the others, so they are registered at the same
+                 * level rather than below function zero.
+                 */
+                device_register(NULL, device);
 
                 char* kernel_message = (char*) kmalloc(64);
 
@@ -62,6 +74,8 @@ int32_t pci_init() {
             }
         }
     }
+
+    return 0;
 }
 
 int32_t pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_index) {

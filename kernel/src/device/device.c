@@ -41,6 +41,7 @@ void device_init() {
     root_device->type = DEVICE_TYPE_RESERVED;
     root_device->bus.type = DEVICE_BUS_TYPE_RESERVED;
     root_device->bus.data = NULL;
+    root_device->driver.raw = NULL;
 
     generic_tree_node_t* root_node = generic_tree_create_node(root_device);
 
