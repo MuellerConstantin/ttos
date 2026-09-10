@@ -42,6 +42,9 @@
 /** Length of the buffer the kernel message about a controller is built in. */
 #define ATA_MESSAGE_LENGTH 128
 
+/** Length of the buffer the name of a drive is built in. */
+#define ATA_DRIVE_NAME_LENGTH 64
+
 /** BAR holding the command ports of a channel running in native mode. */
 #define ATA_PRIMARY_COMMAND_BAR 0
 #define ATA_SECONDARY_COMMAND_BAR 2

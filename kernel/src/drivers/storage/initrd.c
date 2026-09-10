@@ -6,10 +6,8 @@
 static void* initrd_base;
 static size_t initrd_size;
 
-static size_t initrd_total_size();
-static size_t initrd_sector_size();
-size_t initrd_read(size_t offset, size_t size, void* buffer);
-size_t initrd_write(size_t offset, size_t size, void* buffer);
+static size_t initrd_total_size(struct device* device);
+static size_t initrd_sector_size(struct device* device);
 
 int32_t initrd_init(void* memory_base, size_t memory_size) {
     uint16_t* initrd_header = (uint16_t*) memory_base;
@@ -55,16 +53,22 @@ int32_t initrd_init(void* memory_base, size_t memory_size) {
     return 0;
 }
 
-static size_t initrd_total_size() {
+static size_t initrd_total_size(struct device* device) {
+    (void) device;
+
     return initrd_size;
 }
 
-static size_t initrd_sector_size() {
+static size_t initrd_sector_size(struct device* device) {
+    (void) device;
+
     // Useless for the initial ramdisk because we're not handling it as a block device
     return 0;
 }
 
-size_t initrd_read(size_t offset, size_t size, void* buffer) {
+size_t initrd_read(struct device* device, size_t offset, size_t size, char* buffer) {
+    (void) device;
+
     if(offset > initrd_size) {
         return 0;
     }
@@ -78,7 +82,12 @@ size_t initrd_read(size_t offset, size_t size, void* buffer) {
     return size;
 }
 
-size_t initrd_write(size_t offset, size_t size, void* buffer) {
+size_t initrd_write(struct device* device, size_t offset, size_t size, char* buffer) {
+    (void) device;
+    (void) offset;
+    (void) size;
+    (void) buffer;
+
     // The initial ramdisk is read-only
     return 0;
 }

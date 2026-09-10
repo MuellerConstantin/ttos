@@ -24,6 +24,12 @@
  */
 int32_t initrd_init(void* memory_base, size_t memory_size);
 
+/*
+ * Declared rather than included: the driver only ever hands the device back
+ * to the storage interface it came from.
+ */
+struct device;
+
 /**
  * Reads data from the initial ramdisk.
  * 
@@ -32,7 +38,7 @@ int32_t initrd_init(void* memory_base, size_t memory_size);
  * @param buffer The buffer to which to read the data.
  * @return The number of bytes read.
  */
-size_t initrd_read(size_t offset, size_t size, void* buffer);
+size_t initrd_read(struct device* device, size_t offset, size_t size, char* buffer);
 
 /**
  * Writes data to the initial ramdisk. This function is only for
@@ -44,6 +50,6 @@ size_t initrd_read(size_t offset, size_t size, void* buffer);
  * @param buffer The buffer from which to write the data.
  * @return The number of bytes written.
  */
-size_t initrd_write(size_t offset, size_t size, void* buffer);
+size_t initrd_write(struct device* device, size_t offset, size_t size, char* buffer);
 
 #endif // _KERNEL_DRIVERS_STORAGE_INITRD_H

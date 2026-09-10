@@ -1,5 +1,5 @@
 #include <device/volume.h>
-#include <util/string.h>
+#include <util/numeric.h>
 #include <util/shortid.h>
 #include <fs/mbr.h>
 #include <system/kpanic.h>
@@ -36,7 +36,7 @@ size_t volume_register_device(storage_device_t* device) {
         }
 
         generate_short_id(volume->id, volume_id_exists);
-        volume->name = (char*) kmalloc(strlen(device->name));
+        volume->name = (char*) kmalloc(strlen(device->name) + 1);
 
         if(!volume->name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
@@ -45,7 +45,7 @@ size_t volume_register_device(storage_device_t* device) {
         strcpy(volume->name, device->name);
 
         volume->offset = 0;
-        volume->size = device->driver.storage->total_size();
+        volume->size = device->driver.storage->total_size(device);
         volume->device = device;
 
         volume->operations = (volume_operations_t*) kmalloc(sizeof(volume_operations_t));
@@ -103,8 +103,8 @@ size_t volume_register_device(storage_device_t* device) {
 
         strcpy(volume->name + strlen(device->name) + 2, partition_number);
 
-        volume->offset = partition->lba_start * device->driver.storage->sector_size();
-        volume->size = partition->sectors * device->driver.storage->sector_size();
+        volume->offset = partition->lba_start * device->driver.storage->sector_size(device);
+        volume->size = partition->sectors * device->driver.storage->sector_size(device);
         volume->device = device;
 
         volume->operations = (volume_operations_t*) kmalloc(sizeof(volume_operations_t));
@@ -205,7 +205,7 @@ static size_t volume_read(volume_t* volume, size_t offset, size_t size, char* bu
         size = volume->size - offset;
     }
 
-    return volume->device->driver.storage->read(volume->offset + offset, size, buffer);
+    return volume->device->driver.storage->read(volume->device, volume->offset + offset, size, buffer);
 }
 
 static size_t volume_write(volume_t* volume, size_t offset, size_t size, char* buffer) {
@@ -217,5 +217,5 @@ static size_t volume_write(volume_t* volume, size_t offset, size_t size, char* b
         size = volume->size - offset;
     }
 
-    return volume->device->driver.storage->write(volume->offset + offset, size, buffer);
+    return volume->device->driver.storage->write(volume->device, volume->offset + offset, size, buffer);
 }
