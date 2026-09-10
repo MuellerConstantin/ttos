@@ -226,17 +226,44 @@ int32_t pci_init() {
 }
 
 device_t* pci_find_device(uint8_t type, uint8_t subtype) {
+    linked_list_t* devices = pci_find_all_devices(type, subtype);
+
+    if(!devices) {
+        return NULL;
+    }
+
+    device_t* result = devices->head ? (device_t*) devices->head->data : NULL;
+
+    linked_list_destroy(devices, false);
+
+    return result;
+}
+
+linked_list_t* pci_find_all_devices(uint8_t type, uint8_t subtype) {
     linked_list_t* devices = (linked_list_t*) device_find_all_by_bus_type(DEVICE_BUS_TYPE_PCI);
-    device_t* result = NULL;
+    linked_list_t* result = linked_list_create();
+
+    if(!result) {
+        linked_list_destroy(devices, false);
+
+        return NULL;
+    }
 
     linked_list_foreach(devices, node) {
         device_t* device = (device_t*) node->data;
         pci_device_t* pci_device = (pci_device_t*) device->bus.data;
 
-        if(pci_device->type == type && pci_device->subtype == subtype) {
-            result = device;
-            break;
+        if(pci_device->type != type || pci_device->subtype != subtype) {
+            continue;
         }
+
+        linked_list_node_t* match = linked_list_create_node(device);
+
+        if(!match) {
+            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+        }
+
+        linked_list_append(result, match);
     }
 
     linked_list_destroy(devices, false);

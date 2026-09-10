@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <system/ports.h>
 #include <device/device.h>
+#include <util/linked_list.h>
 #include <drivers/pci/types.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
@@ -116,6 +117,21 @@ int32_t pci_init();
  * @return The device or NULL when the scan found none of that class.
  */
 device_t* pci_find_device(uint8_t type, uint8_t subtype);
+
+/**
+ * Finds every device the scan registered for a class of hardware. A board can
+ * carry more than one controller of a kind - a chipset with both a PATA and a
+ * SATA controller reports two IDE controllers - and a driver that stops at the
+ * first one misses the hardware behind the others.
+ *
+ * The caller owns the returned list and destroys it with linked_list_destroy
+ * without freeing the data, which stays owned by the device tree.
+ *
+ * @param type The PCI class.
+ * @param subtype The PCI subclass.
+ * @return The list of devices, empty when the scan found none of that class.
+ */
+linked_list_t* pci_find_all_devices(uint8_t type, uint8_t subtype);
 
 /**
  * Loads the BAR information for a PCI device. Only type 0 and type 1 headers are using

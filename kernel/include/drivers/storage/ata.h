@@ -3,8 +3,8 @@
  * @brief A basic legacy IDE/ATA driver.
  * 
  * This file contains definitions for the ATA driver. The driver is capable of reading and writing
- * data from/to ATA drives. It requires an on-board IDE controller in legacy mode for detecting and
- * accessing ATA drives.
+ * data from/to ATA drives. It talks to an on-board IDE controller, in compatibility mode through
+ * the legacy ports and in native mode through the ports its BARs point at.
  */
 
 #ifndef _KERNEL_DRIVERS_STORAGE_ATA_H
@@ -20,6 +20,31 @@
 
 #define ATA_SECONDARY_IO_BASE 0x170
 #define ATA_SECONDARY_CONTROL_BASE 0x376
+
+/*
+ * Bits of the prog_if register of an IDE controller. A channel in compatibility
+ * mode answers on the legacy ports above, one in native mode on the ports its
+ * BARs were assigned: BAR0 and BAR1 for the primary channel, BAR2 and BAR3 for
+ * the secondary one. Which of the two a channel uses is not a given - a chipset
+ * that carries a PATA and a SATA controller side by side can only let one of
+ * them have the legacy ports.
+ */
+#define ATA_PROG_IF_PRIMARY_NATIVE 0x01
+#define ATA_PROG_IF_SECONDARY_NATIVE 0x04
+
+/*
+ * Upper bound for the polling loops of the drive probe. Nothing is known about
+ * the hardware behind the ports at that point, so a wait that would otherwise
+ * never end gives up instead of hanging the boot.
+ */
+#define ATA_PROBE_TIMEOUT 1000000
+
+/** Length of the buffer the kernel message about a controller is built in. */
+#define ATA_MESSAGE_LENGTH 128
+
+/** BAR holding the command ports of a channel running in native mode. */
+#define ATA_PRIMARY_COMMAND_BAR 0
+#define ATA_SECONDARY_COMMAND_BAR 2
 
 #define ATA_DATA_REGISTER 0x00
 #define ATA_ERROR_REGISTER 0x01
@@ -68,6 +93,10 @@ typedef struct ata_device ata_device_t;
 
 struct ata_device {
     ata_drive_t drive;
+
+    /** Base of the command ports of the channel this drive sits on. */
+    uint16_t io_base;
+
     bool present;
     bool lba_supported;
     bool lba48_supported;

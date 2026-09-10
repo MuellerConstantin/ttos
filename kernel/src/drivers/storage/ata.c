@@ -6,17 +6,24 @@
 #include <drivers/pci/pci.h>
 #include <drivers/pci/types.h>
 
+/*
+ * The four drives of one IDE controller. A board can carry several controllers
+ * of that class, but the drives of only one of them are reachable through this
+ * table, so the driver settles on the first controller that has a drive on it.
+ */
 static ata_device_t ata_devices[4] = {
-    {ATA_PRIMARY_MASTER_DRIVE, 0, false, false, false},
-    {ATA_PRIMARY_SLAVE_DRIVE, 0, false, false, false},
-    {ATA_SECONDARY_MASTER_DRIVE, 0, false, false, false},
-    {ATA_SECONDARY_SLAVE_DRIVE, 0, false, false, false}
+    {ATA_PRIMARY_MASTER_DRIVE, 0, false, false, false, 0},
+    {ATA_PRIMARY_SLAVE_DRIVE, 0, false, false, false, 0},
+    {ATA_SECONDARY_MASTER_DRIVE, 0, false, false, false, 0},
+    {ATA_SECONDARY_SLAVE_DRIVE, 0, false, false, false, 0}
 };
 
-static device_t* ata_claim_controller(void);
-static uint16_t ata_get_io_base(ata_device_t* device);
+static void ata_claim_controller(device_t* controller);
+static void ata_bind_drives(device_t* controller);
+static uint16_t ata_native_io_base(pci_device_t* pci_device, uint8_t bar_index);
 static bool ata_is_master(ata_device_t* device);
 static bool ata_device_probe(ata_device_t* device);
+static bool ata_probe_wait_ready(uint16_t io_base);
 static void ata_wait_busy(uint16_t io_base);
 static bool ata_wait_data(uint16_t io_base);
 static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba);
@@ -38,9 +45,45 @@ static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer)
 static size_t ata_sector_size();
 
 int32_t ata_init() {
-    device_t* controller = ata_claim_controller();
+    linked_list_t* controllers = pci_find_all_devices(PCI_TYPE_MASS_STORAGE_CONTROLLER, PCI_SUBTYPE_IDE_CONTROLLER);
 
-    if(ata_device_probe(&ata_devices[ATA_PRIMARY_MASTER_DRIVE])) {
+    if(!controllers) {
+        return -1;
+    }
+
+    device_t* controller = NULL;
+
+    /*
+     * A chipset that carries a PATA and a SATA controller side by side reports
+     * two IDE controllers, and the drives sit on one of them. Stopping at the
+     * first controller would leave them undetected whenever it is the empty
+     * one, so every controller is probed until one answers.
+     */
+    linked_list_foreach(controllers, node) {
+        device_t* candidate = (device_t*) node->data;
+
+        ata_bind_drives(candidate);
+
+        for(size_t drive = 0; drive < 4; drive++) {
+            if(ata_device_probe(&ata_devices[drive])) {
+                controller = candidate;
+            }
+        }
+
+        if(controller) {
+            break;
+        }
+    }
+
+    linked_list_destroy(controllers, false);
+
+    if(!controller) {
+        return 0;
+    }
+
+    ata_claim_controller(controller);
+
+    if(ata_devices[ATA_PRIMARY_MASTER_DRIVE].present) {
         storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
@@ -73,7 +116,7 @@ int32_t ata_init() {
         device_register(controller, device);
     }
 
-    if(ata_device_probe(&ata_devices[ATA_PRIMARY_SLAVE_DRIVE])) {
+    if(ata_devices[ATA_PRIMARY_SLAVE_DRIVE].present) {
         storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
@@ -106,7 +149,7 @@ int32_t ata_init() {
         device_register(controller, device);
     }
 
-    if(ata_device_probe(&ata_devices[ATA_SECONDARY_MASTER_DRIVE])) {
+    if(ata_devices[ATA_SECONDARY_MASTER_DRIVE].present) {
         storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
@@ -139,7 +182,7 @@ int32_t ata_init() {
         device_register(controller, device);
     }
 
-    if(ata_device_probe(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE])) {
+    if(ata_devices[ATA_SECONDARY_SLAVE_DRIVE].present) {
         storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
         if(!device) {
@@ -227,13 +270,7 @@ static size_t ata_sector_size() {
     return ATA_SECTOR_SIZE;
 }
 
-static device_t* ata_claim_controller(void) {
-    device_t* controller = pci_find_device(PCI_TYPE_MASS_STORAGE_CONTROLLER, PCI_SUBTYPE_IDE_CONTROLLER);
-
-    if(!controller) {
-        return NULL;
-    }
-
+static void ata_claim_controller(device_t* controller) {
     char* name = (char*) kmalloc(15);
 
     if(!name) {
@@ -246,21 +283,74 @@ static device_t* ata_claim_controller(void) {
 
     controller->name = name;
     controller->type = DEVICE_TYPE_CONTROLLER;
-
-    return controller;
 }
 
-static uint16_t ata_get_io_base(ata_device_t* device) {
-    switch(device->drive) {
-        case ATA_PRIMARY_MASTER_DRIVE:
-        case ATA_PRIMARY_SLAVE_DRIVE:
-            return ATA_PRIMARY_IO_BASE;
-        case ATA_SECONDARY_MASTER_DRIVE:
-        case ATA_SECONDARY_SLAVE_DRIVE:
-            return ATA_SECONDARY_IO_BASE;
-        default:
-            return 0;
+/**
+ * Points the four drive slots at the channels of a controller and forgets what
+ * a previously probed controller left behind, so that a drive found on this one
+ * cannot be confused with a drive found on another.
+ */
+static void ata_bind_drives(device_t* controller) {
+    pci_device_t* pci_device = (pci_device_t*) controller->bus.data;
+
+    /*
+     * Whether a channel listens on the legacy ports or on the ports its BARs
+     * were assigned is the controller's own decision, reported in prog_if.
+     * Assuming the legacy ports finds nothing on a controller in native mode.
+     */
+    uint16_t primary_io_base = (pci_device->prog_if & ATA_PROG_IF_PRIMARY_NATIVE)
+        ? ata_native_io_base(pci_device, ATA_PRIMARY_COMMAND_BAR)
+        : ATA_PRIMARY_IO_BASE;
+
+    uint16_t secondary_io_base = (pci_device->prog_if & ATA_PROG_IF_SECONDARY_NATIVE)
+        ? ata_native_io_base(pci_device, ATA_SECONDARY_COMMAND_BAR)
+        : ATA_SECONDARY_IO_BASE;
+
+    for(size_t drive = 0; drive < 4; drive++) {
+        ata_devices[drive].present = false;
+        ata_devices[drive].lba_supported = false;
+        ata_devices[drive].lba48_supported = false;
+        ata_devices[drive].size = 0;
     }
+
+    ata_devices[ATA_PRIMARY_MASTER_DRIVE].io_base = primary_io_base;
+    ata_devices[ATA_PRIMARY_SLAVE_DRIVE].io_base = primary_io_base;
+    ata_devices[ATA_SECONDARY_MASTER_DRIVE].io_base = secondary_io_base;
+    ata_devices[ATA_SECONDARY_SLAVE_DRIVE].io_base = secondary_io_base;
+
+    char* kernel_message = (char*) kmalloc(ATA_MESSAGE_LENGTH);
+
+    if(!kernel_message) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strfmt(kernel_message, "ata: Probing IDE controller (%d:%d.%d) with prog_if %x, primary %x, secondary %x",
+           pci_device->bus, pci_device->slot, pci_device->function, pci_device->prog_if, primary_io_base, secondary_io_base);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
+}
+
+/**
+ * Reads the command ports of a channel running in native mode out of the BAR
+ * the controller keeps them in.
+ *
+ * @return The port base or zero when the BAR holds no usable I/O range.
+ */
+static uint16_t ata_native_io_base(pci_device_t* pci_device, uint8_t bar_index) {
+    if(pci_load_bar_info(pci_device, bar_index) != 0) {
+        return 0;
+    }
+
+    // The BAR is read out by value, a packed struct has no address worth taking.
+    uint8_t type = pci_device->data.general.bar[bar_index].type;
+    uint16_t io_port = pci_device->data.general.bar[bar_index].io_port;
+
+    // A BAR the firmware never assigned leaves the channel without ports.
+    if(type != PCI_BAR_IO_SPACE || io_port == 0) {
+        return 0;
+    }
+
+    return io_port;
 }
 
 static bool ata_is_master(ata_device_t* device) {
@@ -277,8 +367,13 @@ static bool ata_is_master(ata_device_t* device) {
 }
 
 static bool ata_device_probe(ata_device_t* device) {
-    uint16_t io_base = ata_get_io_base(device);
+    uint16_t io_base = device->io_base;
     bool is_master = ata_is_master(device);
+
+    // A channel whose ports the controller does not decode has nothing to find.
+    if(io_base == 0) {
+        return false;
+    }
 
     // Choose master/slave drive
     outb(io_base + ATA_DRIVE_REGISTER, is_master ? 0xA0 : 0xB0);
@@ -292,12 +387,21 @@ static bool ata_device_probe(ata_device_t* device) {
     // Send the identify command
     outb(io_base + ATA_COMMAND_REGISTER, 0xEC);
 
-    if(inb(io_base + ATA_STATUS_REGISTER) == 0x00) {
+    uint8_t status = inb(io_base + ATA_STATUS_REGISTER);
+
+    /*
+     * A status of zero is an empty drive slot. All ones means nobody drives
+     * these ports at all: an unconnected bus floats high, and taking that for a
+     * busy drive would leave the boot spinning in the wait below.
+     */
+    if(status == 0x00 || status == 0xFF) {
         return false;
     }
 
     // Wait for the drive to be ready
-    while(inb(io_base + ATA_STATUS_REGISTER) & 0x80);
+    if(!ata_probe_wait_ready(io_base)) {
+        return false;
+    }
 
     // Check if the drive is an ATA drive
     if(inb(io_base + ATA_LBA_MID_REGISTER) != 0x00 || inb(io_base + ATA_LBA_HIGH_REGISTER) != 0x00) {
@@ -307,13 +411,13 @@ static bool ata_device_probe(ata_device_t* device) {
     uint8_t drq = 0;
     uint8_t err = 0;
 
-    // Wait for the drive to be ready
-    while(!drq && !err) {
-        drq = inb(io_base + ATA_STATUS_REGISTER) & 0x08;
-        err = inb(io_base + ATA_STATUS_REGISTER) & 0x01;
+    // Wait for the drive to hand over its identification data
+    for(uint32_t attempt = 0; !drq && !err && attempt < ATA_PROBE_TIMEOUT; attempt++) {
+        drq = inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_DRQ;
+        err = inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_ERR;
     }
 
-    if(err) {
+    if(err || !drq) {
         return false;
     }
 
@@ -501,6 +605,23 @@ size_t ata_read(ata_device_t* device, size_t offset, size_t size, char* buffer) 
  * Block until the drive clears BSY. Its registers must not be touched while it is set, so every
  * command has to start and end with this.
  */
+/**
+ * Waits for a drive to go idle during the probe. Unlike the wait on the read
+ * and write path this one gives up: at probe time it is not yet known that
+ * there is a drive behind the ports at all.
+ *
+ * @return true when the drive went idle, false when it never did.
+ */
+static bool ata_probe_wait_ready(uint16_t io_base) {
+    for(uint32_t attempt = 0; attempt < ATA_PROBE_TIMEOUT; attempt++) {
+        if((inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_BSY) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void ata_wait_busy(uint16_t io_base) {
     while(inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_BSY);
 }
@@ -549,7 +670,7 @@ static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba) {
 }
 
 static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
-    uint16_t io_base = ata_get_io_base(device);
+    uint16_t io_base = device->io_base;
 
     ata_select_sector_lba28(io_base, lba);
 
@@ -577,7 +698,7 @@ static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* 
 }
 
 static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
-    uint16_t io_base = ata_get_io_base(device);
+    uint16_t io_base = device->io_base;
 
     ata_select_sector_lba28(io_base, lba);
 
