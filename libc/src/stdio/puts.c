@@ -1,30 +1,18 @@
 #include <stdio.h>
 #include <string.h>
+#include <fsio.h>
 
 int puts(const char* str) {
     /*
-     * Naive implementation of puts that writes a string to the standard output stream by
-     * using the syscall interface directly.
+     * Deviating from the standard, no newline is appended. Callers pass one in
+     * the string when they want it.
      */
 
-    uint32_t return_value = 0;
-    size_t length = strlen(str);
-
-    __asm__ volatile(
-        "mov $0x01, %%ebx\n"
-        "mov %1, %%ecx\n"
-        "mov %2, %%edx\n"
-        "mov $0x01, %%eax\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(return_value)
-        : "r"(str), "r"(length)
-        : "%eax", "%ebx", "%ecx", "%edx"
-    );
+    int32_t return_value = fsio_write(FSIO_STDOUT, str, strlen(str));
 
     if(return_value < 0) {
         return EOF;
     }
 
-    return length;
+    return return_value;
 }
