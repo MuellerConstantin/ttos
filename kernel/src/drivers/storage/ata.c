@@ -3,6 +3,8 @@
 #include <system/kpanic.h>
 #include <system/kmessage.h>
 #include <device/device.h>
+#include <drivers/pci/pci.h>
+#include <drivers/pci/types.h>
 
 static ata_device_t ata_devices[4] = {
     {ATA_PRIMARY_MASTER_DRIVE, 0, false, false, false},
@@ -11,6 +13,7 @@ static ata_device_t ata_devices[4] = {
     {ATA_SECONDARY_SLAVE_DRIVE, 0, false, false, false}
 };
 
+static device_t* ata_claim_controller(void);
 static uint16_t ata_get_io_base(ata_device_t* device);
 static bool ata_is_master(ata_device_t* device);
 static bool ata_device_probe(ata_device_t* device);
@@ -35,6 +38,8 @@ static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer)
 static size_t ata_sector_size();
 
 int32_t ata_init() {
+    device_t* controller = ata_claim_controller();
+
     if(ata_device_probe(&ata_devices[ATA_PRIMARY_MASTER_DRIVE])) {
         storage_device_t *device = (storage_device_t*) kmalloc(sizeof(storage_device_t));
 
@@ -65,7 +70,7 @@ int32_t ata_init() {
         device->driver.storage->read = ata_read_primary_master;
         device->driver.storage->write = ata_write_primary_master;
 
-        device_register(NULL, device);
+        device_register(controller, device);
     }
 
     if(ata_device_probe(&ata_devices[ATA_PRIMARY_SLAVE_DRIVE])) {
@@ -98,7 +103,7 @@ int32_t ata_init() {
         device->driver.storage->read = ata_read_primary_slave;
         device->driver.storage->write = ata_write_primary_slave;
 
-        device_register(NULL, device);
+        device_register(controller, device);
     }
 
     if(ata_device_probe(&ata_devices[ATA_SECONDARY_MASTER_DRIVE])) {
@@ -131,7 +136,7 @@ int32_t ata_init() {
         device->driver.storage->read = ata_read_secondary_master;
         device->driver.storage->write = ata_write_secondary_master;
 
-        device_register(NULL, device);
+        device_register(controller, device);
     }
 
     if(ata_device_probe(&ata_devices[ATA_SECONDARY_SLAVE_DRIVE])) {
@@ -164,7 +169,7 @@ int32_t ata_init() {
         device->driver.storage->read = ata_read_secondary_slave;
         device->driver.storage->write = ata_write_secondary_slave;
 
-        device_register(NULL, device);
+        device_register(controller, device);
     }
 
     return 0;
@@ -220,6 +225,42 @@ static size_t ata_read_secondary_slave(size_t offset, size_t size, char* buffer)
 
 static size_t ata_sector_size() {
     return ATA_SECTOR_SIZE;
+}
+
+static device_t* ata_claim_controller(void) {
+    linked_list_t* pci_devices = (linked_list_t*) device_find_all_by_bus_type(DEVICE_BUS_TYPE_PCI);
+    device_t* controller = NULL;
+
+    linked_list_foreach(pci_devices, node) {
+        device_t* candidate = (device_t*) node->data;
+        pci_device_t* pci_device = (pci_device_t*) candidate->bus.data;
+
+        if(pci_device->type == PCI_TYPE_MASS_STORAGE_CONTROLLER && pci_device->subtype == PCI_SUBTYPE_IDE_CONTROLLER) {
+            controller = candidate;
+            break;
+        }
+    }
+
+    linked_list_destroy(pci_devices, false);
+
+    if(!controller) {
+        return NULL;
+    }
+
+    char* name = (char*) kmalloc(15);
+
+    if(!name) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strcpy(name, "IDE Controller");
+
+    kfree(controller->name);
+
+    controller->name = name;
+    controller->type = DEVICE_TYPE_CONTROLLER;
+
+    return controller;
 }
 
 static uint16_t ata_get_io_base(ata_device_t* device) {
