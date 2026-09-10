@@ -159,7 +159,10 @@ static int32_t pci_pci2pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_i
 static uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
+static void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint16_t value);
 static void pci_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint32_t value);
+static uint16_t pci_disable_decode(pci_device_t* pci_device);
+static void pci_restore_decode(pci_device_t* pci_device, uint16_t command);
 
 int32_t pci_init() {
     for(uint16_t bus = 0; bus < PCI_MAX_NUM_BUSES; bus++) {
@@ -312,6 +315,7 @@ static int32_t pci_general_load_bar_info(pci_device_t* pci_device, uint8_t bar_i
     }
 
     uint32_t bar_address = pci_read_dword(pci_device->bus, pci_device->slot, pci_device->function, offset);
+    uint16_t command = pci_disable_decode(pci_device);
 
     if(bar_address & PCI_BAR_IO_SPACE) {
         pci_device->data.general.bar[bar_index].type = PCI_BAR_IO_SPACE;
@@ -334,6 +338,8 @@ static int32_t pci_general_load_bar_info(pci_device_t* pci_device, uint8_t bar_i
         uint8_t bar_address_type = bar_address & 0x3;
 
         if(bar_address_type != PCI_BAR_MEMORY_32BIT) {
+            pci_restore_decode(pci_device, command);
+
             return -1;
         }
 
@@ -353,6 +359,8 @@ static int32_t pci_general_load_bar_info(pci_device_t* pci_device, uint8_t bar_i
         pci_device->data.general.bar[bar_index].base_address = bar_address;
         pci_device->data.general.bar[bar_index].flags = bar_address & 0xf;
     }
+
+    pci_restore_decode(pci_device, command);
 
     return 0;
 }
@@ -448,6 +456,39 @@ static uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t 
     outl(PCI_CONFIG_ADDRESS, address);
 
     return (uint32_t) (inl(PCI_CONFIG_DATA));
+}
+
+static void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint16_t value) {
+    uint32_t address = (uint32_t) ((bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC) | ((uint32_t) 0x80000000));
+
+    outl(PCI_CONFIG_ADDRESS, address);
+
+    // The data port is a dword, the word sits at its own offset inside it.
+    outw(PCI_CONFIG_DATA + (offset & 2), value);
+}
+
+/**
+ * Takes a device off the bus for the duration of a BAR measurement.
+ *
+ * Measuring a BAR means writing all ones into it and reading back which bits
+ * stuck. While those ones are in there the device claims an enormous range and
+ * decodes every address in it, which on real hardware puts it on top of ports
+ * that belong to somebody else - the interrupt controller and the keyboard
+ * among them. Clearing its decode bits first keeps the measurement to itself.
+ *
+ * @return The command register as it was, to be handed back to pci_restore_decode.
+ */
+static uint16_t pci_disable_decode(pci_device_t* pci_device) {
+    uint16_t command = pci_read_word(pci_device->bus, pci_device->slot, pci_device->function, PCI_COMMAND);
+
+    pci_write_word(pci_device->bus, pci_device->slot, pci_device->function, PCI_COMMAND,
+                   command & ~(PCI_COMMAND_IO_SPACE | PCI_COMMAND_MEMORY_SPACE));
+
+    return command;
+}
+
+static void pci_restore_decode(pci_device_t* pci_device, uint16_t command) {
+    pci_write_word(pci_device->bus, pci_device->slot, pci_device->function, PCI_COMMAND, command);
 }
 
 static void pci_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint32_t value) {

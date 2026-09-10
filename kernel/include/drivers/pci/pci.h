@@ -33,6 +33,11 @@
 #define PCI_HEADER_TYPE         0x0E
 #define PCI_BIST                0x0F
 
+// PCI command register
+
+#define PCI_COMMAND_IO_SPACE        0x0001
+#define PCI_COMMAND_MEMORY_SPACE    0x0002
+
 // PCI BAR address register
 
 #define PCI_BAR_IO_SPACE        0x01
