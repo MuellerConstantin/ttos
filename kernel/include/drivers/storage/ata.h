@@ -33,11 +33,18 @@
 #define ATA_PROG_IF_SECONDARY_NATIVE 0x04
 
 /*
- * Upper bound for the polling loops of the drive probe. Nothing is known about
- * the hardware behind the ports at that point, so a wait that would otherwise
- * never end gives up instead of hanging the boot.
+ * Upper bounds for the polling loops of the driver, counted in reads of the
+ * status register. No wait may run forever: a port that is decoded by hardware
+ * which is not a drive answers just enough to get past the probe and then never
+ * finishes a command, and an unbounded wait turns that into a hung boot with
+ * nothing on screen to say why.
+ *
+ * The probe gives up quickly because it runs up to four times per channel on
+ * hardware that is not known to exist. A command is given a lot longer: there
+ * is a drive at the other end by then, and it may well be busy.
  */
-#define ATA_PROBE_TIMEOUT 1000000
+#define ATA_PROBE_TIMEOUT 100000
+#define ATA_COMMAND_TIMEOUT 1000000
 
 /** Length of the buffer the kernel message about a controller is built in. */
 #define ATA_MESSAGE_LENGTH 128
@@ -45,9 +52,18 @@
 /** Length of the buffer the name of a drive is built in. */
 #define ATA_DRIVE_NAME_LENGTH 64
 
-/** BAR holding the command ports of a channel running in native mode. */
+/** BARs holding the ports of a channel running in native mode. */
 #define ATA_PRIMARY_COMMAND_BAR 0
+#define ATA_PRIMARY_CONTROL_BAR 1
 #define ATA_SECONDARY_COMMAND_BAR 2
+#define ATA_SECONDARY_CONTROL_BAR 3
+
+/*
+ * The control block of a channel in native mode is four ports wide and the
+ * device control register sits in its upper half, unlike the legacy control
+ * port which is the register itself.
+ */
+#define ATA_CONTROL_BAR_OFFSET 2
 
 #define ATA_DATA_REGISTER 0x00
 #define ATA_ERROR_REGISTER 0x01
@@ -71,6 +87,16 @@
 
 #define ATA_ALT_STATUS_REGISTER 0x00
 #define ATA_DEVICE_CONTROL_REGISTER 0x00
+
+/*
+ * Stops the drive from raising interrupts. This driver polls, so it has no use
+ * for them, and a drive left free to raise one is a hazard: in native mode the
+ * interrupt travels a PCI line, which stays asserted until the drive is told
+ * otherwise. An interrupt nobody is listening for is acknowledged at the
+ * controller and immediately raised again, and the machine spends the rest of
+ * its life in the interrupt.
+ */
+#define ATA_DEVICE_CONTROL_NIEN 0x02
 #define ATA_DRIVE_ADDRESS_REGISTER 0x01
 
 #define ATA_SECTOR_SIZE 512
@@ -94,11 +120,20 @@ typedef enum {
 
 typedef struct ata_device ata_device_t;
 
+typedef struct ata_channel ata_channel_t;
+
+/** The ports one channel of a controller answers on. */
+struct ata_channel {
+    uint16_t io_base;
+    uint16_t control_base;
+};
+
 struct ata_device {
     ata_drive_t drive;
 
-    /** Base of the command ports of the channel this drive sits on. */
+    /** Ports of the channel this drive sits on. */
     uint16_t io_base;
+    uint16_t control_base;
 
     bool present;
     bool lba_supported;

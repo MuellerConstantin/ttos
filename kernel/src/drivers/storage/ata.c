@@ -15,17 +15,17 @@ static const char* ata_drive_names[4] = {
 };
 
 static void ata_claim_controller(device_t* controller);
-static void ata_channel_io_bases(device_t* controller, uint16_t* primary_io_base, uint16_t* secondary_io_base);
-static uint16_t ata_native_io_base(pci_device_t* pci_device, uint8_t bar_index);
+static void ata_channel_ports(device_t* controller, ata_channel_t* primary, ata_channel_t* secondary);
+static void ata_channel_disable_interrupts(const ata_channel_t* channel);
+static uint16_t ata_native_port(pci_device_t* pci_device, uint8_t bar_index);
 static void ata_register_drive(device_t* controller, ata_device_t* drive);
 static bool ata_is_master(ata_device_t* device);
 static bool ata_device_probe(ata_device_t* device);
-static bool ata_probe_wait_ready(uint16_t io_base);
-static void ata_wait_busy(uint16_t io_base);
-static bool ata_wait_data(uint16_t io_base);
-static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba);
-static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
-static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
+static bool ata_wait_busy(uint16_t io_base, uint32_t timeout);
+static bool ata_wait_data(uint16_t io_base, uint32_t timeout);
+static bool ata_select_sector_lba28(uint16_t io_base, uint32_t lba);
+static bool ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
+static bool ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
 
 static size_t ata_driver_sector_size(device_t* device);
 static size_t ata_driver_total_size(device_t* device);
@@ -48,14 +48,23 @@ int32_t ata_init() {
     linked_list_foreach(controllers, node) {
         device_t* controller = (device_t*) node->data;
 
-        uint16_t primary_io_base;
-        uint16_t secondary_io_base;
+        ata_channel_t primary;
+        ata_channel_t secondary;
 
-        ata_channel_io_bases(controller, &primary_io_base, &secondary_io_base);
+        ata_channel_ports(controller, &primary, &secondary);
+
+        /*
+         * Both channels are silenced before the first command goes out. A drive
+         * that raises an interrupt nobody handles takes the machine with it.
+         */
+        ata_channel_disable_interrupts(&primary);
+        ata_channel_disable_interrupts(&secondary);
 
         bool claimed = false;
 
         for(size_t index = 0; index < 4; index++) {
+            const ata_channel_t* channel = (index <= ATA_PRIMARY_SLAVE_DRIVE) ? &primary : &secondary;
+
             ata_device_t* drive = (ata_device_t*) kmalloc(sizeof(ata_device_t));
 
             if(!drive) {
@@ -63,7 +72,8 @@ int32_t ata_init() {
             }
 
             drive->drive = (ata_drive_t) index;
-            drive->io_base = (index <= ATA_PRIMARY_SLAVE_DRIVE) ? primary_io_base : secondary_io_base;
+            drive->io_base = channel->io_base;
+            drive->control_base = channel->control_base;
             drive->present = false;
             drive->lba_supported = false;
             drive->lba48_supported = false;
@@ -87,6 +97,8 @@ int32_t ata_init() {
     }
 
     linked_list_destroy(controllers, false);
+
+    kmessage(KMESSAGE_LEVEL_INFO, "ata: Done probing IDE controllers");
 
     return 0;
 }
@@ -133,6 +145,21 @@ static void ata_register_drive(device_t* controller, ata_device_t* drive) {
     device->driver.storage->read = ata_driver_read;
     device->driver.storage->write = ata_driver_write;
 
+    /*
+     * Registering hands the drive to the volume manager, which reads its
+     * partition table right away. Saying so beforehand keeps a drive that stops
+     * answering halfway from looking like a stall of unknown origin.
+     */
+    char* kernel_message = (char*) kmalloc(ATA_MESSAGE_LENGTH);
+
+    if(!kernel_message) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strfmt(kernel_message, "ata: Registering %s on port %x", device->name, drive->io_base);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
+
     device_register(controller, device);
 }
 
@@ -166,21 +193,37 @@ static void ata_claim_controller(device_t* controller) {
 /**
  * Works out which ports the two channels of a controller answer on.
  */
-static void ata_channel_io_bases(device_t* controller, uint16_t* primary_io_base, uint16_t* secondary_io_base) {
+static void ata_channel_ports(device_t* controller, ata_channel_t* primary, ata_channel_t* secondary) {
     pci_device_t* pci_device = (pci_device_t*) controller->bus.data;
 
     /*
-     * Whether a channel listens on the legacy ports or on the ports its BAR was
-     * assigned is the controller's own decision, reported in prog_if. Assuming
-     * the legacy ports finds nothing on a controller in native mode.
+     * Whether a channel listens on the legacy ports or on the ports its BARs
+     * were assigned is the controller's own decision, reported in prog_if.
+     * Assuming the legacy ports finds nothing on a controller in native mode.
      */
-    *primary_io_base = (pci_device->prog_if & ATA_PROG_IF_PRIMARY_NATIVE)
-        ? ata_native_io_base(pci_device, ATA_PRIMARY_COMMAND_BAR)
-        : ATA_PRIMARY_IO_BASE;
+    if(pci_device->prog_if & ATA_PROG_IF_PRIMARY_NATIVE) {
+        primary->io_base = ata_native_port(pci_device, ATA_PRIMARY_COMMAND_BAR);
+        primary->control_base = ata_native_port(pci_device, ATA_PRIMARY_CONTROL_BAR);
 
-    *secondary_io_base = (pci_device->prog_if & ATA_PROG_IF_SECONDARY_NATIVE)
-        ? ata_native_io_base(pci_device, ATA_SECONDARY_COMMAND_BAR)
-        : ATA_SECONDARY_IO_BASE;
+        if(primary->control_base) {
+            primary->control_base += ATA_CONTROL_BAR_OFFSET;
+        }
+    } else {
+        primary->io_base = ATA_PRIMARY_IO_BASE;
+        primary->control_base = ATA_PRIMARY_CONTROL_BASE;
+    }
+
+    if(pci_device->prog_if & ATA_PROG_IF_SECONDARY_NATIVE) {
+        secondary->io_base = ata_native_port(pci_device, ATA_SECONDARY_COMMAND_BAR);
+        secondary->control_base = ata_native_port(pci_device, ATA_SECONDARY_CONTROL_BAR);
+
+        if(secondary->control_base) {
+            secondary->control_base += ATA_CONTROL_BAR_OFFSET;
+        }
+    } else {
+        secondary->io_base = ATA_SECONDARY_IO_BASE;
+        secondary->control_base = ATA_SECONDARY_CONTROL_BASE;
+    }
 
     char* kernel_message = (char*) kmalloc(ATA_MESSAGE_LENGTH);
 
@@ -188,13 +231,26 @@ static void ata_channel_io_bases(device_t* controller, uint16_t* primary_io_base
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    strfmt(kernel_message, "ata: Probing IDE controller (%d:%d.%d) with prog_if %x, primary %x, secondary %x",
-           pci_device->bus, pci_device->slot, pci_device->function, pci_device->prog_if, *primary_io_base, *secondary_io_base);
+    strfmt(kernel_message, "ata: Probing IDE controller (%d:%d.%d) with prog_if %x, primary %x/%x, secondary %x/%x",
+           pci_device->bus, pci_device->slot, pci_device->function, pci_device->prog_if,
+           primary->io_base, primary->control_base, secondary->io_base, secondary->control_base);
 
     kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 }
 
-static uint16_t ata_native_io_base(pci_device_t* pci_device, uint8_t bar_index) {
+/**
+ * Tells the drives of a channel to keep their interrupts to themselves. The
+ * driver polls, and an interrupt raised for it would be acknowledged by nobody.
+ */
+static void ata_channel_disable_interrupts(const ata_channel_t* channel) {
+    if(channel->control_base == 0) {
+        return;
+    }
+
+    outb(channel->control_base + ATA_DEVICE_CONTROL_REGISTER, ATA_DEVICE_CONTROL_NIEN);
+}
+
+static uint16_t ata_native_port(pci_device_t* pci_device, uint8_t bar_index) {
     if(pci_load_bar_info(pci_device, bar_index) != 0) {
         return 0;
     }
@@ -257,7 +313,7 @@ static bool ata_device_probe(ata_device_t* device) {
     }
 
     // Wait for the drive to be ready
-    if(!ata_probe_wait_ready(io_base)) {
+    if(!ata_wait_busy(io_base, ATA_PROBE_TIMEOUT)) {
         return false;
     }
 
@@ -377,8 +433,10 @@ size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer)
     size_t total_size = 0;
 
     for(size_t sector_index = start_sector; sector_index <= end_sector; sector_index++) {
-        // Read whole sector from the drive
-        ata_read_sector_lba28(device, sector_index, sector_buffer);
+        // A drive that stops answering ends the transfer, the caller gets what arrived.
+        if(!ata_read_sector_lba28(device, sector_index, sector_buffer)) {
+            break;
+        }
 
         if(sector_index == start_sector) {
             write_offset = start_sector_offset;
@@ -393,7 +451,9 @@ size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer)
         memcpy(sector_buffer + write_offset, buffer_pointer, write_size);
 
         // Write whole sector back to the drive
-        ata_write_sector_lba28(device, sector_index, sector_buffer);
+        if(!ata_write_sector_lba28(device, sector_index, sector_buffer)) {
+            break;
+        }
 
         buffer_pointer = (char*) (((uintptr_t) buffer_pointer) + write_size);
         total_size += write_size;
@@ -435,8 +495,10 @@ size_t ata_read(ata_device_t* device, size_t offset, size_t size, char* buffer) 
     size_t total_size = 0;
 
     for(size_t sector_index = start_sector; sector_index <= end_sector; sector_index++) {
-        // Read whole sector from the drive
-        ata_read_sector_lba28(device, sector_index, sector_buffer);
+        // A drive that stops answering ends the transfer, the caller gets what arrived.
+        if(!ata_read_sector_lba28(device, sector_index, sector_buffer)) {
+            break;
+        }
 
         if(sector_index == start_sector) {
             read_offset = start_sector_offset;
@@ -460,18 +522,13 @@ size_t ata_read(ata_device_t* device, size_t offset, size_t size, char* buffer) 
 }
 
 /**
- * Block until the drive clears BSY. Its registers must not be touched while it is set, so every
+ * Wait for the drive to clear BSY. Its registers must not be touched while it is set, so every
  * command has to start and end with this.
- */
-/**
- * Waits for a drive to go idle during the probe. Unlike the wait on the read
- * and write path this one gives up: at probe time it is not yet known that
- * there is a drive behind the ports at all.
  *
- * @return true when the drive went idle, false when it never did.
+ * @return True once the drive went idle, false when it never did.
  */
-static bool ata_probe_wait_ready(uint16_t io_base) {
-    for(uint32_t attempt = 0; attempt < ATA_PROBE_TIMEOUT; attempt++) {
+static bool ata_wait_busy(uint16_t io_base, uint32_t timeout) {
+    for(uint32_t attempt = 0; attempt < timeout; attempt++) {
         if((inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_BSY) == 0) {
             return true;
         }
@@ -480,17 +537,13 @@ static bool ata_probe_wait_ready(uint16_t io_base) {
     return false;
 }
 
-static void ata_wait_busy(uint16_t io_base) {
-    while(inb(io_base + ATA_STATUS_REGISTER) & ATA_STATUS_BSY);
-}
-
 /**
  * Wait for the drive to announce that a block of data can be transferred.
  *
- * @return True once DRQ is set, false if the drive reported an error instead.
+ * @return True once DRQ is set, false if the drive reported an error or never answered.
  */
-static bool ata_wait_data(uint16_t io_base) {
-    for(;;) {
+static bool ata_wait_data(uint16_t io_base, uint32_t timeout) {
+    for(uint32_t attempt = 0; attempt < timeout; attempt++) {
         uint8_t status = inb(io_base + ATA_STATUS_REGISTER);
 
         if(status & (ATA_STATUS_ERR | ATA_STATUS_DF)) {
@@ -501,6 +554,8 @@ static bool ata_wait_data(uint16_t io_base) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -508,8 +563,10 @@ static bool ata_wait_data(uint16_t io_base) {
  * takes effect after a short settling time, for which reading the status register four times is the
  * conventional stand-in.
  */
-static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba) {
-    ata_wait_busy(io_base);
+static bool ata_select_sector_lba28(uint16_t io_base, uint32_t lba) {
+    if(!ata_wait_busy(io_base, ATA_COMMAND_TIMEOUT)) {
+        return false;
+    }
 
     // Choose master/slave drives and set the LBA mode
     outb(io_base + ATA_DRIVE_REGISTER, 0xE0 | ((lba >> 24) & 0x0F));
@@ -525,18 +582,22 @@ static void ata_select_sector_lba28(uint16_t io_base, uint32_t lba) {
     outb(io_base + ATA_LBA_LOW_REGISTER, (lba & 0x000000FF) >> 0);
     outb(io_base + ATA_LBA_MID_REGISTER, (lba & 0x0000FF00) >> 8);
     outb(io_base + ATA_LBA_HIGH_REGISTER, (lba & 0x00FF0000) >> 16);
+
+    return true;
 }
 
-static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
+static bool ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
     uint16_t io_base = device->io_base;
 
-    ata_select_sector_lba28(io_base, lba);
+    if(!ata_select_sector_lba28(io_base, lba)) {
+        return false;
+    }
 
     outb(io_base + ATA_COMMAND_REGISTER, ATA_COMMAND_WRITE_SECTORS);
 
     // The drive raises DRQ once it is ready to take the data. Pushing it out earlier loses it.
-    if(!ata_wait_data(io_base)) {
-        return;
+    if(!ata_wait_data(io_base, ATA_COMMAND_TIMEOUT)) {
+        return false;
     }
 
     for(uint16_t i = 0; i < 256; i++) {
@@ -548,25 +609,31 @@ static void ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* 
      * which also keeps the next command from programming the registers while this write is still
      * in flight -- writing a 1 KiB block means two of these back to back.
      */
-    ata_wait_busy(io_base);
+    if(!ata_wait_busy(io_base, ATA_COMMAND_TIMEOUT)) {
+        return false;
+    }
 
     outb(io_base + ATA_COMMAND_REGISTER, ATA_COMMAND_CACHE_FLUSH);
 
-    ata_wait_busy(io_base);
+    return ata_wait_busy(io_base, ATA_COMMAND_TIMEOUT);
 }
 
-static void ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
+static bool ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer) {
     uint16_t io_base = device->io_base;
 
-    ata_select_sector_lba28(io_base, lba);
+    if(!ata_select_sector_lba28(io_base, lba)) {
+        return false;
+    }
 
     outb(io_base + ATA_COMMAND_REGISTER, ATA_COMMAND_READ_SECTORS);
 
-    if(!ata_wait_data(io_base)) {
-        return;
+    if(!ata_wait_data(io_base, ATA_COMMAND_TIMEOUT)) {
+        return false;
     }
 
     for(uint16_t i = 0; i < 256; i++) {
         ((uint16_t*) buffer)[i] = inw(io_base + ATA_DATA_REGISTER);
     }
+
+    return true;
 }
