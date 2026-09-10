@@ -90,6 +90,7 @@ typedef struct volinfo volinfo_t;
 struct volinfo {
     char name[64];
     char id[16];
+    uint32_t size;
 };
 
 typedef struct devinfo devinfo_t;

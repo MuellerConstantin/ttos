@@ -22,13 +22,23 @@ char *itoa(int32_t n, char *buf, uint32_t base);
 
 /**
  * Converts a double to a string.
- * 
+ *
  * @param n The double to convert.
  * @param precision The number of decimal places to include.
  * @param buf The buffer to store the string in.
  * @return The string representation of the double.
  */
 char *gcvt(double n, int precision, char *buf);
+
+/**
+ * Converts a number of bytes to a string with a binary unit suffix, such as
+ * "512B", "1.5K" or "49M". Values below ten carry a single decimal place.
+ *
+ * @param n The number of bytes to convert.
+ * @param buf The buffer to store the string in, at least 8 bytes long.
+ * @return The string representation of the size.
+ */
+char *sizetoa(uint32_t n, char *buf);
 
 /**
  * Initializes the random number generator with a seed.
