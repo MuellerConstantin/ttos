@@ -1,5 +1,6 @@
 #include <dirio.h>
 #include <stdio.h>
+#include <termio.h>
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -15,10 +16,15 @@ int main(int argc, char** argv) {
     }
 
     dirent_t entry;
+    termio_pager_t pager;
+
+    termio_pager_init(&pager);
 
     while (dirio_read(dd, &entry) == 0) {
-        puts(entry.name);
-        putchar('\n');
+        // The reader has seen enough, the rest of the directory is not worth reading.
+        if (termio_pager_puts(&pager, entry.name) < 0 || termio_pager_putchar(&pager, '\n') < 0) {
+            break;
+        }
     }
 
     dirio_close(dd);
