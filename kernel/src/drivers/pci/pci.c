@@ -78,6 +78,25 @@ int32_t pci_init() {
     return 0;
 }
 
+device_t* pci_find_device(uint8_t type, uint8_t subtype) {
+    linked_list_t* devices = (linked_list_t*) device_find_all_by_bus_type(DEVICE_BUS_TYPE_PCI);
+    device_t* result = NULL;
+
+    linked_list_foreach(devices, node) {
+        device_t* device = (device_t*) node->data;
+        pci_device_t* pci_device = (pci_device_t*) device->bus.data;
+
+        if(pci_device->type == type && pci_device->subtype == subtype) {
+            result = device;
+            break;
+        }
+    }
+
+    linked_list_destroy(devices, false);
+
+    return result;
+}
+
 int32_t pci_load_bar_info(pci_device_t* pci_device, uint8_t bar_index) {
     uint8_t header_type = pci_device->header_type & 0x7F;
 

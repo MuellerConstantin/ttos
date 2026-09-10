@@ -3,6 +3,8 @@
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 #include <util/string.h>
+#include <drivers/pci/pci.h>
+#include <drivers/pci/types.h>
 
 static device_t* ps2_8042_device = NULL;
 static ps2_port_t ps2_8042_ports[2] = { { PS2_FIRST_PORT }, { PS2_SECOND_PORT } };
@@ -41,7 +43,12 @@ device_t* ps2_8042_claim_device(void) {
     device->bus.data = NULL;
     device->driver.raw = NULL;
 
-    device_register(NULL, device);
+    /*
+     * The legacy devices sit behind the ISA bridge, so that is where they
+     * belong in the tree. Without a bridge they land at the root: they answer
+     * on fixed ports either way, so its absence costs the hierarchy only.
+     */
+    device_register(pci_find_device(PCI_TYPE_BRIDGE_DEVICE, PCI_SUBTYPE_ISA_BRIDGE), device);
 
     ps2_8042_device = device;
 

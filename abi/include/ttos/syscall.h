@@ -99,6 +99,7 @@ struct volinfo {
 #define DEVICE_TYPE_STORAGE     0x0200
 #define DEVICE_TYPE_VIDEO       0x0300
 #define DEVICE_TYPE_CONTROLLER  0x0400
+#define DEVICE_TYPE_SERIAL      0x0500
 #define DEVICE_TYPE_RESERVED    0xFF00
 
 // Bus types a device can be attached to, as reported in devinfo.

@@ -228,20 +228,7 @@ static size_t ata_sector_size() {
 }
 
 static device_t* ata_claim_controller(void) {
-    linked_list_t* pci_devices = (linked_list_t*) device_find_all_by_bus_type(DEVICE_BUS_TYPE_PCI);
-    device_t* controller = NULL;
-
-    linked_list_foreach(pci_devices, node) {
-        device_t* candidate = (device_t*) node->data;
-        pci_device_t* pci_device = (pci_device_t*) candidate->bus.data;
-
-        if(pci_device->type == PCI_TYPE_MASS_STORAGE_CONTROLLER && pci_device->subtype == PCI_SUBTYPE_IDE_CONTROLLER) {
-            controller = candidate;
-            break;
-        }
-    }
-
-    linked_list_destroy(pci_devices, false);
+    device_t* controller = pci_find_device(PCI_TYPE_MASS_STORAGE_CONTROLLER, PCI_SUBTYPE_IDE_CONTROLLER);
 
     if(!controller) {
         return NULL;

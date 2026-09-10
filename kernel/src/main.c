@@ -136,16 +136,15 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
 }
 
 static void init_drivers() {
-    uart_16550_init(UART_16550_COM1, 115200);
-    ps2_keyboard_init();
-
     /*
      * The bus scan runs first so that the drivers below it can bind to the
-     * devices it finds instead of registering a second device for hardware that
-     * is already in the tree.
+     * devices it finds, instead of registering a second device for hardware
+     * that is already in the tree or hanging their own devices off the root.
      */
     pci_init();
 
+    uart_16550_init(UART_16550_COM1, 115200);
+    ps2_keyboard_init();
     vga_init(VGA_80x25_16_TEXT, true);
     ata_init();
     sata_init();

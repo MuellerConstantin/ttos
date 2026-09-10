@@ -1,6 +1,17 @@
 #include <drivers/serial/uart/16550.h>
 #include <system/ports.h>
 #include <stdbool.h>
+#include <device/device.h>
+#include <drivers/pci/pci.h>
+#include <drivers/pci/types.h>
+#include <memory/kheap.h>
+#include <system/kpanic.h>
+#include <util/string.h>
+
+static const uint16_t UART_16550_PORTS[] = {
+    UART_16550_COM1, UART_16550_COM2, UART_16550_COM3, UART_16550_COM4,
+    UART_16550_COM5, UART_16550_COM6, UART_16550_COM7, UART_16550_COM8
+};
 
 static bool uart_16550_probe(uint16_t port);
 static char* uart_16550_get_device_name(uint16_t port);
@@ -26,7 +37,50 @@ int32_t uart_16550_init(uint16_t port, uint32_t baud_rate) {
     outb(UART_16550_IIR(port), 0xC7); // Enable FIFO, clear them, with 14-byte threshold
     outb(UART_16550_MCR(port), 0x0B); // IRQs enabled, RTS/DSR set
 
+    device_t* device = (device_t*) kmalloc(sizeof(device_t));
+
+    if(!device) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    device_generate_id(device->id);
+
+    device->name = uart_16550_get_device_name(port);
+    device->type = DEVICE_TYPE_SERIAL;
+    device->bus.type = DEVICE_BUS_TYPE_ISA;
+    device->bus.data = NULL;
+
+    // Nothing writes to the port yet, so there is no driver to bind.
+    device->driver.raw = NULL;
+
+    /*
+     * The legacy devices sit behind the ISA bridge, so that is where they
+     * belong in the tree. Without a bridge they land at the root: the port
+     * answers on its fixed address either way.
+     */
+    device_register(pci_find_device(PCI_TYPE_BRIDGE_DEVICE, PCI_SUBTYPE_ISA_BRIDGE), device);
+
     return 0;
+}
+
+static char* uart_16550_get_device_name(uint16_t port) {
+    char* name = (char*) kmalloc(20);
+
+    if(!name) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    for(uint8_t index = 0; index < sizeof(UART_16550_PORTS) / sizeof(UART_16550_PORTS[0]); index++) {
+        if(UART_16550_PORTS[index] == port) {
+            strfmt(name, "Serial Port COM%d", index + 1);
+
+            return name;
+        }
+    }
+
+    strfmt(name, "Serial Port %x", port);
+
+    return name;
 }
 
 static bool uart_16550_probe(uint16_t port) {

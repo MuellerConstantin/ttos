@@ -107,6 +107,17 @@ struct pci_device {
 int32_t pci_init();
 
 /**
+ * Finds the first device the scan registered for a class of hardware. Drivers
+ * use this to locate the device they are meant to bind to, or the controller
+ * their own devices hang off.
+ *
+ * @param type The PCI class.
+ * @param subtype The PCI subclass.
+ * @return The device or NULL when the scan found none of that class.
+ */
+device_t* pci_find_device(uint8_t type, uint8_t subtype);
+
+/**
  * Loads the BAR information for a PCI device. Only type 0 and type 1 headers are using
  * BARs, so this function will only work for those types.
  * 

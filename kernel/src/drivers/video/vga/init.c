@@ -110,9 +110,6 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
  * controller is registered as a platform device.
  */
 static device_t* vga_claim_device(void) {
-    linked_list_t* pci_devices = (linked_list_t*) device_find_all_by_bus_type(DEVICE_BUS_TYPE_PCI);
-    device_t* device = NULL;
-
     /*
      * Only a VGA compatible controller answers on the legacy ports this driver
      * talks to, so a display controller of any other subtype is the wrong
@@ -122,17 +119,7 @@ static device_t* vga_claim_device(void) {
      * while the output keeps working, because the driver reaches the hardware
      * through those fixed ports either way.
      */
-    linked_list_foreach(pci_devices, node) {
-        device_t* candidate = (device_t*) node->data;
-        pci_device_t* pci_device = (pci_device_t*) candidate->bus.data;
-
-        if(pci_device->type == PCI_TYPE_DISPLAY_CONTROLLER && pci_device->subtype == PCI_SUBTYPE_VGA_CONTROLLER) {
-            device = candidate;
-            break;
-        }
-    }
-
-    linked_list_destroy(pci_devices, false);
+    device_t* device = pci_find_device(PCI_TYPE_DISPLAY_CONTROLLER, PCI_SUBTYPE_VGA_CONTROLLER);
 
     char* name = (char*) kmalloc(15);
 

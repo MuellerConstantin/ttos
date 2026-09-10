@@ -7,6 +7,7 @@ static const char* device_type_name(uint16_t type) {
         case DEVICE_TYPE_STORAGE:    return "STORAGE";
         case DEVICE_TYPE_VIDEO:      return "VIDEO";
         case DEVICE_TYPE_CONTROLLER: return "CONTROLLER";
+        case DEVICE_TYPE_SERIAL:     return "SERIAL";
         case DEVICE_TYPE_RESERVED:   return "RESERVED";
         case DEVICE_TYPE_UNKNOWN:    return "UNKNOWN";
         default:                     return "?";
