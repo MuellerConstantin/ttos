@@ -27,28 +27,28 @@ int32_t initrd_init(void* memory_base, size_t memory_size) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device->info.name = (char*) kmalloc(17);
+    device->name = (char*) kmalloc(17);
 
-    if(!device->info.name) {
+    if(!device->name) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device_generate_id(device->info.id);
-    strcpy(device->info.name, "Initial Ramdisk");
-    device->info.type = DEVICE_TYPE_STORAGE;
-    device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
-    device->info.bus.data = NULL;
+    device_generate_id(device->id);
+    strcpy(device->name, "Initial Ramdisk");
+    device->type = DEVICE_TYPE_STORAGE;
+    device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+    device->bus.data = NULL;
 
-    device->driver = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
+    device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
-    if(!device->driver) {
+    if(!device->driver.storage) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device->driver->sector_size = initrd_sector_size;
-    device->driver->total_size = initrd_total_size;
-    device->driver->read = initrd_read;
-    device->driver->write = initrd_write;
+    device->driver.storage->sector_size = initrd_sector_size;
+    device->driver.storage->total_size = initrd_total_size;
+    device->driver.storage->read = initrd_read;
+    device->driver.storage->write = initrd_write;
 
     device_register(NULL, device);
 

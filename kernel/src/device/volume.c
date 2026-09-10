@@ -36,16 +36,16 @@ size_t volume_register_device(storage_device_t* device) {
         }
 
         generate_short_id(volume->id, volume_id_exists);
-        volume->name = (char*) kmalloc(strlen(device->info.name));
+        volume->name = (char*) kmalloc(strlen(device->name));
 
         if(!volume->name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(volume->name, device->info.name);
+        strcpy(volume->name, device->name);
 
         volume->offset = 0;
-        volume->size = device->driver->total_size();
+        volume->size = device->driver.storage->total_size();
         volume->device = device;
 
         volume->operations = (volume_operations_t*) kmalloc(sizeof(volume_operations_t));
@@ -89,22 +89,22 @@ size_t volume_register_device(storage_device_t* device) {
 
         generate_short_id(volume->id, volume_id_exists);
 
-        volume->name = (char*) kmalloc(strlen(device->info.name) + 4);
+        volume->name = (char*) kmalloc(strlen(device->name) + 4);
 
         if(!volume->name) {
             KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
         }
 
-        strcpy(volume->name, device->info.name);
-        strcpy(volume->name + strlen(device->info.name), " #");
+        strcpy(volume->name, device->name);
+        strcpy(volume->name + strlen(device->name), " #");
 
         char partition_number[2];
         itoa(i + 1, partition_number, 10);
 
-        strcpy(volume->name + strlen(device->info.name) + 2, partition_number);
+        strcpy(volume->name + strlen(device->name) + 2, partition_number);
 
-        volume->offset = partition->lba_start * device->driver->sector_size();
-        volume->size = partition->sectors * device->driver->sector_size();
+        volume->offset = partition->lba_start * device->driver.storage->sector_size();
+        volume->size = partition->sectors * device->driver.storage->sector_size();
         volume->device = device;
 
         volume->operations = (volume_operations_t*) kmalloc(sizeof(volume_operations_t));
@@ -205,7 +205,7 @@ static size_t volume_read(volume_t* volume, size_t offset, size_t size, char* bu
         size = volume->size - offset;
     }
 
-    return volume->device->driver->read(volume->offset + offset, size, buffer);
+    return volume->device->driver.storage->read(volume->offset + offset, size, buffer);
 }
 
 static size_t volume_write(volume_t* volume, size_t offset, size_t size, char* buffer) {
@@ -217,5 +217,5 @@ static size_t volume_write(volume_t* volume, size_t offset, size_t size, char* b
         size = volume->size - offset;
     }
 
-    return volume->device->driver->write(volume->offset + offset, size, buffer);
+    return volume->device->driver.storage->write(volume->offset + offset, size, buffer);
 }

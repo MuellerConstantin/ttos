@@ -27,7 +27,7 @@ const tty_t* tty_get_stdterm() {
 }
 
 tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboard_layout_t* layout) {
-    if(!video->driver->tm_probe()) {
+    if(!video->driver.video->tm_probe()) {
         return NULL;
     }
 
@@ -37,8 +37,8 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, KPANIC_KHEAP_OUT_OF_MEMORY_CODE, NULL);
     }
 
-    tty->rows = video->driver->tm.total_rows();
-    tty->columns = video->driver->tm.total_columns();
+    tty->rows = video->driver.video->tm.total_rows();
+    tty->columns = video->driver.video->tm.total_columns();
     tty->cursor_x = 0;
     tty->cursor_y = 0;
     tty->fgcolor = TTY_DEFAULT_FGCOLOR;
@@ -65,7 +65,7 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
 
     if(tty_stdterm == NULL) {
         tty_set_stdterm(tty);
-        keyboard->driver->register_listener(tty_keyboard_listener);
+        keyboard->driver.keyboard->register_listener(tty_keyboard_listener);
     }
 
     return tty;
@@ -261,13 +261,13 @@ static void tty_render_char(tty_t* tty, char ch) {
                 tty->cursor_x--;
             }
 
-            tty->video->driver->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ' ', tty->fgcolor, tty->bgcolor);
+            tty->video->driver.video->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ' ', tty->fgcolor, tty->bgcolor);
             break;
         case '\t':
             tty->cursor_x = (tty->cursor_x + 8) & ~(8 - 1);
             break;
         default:
-            tty->video->driver->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ch, tty->fgcolor, tty->bgcolor);
+            tty->video->driver.video->tm.write(tty->cursor_y * tty->columns + tty->cursor_x, ch, tty->fgcolor, tty->bgcolor);
             tty->cursor_x++;
             break;
     }
@@ -280,12 +280,12 @@ static void tty_render_char(tty_t* tty, char ch) {
 
     // Check if end of screen has been reached
     if(tty->cursor_y >= tty->rows) {
-        tty->video->driver->tm.scroll(tty->fgcolor, tty->bgcolor);
+        tty->video->driver.video->tm.scroll(tty->fgcolor, tty->bgcolor);
         tty->cursor_y--;
-        tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+        tty->video->driver.video->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
     }
 
-    tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+    tty->video->driver.video->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
 }
 
 static void tty_csi_dispatch(tty_t* tty, char command) {
@@ -299,7 +299,7 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
                 size_t start = tty->cursor_y * tty->columns + tty->cursor_x;
 
                 for(size_t cell = start; cell < tty->rows * tty->columns; cell++) {
-                    tty->video->driver->tm.write(cell, ' ', tty->fgcolor, tty->bgcolor);
+                    tty->video->driver.video->tm.write(cell, ' ', tty->fgcolor, tty->bgcolor);
                 }
             } else if(tty->ansi_params[0] == 2) {
                 tty_clear(tty);
@@ -323,14 +323,14 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
 
             tty->cursor_y = row - 1;
             tty->cursor_x = col - 1;
-            tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+            tty->video->driver.video->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
             break;
         }
         case 'K': {
             // Erase in line. Only mode 0 (cursor to end of line) is supported.
             if(tty->ansi_params[0] == 0) {
                 for(size_t x = tty->cursor_x; x < tty->columns; x++) {
-                    tty->video->driver->tm.write(tty->cursor_y * tty->columns + x, ' ', tty->fgcolor, tty->bgcolor);
+                    tty->video->driver.video->tm.write(tty->cursor_y * tty->columns + x, ' ', tty->fgcolor, tty->bgcolor);
                 }
             }
 
@@ -350,7 +350,7 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
 
             tty->cursor_y = position / tty->columns;
             tty->cursor_x = position % tty->columns;
-            tty->video->driver->tm.move_cursor(position);
+            tty->video->driver.video->tm.move_cursor(position);
             break;
         }
         case 'D': {
@@ -363,7 +363,7 @@ static void tty_csi_dispatch(tty_t* tty, char command) {
 
             tty->cursor_y = position / tty->columns;
             tty->cursor_x = position % tty->columns;
-            tty->video->driver->tm.move_cursor(position);
+            tty->video->driver.video->tm.move_cursor(position);
             break;
         }
         case 'm': {
@@ -492,13 +492,13 @@ static char* tty_stream_gets(stream_t* stream) {
 void tty_clear(tty_t* tty) {
     for(size_t y = 0; y < tty->rows; y++) {
         for(size_t x = 0; x < tty->columns; x++) {
-            tty->video->driver->tm.write(y * tty->columns + x, ' ', tty->fgcolor, tty->bgcolor);
+            tty->video->driver.video->tm.write(y * tty->columns + x, ' ', tty->fgcolor, tty->bgcolor);
         }
     }
 
     tty->cursor_x = 0;
     tty->cursor_y = 0;
-    tty->video->driver->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
+    tty->video->driver.video->tm.move_cursor(tty->cursor_y * tty->columns + tty->cursor_x);
 }
 
 void tty_putchar(tty_t* tty, char ch) {
@@ -588,9 +588,9 @@ void tty_set_bgcolor(tty_t* tty, uint8_t bgcolor) {
 }
 
 void tty_disable_cursor(tty_t* tty) {
-    tty->video->driver->tm.disable_cursor();
+    tty->video->driver.video->tm.disable_cursor();
 }
 
 void tty_enable_cursor(tty_t* tty) {
-    tty->video->driver->tm.enable_cursor(0, 15);
+    tty->video->driver.video->tm.enable_cursor(0, 15);
 }

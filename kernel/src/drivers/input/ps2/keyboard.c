@@ -61,25 +61,25 @@ int32_t ps2_keyboard_init(void) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device->info.name = (char*) kmalloc(14);
+    device->name = (char*) kmalloc(14);
 
-    if(!device->info.name) {
+    if(!device->name) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device_generate_id(device->info.id);
-    strcpy(device->info.name, "PS/2 Keyboard");
-    device->info.type = DEVICE_TYPE_KEYBOARD;
-    device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
-    device->info.bus.data = NULL;
+    device_generate_id(device->id);
+    strcpy(device->name, "PS/2 Keyboard");
+    device->type = DEVICE_TYPE_KEYBOARD;
+    device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+    device->bus.data = NULL;
 
-    device->driver = (keyboard_driver_t*) kmalloc(sizeof(keyboard_driver_t));
+    device->driver.keyboard = (keyboard_driver_t*) kmalloc(sizeof(keyboard_driver_t));
 
-    if(!device->driver) {
+    if(!device->driver.keyboard) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    device->driver->register_listener = ps2_keyboard_register_listener;
+    device->driver.keyboard->register_listener = ps2_keyboard_register_listener;
 
     device_register(NULL, device);
 

@@ -24,9 +24,14 @@
 
 typedef struct bus bus_t;
 typedef struct device device_t;
-typedef struct video_device video_device_t;
-typedef struct storage_device storage_device_t;
-typedef struct keyboard_device keyboard_device_t;
+
+/*
+ * A device is a device regardless of what drives it. The aliases stay so that
+ * declarations keep saying what kind of device they expect.
+ */
+typedef device_t video_device_t;
+typedef device_t storage_device_t;
+typedef device_t keyboard_device_t;
 
 /**
  * Structure representing a bus, used to connect devices.
@@ -44,30 +49,13 @@ struct device {
     char* name;
     uint16_t type;
     bus_t bus;
-} __attribute__((packed));
 
-/**
- * Structure representing a video device.
- */
-struct video_device {
-    device_t info;
-    video_driver_t* driver;
-} __attribute__((packed));
-
-/**
- * Structure representing a storage device.
- */
-struct storage_device {
-    device_t info;
-    storage_driver_t* driver;
-} __attribute__((packed));
-
-/**
- * Structure representing a keyboard device.
- */
-struct keyboard_device {
-    device_t info;
-    keyboard_driver_t* driver;
+    union {
+        void* raw;
+        storage_driver_t* storage;
+        video_driver_t* video;
+        keyboard_driver_t* keyboard;
+    } driver;
 } __attribute__((packed));
 
 /**

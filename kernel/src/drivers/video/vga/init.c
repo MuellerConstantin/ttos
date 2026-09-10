@@ -2,6 +2,8 @@
 #include <drivers/video/vga/tm.h>
 #include <drivers/video/vga/gfx.h>
 #include <device/device.h>
+#include <drivers/pci/pci.h>
+#include <drivers/pci/types.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 
@@ -11,6 +13,7 @@ uint8_t *const vga_gfx_video_memory = (uint8_t *const) VGA_GFX_VIDEO_MEMORY;
 const vga_video_mode_descriptor_t* vga_current_video_mode = NULL;
 extern const vga_video_mode_descriptor_t *const VGA_VIDEO_MODE_DESCRIPTOR_TABLE[VGA_NUM_VIDEO_MODES];
 
+static device_t* vga_claim_device(void);
 static bool vga_probe(void);
 static bool vga_tm_probe(void);
 static bool vga_gfx_probe(void);
@@ -36,86 +39,127 @@ int32_t vga_init(vga_video_mode_t mode, bool probe) {
     vga_current_video_mode = descriptor;
 
     if(probe) {
-        video_device_t *device = (video_device_t*) kmalloc(sizeof(video_device_t));
-
-        if(!device) {
-            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-        }
-
-        device->info.name = (char*) kmalloc(15);
-
-        if(!device->info.name) {
-            KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
-        }
-
-        device_generate_id(device->info.id);
-        strcpy(device->info.name, "VGA Controller");
-        device->info.type = DEVICE_TYPE_VIDEO;
-        device->info.bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->info.bus.data = NULL;
+        device_t* device = vga_claim_device();
 
         if(mode == VGA_80x25_16_TEXT) {
-            device->driver = (video_driver_t*) kmalloc(sizeof(video_driver_t));
+            device->driver.video = (video_driver_t*) kmalloc(sizeof(video_driver_t));
 
-            if(!device->driver) {
+            if(!device->driver.video) {
                 KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
             }
 
-            device->driver->tm_probe = vga_tm_probe;
-            device->driver->gfx_probe = vga_gfx_probe;
-            device->driver->tm.fill = vga_tm_fill;
-            device->driver->tm.write = vga_tm_write;
-            device->driver->tm.strwrite = vga_tm_strwrite;
-            device->driver->tm.scroll = vga_tm_scroll;
-            device->driver->tm.move_cursor = vga_tm_move_cursor;
-            device->driver->tm.enable_cursor = vga_tm_enable_cursor;
-            device->driver->tm.disable_cursor = vga_tm_disable_cursor;
-            device->driver->tm.total_rows = vga_tm_total_rows;
-            device->driver->tm.total_columns = vga_tm_total_columns;
+            device->driver.video->tm_probe = vga_tm_probe;
+            device->driver.video->gfx_probe = vga_gfx_probe;
+            device->driver.video->tm.fill = vga_tm_fill;
+            device->driver.video->tm.write = vga_tm_write;
+            device->driver.video->tm.strwrite = vga_tm_strwrite;
+            device->driver.video->tm.scroll = vga_tm_scroll;
+            device->driver.video->tm.move_cursor = vga_tm_move_cursor;
+            device->driver.video->tm.enable_cursor = vga_tm_enable_cursor;
+            device->driver.video->tm.disable_cursor = vga_tm_disable_cursor;
+            device->driver.video->tm.total_rows = vga_tm_total_rows;
+            device->driver.video->tm.total_columns = vga_tm_total_columns;
 
             vga_tm_init();
         } else if (mode == VGA_640X480X16_GFX) {
-            device->driver = (video_driver_t*) kmalloc(sizeof(video_driver_t));
+            device->driver.video = (video_driver_t*) kmalloc(sizeof(video_driver_t));
 
-            if(!device->driver) {
+            if(!device->driver.video) {
                 KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
             }
 
-            device->driver->tm_probe = vga_tm_probe;
-            device->driver->gfx_probe = vga_gfx_probe;
-            device->driver->gfx.set_pixel = vga_gfx_set_pixel;
-            device->driver->gfx.fill = vga_gfx_fill;
-            device->driver->gfx.draw_rect = vga_gfx_draw_rect;
-            device->driver->gfx.draw_char = vga_gfx_draw_char;
-            device->driver->gfx.draw_string = vga_gfx_draw_string;
-            device->driver->gfx.total_width = vga_gfx_total_width;
-            device->driver->gfx.total_height = vga_gfx_total_height;
+            device->driver.video->tm_probe = vga_tm_probe;
+            device->driver.video->gfx_probe = vga_gfx_probe;
+            device->driver.video->gfx.set_pixel = vga_gfx_set_pixel;
+            device->driver.video->gfx.fill = vga_gfx_fill;
+            device->driver.video->gfx.draw_rect = vga_gfx_draw_rect;
+            device->driver.video->gfx.draw_char = vga_gfx_draw_char;
+            device->driver.video->gfx.draw_string = vga_gfx_draw_string;
+            device->driver.video->gfx.total_width = vga_gfx_total_width;
+            device->driver.video->gfx.total_height = vga_gfx_total_height;
 
             vga_gfx_init();
         } else if (mode == VGA_320X200X256_GFX) {
-            device->driver = (video_driver_t*) kmalloc(sizeof(video_driver_t));
+            device->driver.video = (video_driver_t*) kmalloc(sizeof(video_driver_t));
 
-            if(!device->driver) {
+            if(!device->driver.video) {
                 KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
             }
 
-            device->driver->tm_probe = vga_tm_probe;
-            device->driver->gfx_probe = vga_gfx_probe;
-            device->driver->gfx.set_pixel = vga_gfx_set_pixel;
-            device->driver->gfx.fill = vga_gfx_fill;
-            device->driver->gfx.draw_rect = vga_gfx_draw_rect;
-            device->driver->gfx.draw_char = vga_gfx_draw_char;
-            device->driver->gfx.draw_string = vga_gfx_draw_string;
-            device->driver->gfx.total_width = vga_gfx_total_width;
-            device->driver->gfx.total_height = vga_gfx_total_height;
+            device->driver.video->tm_probe = vga_tm_probe;
+            device->driver.video->gfx_probe = vga_gfx_probe;
+            device->driver.video->gfx.set_pixel = vga_gfx_set_pixel;
+            device->driver.video->gfx.fill = vga_gfx_fill;
+            device->driver.video->gfx.draw_rect = vga_gfx_draw_rect;
+            device->driver.video->gfx.draw_char = vga_gfx_draw_char;
+            device->driver.video->gfx.draw_string = vga_gfx_draw_string;
+            device->driver.video->gfx.total_width = vga_gfx_total_width;
+            device->driver.video->gfx.total_height = vga_gfx_total_height;
 
             vga_gfx_init();
         }
-
-        device_register(NULL, device);
     }
 
     return 0;
+}
+
+/*
+ * Binds the driver to the display controller the PCI scan has already found, so
+ * the card shows up once in the device tree instead of twice. A machine that
+ * exposes no PCI display controller still needs a console, so in that case the
+ * controller is registered as a platform device.
+ */
+static device_t* vga_claim_device(void) {
+    linked_list_t* pci_devices = (linked_list_t*) device_find_all_by_bus_type(DEVICE_BUS_TYPE_PCI);
+    device_t* device = NULL;
+
+    linked_list_foreach(pci_devices, node) {
+        device_t* candidate = (device_t*) node->data;
+        pci_device_t* pci_device = (pci_device_t*) candidate->bus.data;
+
+        if(pci_device->type == PCI_TYPE_DISPLAY_CONTROLLER) {
+            device = candidate;
+            break;
+        }
+    }
+
+    linked_list_destroy(pci_devices, false);
+
+    char* name = (char*) kmalloc(15);
+
+    if(!name) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strcpy(name, "VGA Controller");
+
+    // The scan named the device after its identifiers, the driver knows better.
+    if(device) {
+        kfree(device->name);
+
+        device->name = name;
+        device->type = DEVICE_TYPE_VIDEO;
+
+        return device;
+    }
+
+    device = (device_t*) kmalloc(sizeof(device_t));
+
+    if(!device) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    device_generate_id(device->id);
+
+    device->name = name;
+    device->type = DEVICE_TYPE_VIDEO;
+    device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
+    device->bus.data = NULL;
+    device->driver.raw = NULL;
+
+    device_register(NULL, device);
+
+    return device;
 }
 
 static bool vga_probe(void) {
