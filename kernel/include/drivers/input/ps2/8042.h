@@ -13,9 +13,41 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <device/device.h>
+
 #define PS2_COMMAND_REGISTER 0x64
 #define PS2_STATUS_REGISTER 0x64
 #define PS2_DATA_REGISTER 0x60
+
+#define PS2_FIRST_PORT 1
+#define PS2_SECOND_PORT 2
+
+typedef struct ps2_port ps2_port_t;
+
+/**
+ * One of the two ports the controller offers. Devices attached to the
+ * controller carry a pointer to theirs as their bus data.
+ */
+struct ps2_port {
+    uint8_t number;
+};
+
+/**
+ * Registers the controller as a device, or returns it when it already is one.
+ * The controller answers on fixed ports behind the ISA bridge, so it cannot be
+ * discovered by a bus scan and has to announce itself.
+ *
+ * @return The controller device.
+ */
+device_t* ps2_8042_claim_device(void);
+
+/**
+ * Gets one of the controller's ports.
+ *
+ * @param number PS2_FIRST_PORT or PS2_SECOND_PORT.
+ * @return The port or NULL when the number names none.
+ */
+ps2_port_t* ps2_8042_get_port(uint8_t number);
 
 /**
  * Probes the first PS/2 port.

@@ -56,8 +56,8 @@ int32_t ata_init() {
         device_generate_id(device->id);
         strcpy(device->name, "ATA Primary Master Drive");
         device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        device->bus.type = DEVICE_BUS_TYPE_ATA;
+        device->bus.data = &ata_devices[ATA_PRIMARY_MASTER_DRIVE];
 
         device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
@@ -89,8 +89,8 @@ int32_t ata_init() {
         device_generate_id(device->id);
         strcpy(device->name, "ATA Primary Slave Drive");
         device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        device->bus.type = DEVICE_BUS_TYPE_ATA;
+        device->bus.data = &ata_devices[ATA_PRIMARY_SLAVE_DRIVE];
 
         device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
@@ -122,8 +122,8 @@ int32_t ata_init() {
         device_generate_id(device->id);
         strcpy(device->name, "ATA Secondary Master Drive");
         device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        device->bus.type = DEVICE_BUS_TYPE_ATA;
+        device->bus.data = &ata_devices[ATA_SECONDARY_MASTER_DRIVE];
 
         device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 
@@ -155,8 +155,8 @@ int32_t ata_init() {
         device_generate_id(device->id);
         strcpy(device->name, "ATA Secondary Slave Drive");
         device->type = DEVICE_TYPE_STORAGE;
-        device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-        device->bus.data = NULL;
+        device->bus.type = DEVICE_BUS_TYPE_ATA;
+        device->bus.data = &ata_devices[ATA_SECONDARY_SLAVE_DRIVE];
 
         device->driver.storage = (storage_driver_t*) kmalloc(sizeof(storage_driver_t));
 

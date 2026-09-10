@@ -19,6 +19,8 @@ static const char* device_bus_name(uint8_t bus_type) {
         case DEVICE_BUS_TYPE_ISA:      return "ISA";
         case DEVICE_BUS_TYPE_PCI:      return "PCI";
         case DEVICE_BUS_TYPE_USB:      return "USB";
+        case DEVICE_BUS_TYPE_ATA:      return "ATA";
+        case DEVICE_BUS_TYPE_PS2:      return "PS/2";
         case DEVICE_BUS_TYPE_RESERVED: return "-";
         default:                       return "?";
     }

@@ -55,6 +55,8 @@ int32_t ps2_keyboard_init(void) {
         return -1;
     }
 
+    device_t* controller = ps2_8042_claim_device();
+
     keyboard_device_t *device = (keyboard_device_t*) kmalloc(sizeof(keyboard_device_t));
 
     if(!device) {
@@ -70,8 +72,8 @@ int32_t ps2_keyboard_init(void) {
     device_generate_id(device->id);
     strcpy(device->name, "PS/2 Keyboard");
     device->type = DEVICE_TYPE_KEYBOARD;
-    device->bus.type = DEVICE_BUS_TYPE_PLATFORM;
-    device->bus.data = NULL;
+    device->bus.type = DEVICE_BUS_TYPE_PS2;
+    device->bus.data = ps2_8042_get_port(PS2_FIRST_PORT);
 
     device->driver.keyboard = (keyboard_driver_t*) kmalloc(sizeof(keyboard_driver_t));
 
@@ -81,7 +83,7 @@ int32_t ps2_keyboard_init(void) {
 
     device->driver.keyboard->register_listener = ps2_keyboard_register_listener;
 
-    device_register(NULL, device);
+    device_register(controller, device);
 
     isr_register_listener(KEYBOARD_INTERRUPT, ps2_keyboard_interrupt_handler);
 

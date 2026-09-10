@@ -1,5 +1,52 @@
 #include <drivers/input/ps2/8042.h>
 #include <system/ports.h>
+#include <memory/kheap.h>
+#include <system/kpanic.h>
+#include <util/string.h>
+
+static device_t* ps2_8042_device = NULL;
+static ps2_port_t ps2_8042_ports[2] = { { PS2_FIRST_PORT }, { PS2_SECOND_PORT } };
+
+ps2_port_t* ps2_8042_get_port(uint8_t number) {
+    if(number != PS2_FIRST_PORT && number != PS2_SECOND_PORT) {
+        return NULL;
+    }
+
+    return &ps2_8042_ports[number - 1];
+}
+
+device_t* ps2_8042_claim_device(void) {
+    // Both ports would otherwise register the controller a second time.
+    if(ps2_8042_device) {
+        return ps2_8042_device;
+    }
+
+    device_t* device = (device_t*) kmalloc(sizeof(device_t));
+
+    if(!device) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    device->name = (char*) kmalloc(16);
+
+    if(!device->name) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    device_generate_id(device->id);
+    strcpy(device->name, "PS/2 Controller");
+
+    device->type = DEVICE_TYPE_CONTROLLER;
+    device->bus.type = DEVICE_BUS_TYPE_ISA;
+    device->bus.data = NULL;
+    device->driver.raw = NULL;
+
+    device_register(NULL, device);
+
+    ps2_8042_device = device;
+
+    return device;
+}
 
 bool ps2_8042_first_port_probe() {
     // Send controller self-test command

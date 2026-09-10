@@ -106,6 +106,8 @@ struct volinfo {
 #define DEVICE_BUS_TYPE_ISA         0x01
 #define DEVICE_BUS_TYPE_PCI         0x02
 #define DEVICE_BUS_TYPE_USB         0x03
+#define DEVICE_BUS_TYPE_ATA         0x04
+#define DEVICE_BUS_TYPE_PS2         0x05
 #define DEVICE_BUS_TYPE_RESERVED    0xFF
 
 typedef struct devinfo devinfo_t;
