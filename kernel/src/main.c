@@ -140,6 +140,9 @@ static void init_drivers() {
      */
     pci_init();
 
+    vga_init(VGA_80x25_16_TEXT, true);
+    kmessage_echo_enable();
+
     /*
      * The timer only has to be running before interrupts are enabled, which
      * happens after all of this, so it can wait for the bus scan and register
@@ -149,12 +152,14 @@ static void init_drivers() {
 
     uart_16550_init(UART_16550_COM1, 115200);
     ps2_keyboard_init();
-    vga_init(VGA_80x25_16_TEXT, true);
     ata_init();
     sata_init();
 }
 
 static void init_console() {
+    // The console takes the screen from here, the log goes back to being a log.
+    kmessage_echo_disable();
+
     // Temporary mount the initial ramdisk to setup the CLI
 
     volume_t* initrd_volume = volume_find_by_name("Initial Ramdisk");

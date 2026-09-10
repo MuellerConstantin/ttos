@@ -16,6 +16,14 @@
 #define KMESSAGE_LEVEL_WARN "WARN"
 #define KMESSAGE_LEVEL_ERROR "ERROR"
 
+/*
+ * Colors the log is drawn in while it is mirrored to the screen. Only the cells
+ * the text lands in are painted, so the background matches the cleared screen
+ * rather than leaving a colored block behind every line.
+ */
+#define KMESSAGE_ECHO_FOREGROUND 0x0F
+#define KMESSAGE_ECHO_BACKGROUND 0x00
+
 typedef struct kmessage_message kmessage_message_t;
 
 struct kmessage_message {
@@ -43,5 +51,22 @@ void kmessage(const char* level, const char* message);
  * @return The messages from the kernel log.
  */
 const linked_list_t* kmessage_get_messages();
+
+/**
+ * Starts writing the kernel log to the screen as it is written, beginning with
+ * everything logged so far.
+ *
+ * Until userland comes up there is nothing to read the log with, so a kernel
+ * that stops during boot leaves an empty screen and no way to tell how far it
+ * got. Echoing the log turns that into the last line before the stall. Needs
+ * the video driver, so it cannot be turned on before that is initialized.
+ */
+void kmessage_echo_enable();
+
+/**
+ * Stops writing the kernel log to the screen, for when the console takes the
+ * screen over.
+ */
+void kmessage_echo_disable();
 
 #endif // _KERNEL_SYSTEM_KMESSAGE_H
