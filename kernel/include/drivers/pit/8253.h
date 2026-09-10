@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <system/ports.h>
+#include <device/device.h>
 
 #define PIT_8253_COUNTER_0 0
 #define PIT_8253_COUNTER_1 1
@@ -23,5 +24,15 @@
  * @param frequency Frequency to set.
  */
 int32_t pit_8253_init(uint8_t counter, uint32_t frequency);
+
+/**
+ * Registers the timer as a device, or returns it when it already is one.
+ * Bringing the counters up is safe at any time and says nothing about the
+ * device model, so announcing the chip is a separate step that has to wait
+ * until the model is ready.
+ *
+ * @return The timer device.
+ */
+device_t* pit_8253_claim_device(void);
 
 #endif // _KERNEL_DRIVERS_PIT_8253_H

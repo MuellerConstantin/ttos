@@ -117,9 +117,6 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
     // Initialize the volume manager
     volume_init();
 
-    // Initialize the system timer
-    timer_init();
-
     // Initialize the syscall manager
     syscall_init();
 
@@ -142,6 +139,13 @@ static void init_drivers() {
      * that is already in the tree or hanging their own devices off the root.
      */
     pci_init();
+
+    /*
+     * The timer only has to be running before interrupts are enabled, which
+     * happens after all of this, so it can wait for the bus scan and register
+     * itself where it belongs.
+     */
+    timer_init();
 
     uart_16550_init(UART_16550_COM1, 115200);
     ps2_keyboard_init();

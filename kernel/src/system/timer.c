@@ -14,6 +14,8 @@ static void timer_interrupt_handler(isr_cpu_state_t *state);
 void timer_init() {
     timer_set_frequency(100);
     isr_register_listener(PROGRAMMABLE_INTERRUPT_TIMER_INTERRUPT, timer_interrupt_handler);
+
+    pit_8253_claim_device();
 }
 
 static void timer_set_frequency(uint16_t hz) {
