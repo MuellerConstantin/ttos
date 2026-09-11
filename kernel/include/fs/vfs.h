@@ -14,7 +14,6 @@
 #include <stddef.h>
 #include <util/string.h>
 #include <stdbool.h>
-#include <ctype.h>
 #include <device/volume.h>
 
 #define VFS_FILE        0x01

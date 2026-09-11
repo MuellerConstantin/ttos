@@ -2,7 +2,6 @@
 #include <system/kpanic.h>
 #include <memory/kheap.h>
 #include <system/kmessage.h>
-#include <stdio.h>
 
 static linked_list_t* pmm_memory_regions = NULL;
 static size_t pmm_total_memory_size = 0;

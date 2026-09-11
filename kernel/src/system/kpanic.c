@@ -1,5 +1,4 @@
 #include <system/kpanic.h>
-#include <stdlib.h>
 #include <util/string.h>
 
 #define SCREEN_NEXT_LINE(screen_width, screen_offset) (screen_offset + (screen_width - (screen_offset % screen_width)))
