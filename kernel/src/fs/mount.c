@@ -17,6 +17,15 @@ int32_t mnt_volume_mount(char drive, volume_t* volume) {
         return -1;
     }
 
+    /*
+     * A volume may hang off one drive only. A second file system instance on
+     * the same volume would keep its own copy of the metadata and write it
+     * back over the other's.
+     */
+    if(mnt_get_volume_drive(volume) != 0) {
+        return -1;
+    }
+
     // Probe for the file system
     if(initfs_probe(volume)) {
         mnt_mountpoints[index] = initfs_init(volume);
@@ -87,6 +96,18 @@ const vfs_filesystem_t* mnt_get_drive(char drive) {
     }
 
     return mnt_mountpoints[index];
+}
+
+char mnt_get_volume_drive(const volume_t* volume) {
+    for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
+        const vfs_filesystem_t* filesystem = mnt_mountpoints[drive - DRIVE_A];
+
+        if(filesystem && filesystem->volume == volume) {
+            return drive;
+        }
+    }
+
+    return 0;
 }
 
 static int32_t mnt_get_drive_index(char drive) {

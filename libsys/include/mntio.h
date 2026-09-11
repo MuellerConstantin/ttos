@@ -10,6 +10,7 @@
 #define MOUNT_ERR_NOT_FOUND  -1
 #define MOUNT_ERR_IN_USE     -2
 #define MOUNT_ERR_FAILED     -3
+#define MOUNT_ERR_VOL_IN_USE -4
 
 // Return codes for mntio_unmount.
 #define UNMOUNT_OK               0

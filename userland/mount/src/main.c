@@ -23,6 +23,9 @@ int main(int argc, char** argv) {
         case MOUNT_ERR_IN_USE:
             puts("mount: drive already mounted\n");
             return 1;
+        case MOUNT_ERR_VOL_IN_USE:
+            puts("mount: volume already mounted\n");
+            return 1;
         default:
             puts("mount: failed to mount, filesystem may not be supported\n");
             return 1;

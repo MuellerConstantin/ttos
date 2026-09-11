@@ -75,4 +75,12 @@ const vfs_filesystem_t* mnt_get_mountpoint(char* path);
  */
 const vfs_filesystem_t* mnt_get_drive(char drive);
 
+/**
+ * Get the drive a volume is mounted to.
+ *
+ * @param volume The volume to look up.
+ * @return The drive letter or 0 if the volume is not mounted.
+ */
+char mnt_get_volume_drive(const volume_t* volume);
+
 #endif // _KERNEL_FS_MOUNT_H

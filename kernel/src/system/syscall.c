@@ -298,7 +298,8 @@ static int32_t syscall_lsmnt(isr_cpu_state_t *state);
  * - ecx: Pointer to the short id of the volume to mount
  *
  * Syscall returns 0 on success, -1 if the volume was not found, -2 if the
- * drive is already in use, or -3 if the mount failed.
+ * drive is already in use, -3 if the mount failed, or -4 if the volume is
+ * already mounted to another drive.
  *
  * @param state The CPU state.
  */
@@ -1041,6 +1042,10 @@ static int32_t syscall_mount(isr_cpu_state_t *state) {
 
     if(mnt_get_drive(drive) != NULL) {
         return -2;
+    }
+
+    if(mnt_get_volume_drive(volume) != 0) {
+        return -4;
     }
 
     if(mnt_volume_mount(drive, (volume_t*) volume) != 0) {
