@@ -20,6 +20,10 @@ Tiny Toy Operating System
 - [Build Instructions](#build-instructions)
   - [Requirements](#requirements)
   - [Build Process](#build-process)
+- [Development](#development)
+  - [Emulation](#emulation)
+  - [Disk Images](#disk-images)
+  - [Debugging](#debugging)
 - [License](#license)
   - [Forbidden](#forbidden)
 
@@ -56,23 +60,39 @@ The project itself is divided into multiple parts:
 
 ## Build Instructions
 
-The TTOS Project is intended to be built using the GNU toolchain with the GNU Compiler
-Collection (GCC) and the Netwide Assembler (NASM) on a Unix-like system, but similar
-configurations might also work. In addition, [GRUB](https://www.gnu.org/software/grub/)
-is used to boot the operating system and create a bootable image. The build process
-is automated using a GNU Make and corresponding Makefiles.
+The TTOS Project is built using the GNU toolchain with the GNU Compiler Collection
+(GCC) and the Netwide Assembler (NASM). In addition,
+[GRUB](https://www.gnu.org/software/grub/) is used to boot the operating system and
+create a bootable image. The build process is automated using a GNU Make and
+corresponding Makefiles.
+
+Both building and developing the project require a **Linux** system. The project does
+not use a cross-compiler; it relies on the host GCC and GNU `ld` being able to target
+32-bit ELF directly, and the disk image is assembled with Linux-specific tools such as
+loop devices. Running the build on WSL works as well and is what the project is
+developed on. Other Unix-like systems, macOS in particular, are not supported without
+providing a proper i686 cross-toolchain first.
 
 ### Requirements
 
+- **Linux**: See above. A native installation as well as WSL will do.
 - **GNU Make**: The GNU Make utility is used to build the TTOS project. It is
   required to run the build process using `make`.
 - **GCC**: The GNU Compiler Collection is a collection of compilers for various
-  programming languages. It is the default compiler for the TTOS project.
+  programming languages. It is the default compiler for the TTOS project. Since the
+  kernel and the userland are compiled as 32-bit code via `-m32`, the 32-bit target
+  support has to be installed as well, which on 64-bit distributions is usually
+  provided by a `gcc-multilib` package.
+- **GNU Binutils**: The kernel and the userland binaries are linked with GNU `ld`
+  using the `elf_i386` emulation, so a `ld` that supports this target is required.
 - **NASM**: The Netwide Assembler is an assembler and disassembler for the Intel
   x86 architecture. It is used to compile the assembly code of the TTOS project.
 - **GRUB**: The GNU GRUB (GRand Unified Bootloader) is a multiboot compliant
   bootloader that is used to boot the TTOS kernel. For creating a bootable image,
-  GRUB command line tools, especially `grub-mkrescue`, are required.
+  GRUB command line tools, especially `grub-mkrescue`, are required. The latter in
+  turn relies on `xorriso` to author the ISO image.
+- **Python 3**: The initial ramdisk, which is part of every bootable image, is packed
+  by `scripts/mkinitrd.py` and therefore requires a Python 3 interpreter.
 
 ### Build Process
 
@@ -82,12 +102,79 @@ running the `make` command in the root directory of the project. The following
 commands are available:
 
 - **`make all`**: Builds the TTOS project, this includes building the kernel,
-  the libc, and the libk library, and creating a bootable image. This results
+  the libc, and the libsys library, and creating a bootable image. This results
   in a bootable image that is placed at `<ROOTDIR>/ttos-<VERSION>-intel-x86.iso`.
 - **`make kernel`**: Builds the kernel of the TTOS project without creating a
   bootable image. This results in a kernel binary that is placed at
   `<ROOTDIR>/kernel/kernel.elf`.
 - **`make clean`**: Cleans the build directory and removes all generated files.
+
+## Development
+
+For the most part, development requires no more tools than the build process.
+However, to ensure smooth development, an emulator is necessary to allow for easy
+testing of the boot process and the kernel. [QEMU](https://www.qemu.org/) is used for
+this purpose in this project. Concretely, the following additional tools are expected
+to be available on top of the [build requirements](#requirements):
+
+- **QEMU**: The `qemu-system-i386` binary is used to emulate an Intel x86 machine
+  and run the TTOS image without rebooting the development machine.
+- **`fdisk`, `losetup`, `mkfs.ext2` and `mount`**: The bootable disk image is
+  partitioned, formatted and populated on the host, using the util-linux and
+  e2fsprogs tools. Since loop devices and mounting are privileged operations, this
+  part of the build invokes `sudo`. These tools are the main reason why a Linux
+  system is required rather than just a Unix-like one.
+- **GDB**: Only required for source-level debugging of the running kernel, see
+  [Debugging](#debugging).
+
+### Emulation
+
+Emulation is also controlled via Make; the following commands are available for
+this purpose:
+
+- **`make qemu-live`**: Builds the bootable image as well as the disk images and
+  boots the live medium. GRUB and the kernel are loaded from the emulated CD-ROM,
+  while `hda.img` is attached as a plain data disk.
+- **`make qemu-installed`**: Boots the installed system. No CD-ROM is attached at
+  all; GRUB is loaded from the MBR of `hda.img` and pulls the kernel and the initial
+  ramdisk from the ext2 partition of that disk. This is the way to verify that an
+  installation actually boots on its own.
+- **`make qemu`**: A shorthand for `make qemu-live`.
+- **`make qemu-debug`**: Same as `make qemu-live`, but starts QEMU with a GDB stub
+  attached and the CPU halted, see [Debugging](#debugging).
+
+### Disk Images
+
+Two disk images are used by the emulation targets and are created on demand:
+
+- **`hda.img`**: The bootable disk, attached to the emulated IDE controller. It
+  carries GRUB in the MBR and the boot gap, the kernel and the initial ramdisk in
+  `/boot`, and the userland binaries that are not part of the initial ramdisk. Its
+  contents are taken from the `hdd` directory and `userland/bin`.
+- **`sda.img`**: A blank disk attached to the emulated AHCI controller, used to
+  exercise the corresponding driver and the volume and filesystem layers.
+
+Both images are 50 MiB in size and are *not* removed by `make clean`. They are
+managed by their own targets instead:
+
+- **`make qemu-disk`**: Creates the disk images without starting the emulator.
+- **`make qemu-clean`**: Removes both disk images.
+
+### Debugging
+
+Running `make qemu-debug` starts the emulator with the QEMU GDB stub listening on
+`localhost:1234` and the guest CPU halted before the first instruction is executed.
+This leaves enough time to attach a debugger and to place breakpoints before the
+bootloader hands control over to the kernel.
+
+The repository ships a `.gdbinit` that connects to the stub, loads the symbols from
+the unstripped kernel binary and maps the source paths recorded in the debug
+information to the working copy:
+
+```sh
+make qemu-debug
+gdb
+```
 
 ## License
 
