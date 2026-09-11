@@ -69,6 +69,7 @@ vfs_filesystem_t* initfs_init(volume_t* volume) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
+    initfs_mountpoint->type = "initfs";
     initfs_mountpoint->root = NULL;
     initfs_mountpoint->volume = volume;
 

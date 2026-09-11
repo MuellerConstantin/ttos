@@ -1013,9 +1013,18 @@ static int32_t syscall_lsmnt(isr_cpu_state_t *state) {
     uint32_t current_index = 0;
 
     for(char drive = DRIVE_A; drive <= DRIVE_Z; drive++) {
-        if(mnt_get_drive(drive) != NULL) {
+        const vfs_filesystem_t* filesystem = mnt_get_drive(drive);
+
+        if(filesystem != NULL) {
             if(current_index == index) {
                 info->drive = drive;
+
+                strncpy(info->volume_id, filesystem->volume->id, sizeof(info->volume_id));
+                info->volume_id[sizeof(info->volume_id) - 1] = '\0';
+
+                strncpy(info->fs_type, filesystem->type, sizeof(info->fs_type));
+                info->fs_type[sizeof(info->fs_type) - 1] = '\0';
+
                 return 0;
             }
 

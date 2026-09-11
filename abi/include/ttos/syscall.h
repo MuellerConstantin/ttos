@@ -142,6 +142,12 @@ typedef struct mntinfo mntinfo_t;
  */
 struct mntinfo {
     char drive;
+
+    // Short id of the mounted volume, as listed in volinfo.
+    char volume_id[16];
+
+    // Name of the file system type the volume is mounted as.
+    char fs_type[16];
 };
 
 typedef struct kmsg_entry kmsg_entry_t;

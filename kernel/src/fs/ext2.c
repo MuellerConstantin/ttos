@@ -116,6 +116,7 @@ vfs_filesystem_t* ext2_init(volume_t* volume) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
+    ext2_mountpoint->type = "ext2";
     ext2_mountpoint->root = NULL;
     ext2_mountpoint->volume = volume;
     ext2_mountpoint->fs_data = NULL;

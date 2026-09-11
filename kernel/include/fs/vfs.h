@@ -74,6 +74,8 @@ struct vfs_filesystem_operations {
 } __attribute__((packed));
 
 struct vfs_filesystem {
+    // Name of the file system type, a string literal owned by the driver.
+    const char* type;
     vfs_node_t* root;
     volume_t* volume;
     void* fs_data;
