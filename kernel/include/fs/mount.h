@@ -15,6 +15,9 @@
 
 #define FS_VOLUME_MAX_MOUNTPOINTS 26
 
+/** Length of the buffer a kernel message about a mount is built in. */
+#define MNT_MESSAGE_LENGTH 128
+
 #define DRIVE_A 'A'
 #define DRIVE_B 'B'
 #define DRIVE_C 'C'
