@@ -171,6 +171,13 @@ static void init_console() {
         KPANIC(KPANIC_INITRD_MOUNT_FAILED_CODE, KPANIC_INITRD_MOUNT_FAILED_MESSAGE, NULL);
     }
 
+    /*
+     * Every program the system relies on, init and the shell included, is
+     * spawned from the initial ramdisk. Once it is gone, nothing can be
+     * started any more, not even the program that would mount it back.
+     */
+    mnt_drive_lock(DRIVE_A);
+
     // Ensure that io devices required for the CLI are available
 
     video_device_t* video_device = device_find_by_type(DEVICE_TYPE_VIDEO);

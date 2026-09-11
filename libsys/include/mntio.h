@@ -16,6 +16,7 @@
 #define UNMOUNT_OK               0
 #define UNMOUNT_ERR_NOT_MOUNTED -1
 #define UNMOUNT_ERR_FAILED      -2
+#define UNMOUNT_ERR_LOCKED      -3
 
 /**
  * Queries a mount point by its index in the system's mount table.

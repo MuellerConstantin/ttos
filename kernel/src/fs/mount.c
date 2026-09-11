@@ -3,6 +3,7 @@
 #include <fs/ext2.h>
 
 static vfs_filesystem_t* mnt_mountpoints[FS_VOLUME_MAX_MOUNTPOINTS];
+static bool mnt_locked[FS_VOLUME_MAX_MOUNTPOINTS];
 
 static int32_t mnt_get_drive_index(char drive);
 
@@ -65,6 +66,10 @@ int32_t mnt_volume_unmount(char drive) {
         return -1;
     }
 
+    if(mnt_locked[index]) {
+        return -1;
+    }
+
     if(mnt_mountpoints[index]->operations->unmount(mnt_mountpoints[index]) != 0) {
         return -1;
     }
@@ -72,6 +77,32 @@ int32_t mnt_volume_unmount(char drive) {
     mnt_mountpoints[index] = NULL;
 
     return 0;
+}
+
+int32_t mnt_drive_lock(char drive) {
+    int32_t index = mnt_get_drive_index(drive);
+
+    if(index == -1) {
+        return -1;
+    }
+
+    if(!mnt_mountpoints[index]) {
+        return -1;
+    }
+
+    mnt_locked[index] = true;
+
+    return 0;
+}
+
+bool mnt_drive_is_locked(char drive) {
+    int32_t index = mnt_get_drive_index(drive);
+
+    if(index == -1) {
+        return false;
+    }
+
+    return mnt_locked[index];
 }
 
 const vfs_filesystem_t* mnt_get_mountpoint(char* path) {

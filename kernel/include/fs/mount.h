@@ -52,12 +52,29 @@
 int32_t mnt_volume_mount(char drive, volume_t* volume);
 
 /**
- * Unmount a volume/file system.
+ * Unmount a volume/file system. A locked drive is refused.
  * 
  * @param drive The drive letter to unmount.
  * @return 0 on success or -1 on error.
  */
 int32_t mnt_volume_unmount(char drive);
+
+/**
+ * Lock a mounted drive so that it cannot be unmounted. There is no way to
+ * release the lock; it marks a drive the system cannot run without.
+ *
+ * @param drive The drive letter to lock.
+ * @return 0 on success or -1 if the drive is not mounted.
+ */
+int32_t mnt_drive_lock(char drive);
+
+/**
+ * Check whether a drive is locked against unmounting.
+ *
+ * @param drive The drive letter to check.
+ * @return True if the drive is locked, false otherwise.
+ */
+bool mnt_drive_is_locked(char drive);
 
 /**
  * Get the mounted filesystem/volume for a path.

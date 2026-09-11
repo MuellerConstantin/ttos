@@ -20,6 +20,9 @@ int main(int argc, char** argv) {
         case UNMOUNT_ERR_NOT_MOUNTED:
             puts("unmount: drive not mounted\n");
             return 1;
+        case UNMOUNT_ERR_LOCKED:
+            puts("unmount: drive is locked\n");
+            return 1;
         default:
             puts("unmount: failed to unmount\n");
             return 1;

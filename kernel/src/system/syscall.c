@@ -314,8 +314,8 @@ static int32_t syscall_mount(isr_cpu_state_t *state);
  *
  * - ebx: Drive letter to unmount
  *
- * Syscall returns 0 on success, -1 if the drive is not mounted, or -2 if the
- * unmount failed.
+ * Syscall returns 0 on success, -1 if the drive is not mounted, -2 if the
+ * unmount failed, or -3 if the drive is locked against unmounting.
  *
  * @param state The CPU state.
  */
@@ -1060,6 +1060,10 @@ static int32_t syscall_unmount(isr_cpu_state_t *state) {
 
     if(mnt_get_drive(drive) == NULL) {
         return -1;
+    }
+
+    if(mnt_drive_is_locked(drive)) {
+        return -3;
     }
 
     if(mnt_volume_unmount(drive) != 0) {
