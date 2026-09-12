@@ -449,6 +449,25 @@ static int32_t syscall_chdir(isr_cpu_state_t *state);
 static int32_t syscall_getcwd(isr_cpu_state_t *state);
 
 /**
+ * Stat syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Path of the file or directory, absolute or relative to the current
+ *        working directory
+ *
+ * - ecx: Pointer to a user fileinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the path is malformed or does not
+ * exist.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_stat(isr_cpu_state_t *state);
+
+/**
  * Unlink syscall handler.
  *
  * Syscall expects the following parameters:
@@ -614,6 +633,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_GETCWD: {
             state->eax = syscall_getcwd(state);
+            break;
+        }
+        case SYSCALL_STAT: {
+            state->eax = syscall_stat(state);
             break;
         }
         default: {
@@ -1384,6 +1407,49 @@ static int32_t syscall_getcwd(isr_cpu_state_t *state) {
     }
 
     strcpy(buffer, current_process->cwd);
+
+    return 0;
+}
+
+static int32_t syscall_stat(isr_cpu_state_t *state) {
+    const char* path = (const char*) state->ebx;
+    struct fileinfo* info = (struct fileinfo*) state->ecx;
+    char resolved[PATH_MAX];
+
+    if(!info || syscall_resolve_path(path, resolved) != 0) {
+        return -1;
+    }
+
+    file_stat_t stat;
+
+    if(file_stat(resolved, &stat) != 0) {
+        return -1;
+    }
+
+    // The VFS type codes are the kernel's own; the ABI has its own set.
+    switch(stat.type) {
+        case VFS_FILE:
+            info->type = FILE_TYPE_FILE;
+            break;
+        case VFS_DIRECTORY:
+            info->type = FILE_TYPE_DIRECTORY;
+            break;
+        case VFS_SYMLINK:
+            info->type = FILE_TYPE_SYMLINK;
+            break;
+        default:
+            return -1;
+    }
+
+    info->size = stat.size;
+    info->inode = stat.inode;
+
+    strncpy(info->volume_id, stat.volume_id, sizeof(info->volume_id));
+    info->volume_id[sizeof(info->volume_id) - 1] = '\0';
+
+    info->permissions = stat.permissions;
+    info->uid = stat.uid;
+    info->gid = stat.gid;
 
     return 0;
 }

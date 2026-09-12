@@ -12,7 +12,7 @@ OBJDIR := obj
 
 TARGET := libc.a
 
-INCLUDE := -I '$(ROOTDIR)/libc/include' -I '$(ROOTDIR)/libsys/include'
+INCLUDE := -I '$(ROOTDIR)/libc/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/abi/include'
 
 # -MMD -MP records the headers each object was compiled against, so a header
 # change recompiles what includes it; -MP keeps a deleted header from breaking

@@ -351,21 +351,21 @@ int32_t file_stat(const char* path, file_stat_t* stat) {
     vfs_node_t* node = vfs_findpath(mountpoint->root, relative_path);
 
     if(!node) {
-        kfree(node);
         return -1;
     }
 
-    if(node->type != VFS_FILE) {
-        kfree(node);
-        return -1;
-    }
-
+    stat->type = node->type;
     stat->size = node->length;
+    stat->inode = node->inode;
+    stat->volume_id = mountpoint->volume->id;
     stat->uid = node->uid;
     stat->gid = node->gid;
     stat->permissions = node->permissions;
 
-    kfree(node);
+    // The root of a drive is the mount point's own node, not a lookup result.
+    if(node != mountpoint->root) {
+        kfree(node);
+    }
 
     return 0;
 }

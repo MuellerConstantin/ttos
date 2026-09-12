@@ -28,3 +28,7 @@ int32_t fsio_rmdir(const char* path) {
 int32_t fsio_close(int32_t fd) {
     return syscall1(SYSCALL_CLOSE, (uint32_t) fd);
 }
+
+int32_t fsio_stat(const char* path, fileinfo_t* info) {
+    return syscall2(SYSCALL_STAT, (uint32_t) path, (uint32_t) info);
+}

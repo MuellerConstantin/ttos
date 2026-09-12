@@ -36,7 +36,13 @@ struct file_descriptor {
 typedef struct file_stat file_stat_t;
 
 struct file_stat {
+    uint32_t type;
     size_t size;
+    uint32_t inode;
+
+    // Points into the volume manager's record, which outlives any file.
+    const char* volume_id;
+
     uint32_t uid;
     uint32_t gid;
     uint32_t permissions;
@@ -116,11 +122,11 @@ int32_t file_write(file_descriptor_t* fd, void* buffer, size_t size);
 int32_t file_seek(file_descriptor_t* fd, int32_t offset, int32_t whence);
 
 /**
- * Get the stat of a file.
+ * Describe a file or directory.
  * 
- * @param path The path to the file.
- * @param stat The file stat to store the size in.
- * @return 0 on success or -1 on error.
+ * @param path The path to the file or directory.
+ * @param stat The structure to fill.
+ * @return 0 on success or -1 if the path does not exist.
  */
 int32_t file_stat(const char* path, file_stat_t* stat);
 

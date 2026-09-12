@@ -40,6 +40,7 @@ extern "C" {
 #define SYSCALL_MKDIR 0x1C
 #define SYSCALL_CHDIR 0x1D
 #define SYSCALL_GETCWD 0x1E
+#define SYSCALL_STAT 0x1F
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256
@@ -153,6 +154,30 @@ struct mntinfo {
 
     // Name of the file system type the volume is mounted as.
     char fs_type[16];
+};
+
+// File types, as reported in fileinfo.
+#define FILE_TYPE_FILE      1
+#define FILE_TYPE_DIRECTORY 2
+#define FILE_TYPE_SYMLINK   3
+
+typedef struct fileinfo fileinfo_t;
+
+/**
+ * Describes a file or directory. Together, volume_id and inode identify it:
+ * two paths that agree on both name the same object of the same type.
+ */
+struct fileinfo {
+    uint32_t type;
+    uint32_t size;
+    uint32_t inode;
+
+    // Short id of the volume the file lives on, as listed in volinfo.
+    char volume_id[16];
+
+    uint32_t permissions;
+    uint32_t uid;
+    uint32_t gid;
 };
 
 typedef struct kmsg_entry kmsg_entry_t;

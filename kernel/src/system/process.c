@@ -30,7 +30,7 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     file_descriptor_t* executable_fd;
     uint8_t* executable_data;
 
-    if(file_stat(path, &executable_stat) < 0) {
+    if(file_stat(path, &executable_stat) < 0 || executable_stat.type != VFS_FILE) {
         return NULL;
     }
 

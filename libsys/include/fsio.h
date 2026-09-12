@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <ttos/syscall.h>
 
 #define FSIO_STDIN 0
 #define FSIO_STDOUT 1
@@ -69,6 +70,15 @@ int32_t fsio_mkdir(const char* path, int32_t mode);
  * @return 0 on success or -1 on error.
  */
 int32_t fsio_rmdir(const char* path);
+
+/**
+ * Describes a file or directory without opening it.
+ *
+ * @param path The path, absolute or relative to the working directory.
+ * @param info The file information to fill.
+ * @return 0 on success or -1 if the path does not exist.
+ */
+int32_t fsio_stat(const char* path, fileinfo_t* info);
 
 /**
  * Closes a file descriptor.
