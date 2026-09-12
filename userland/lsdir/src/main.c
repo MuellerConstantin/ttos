@@ -3,12 +3,15 @@
 #include <termio.h>
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        puts("usage: lsdir <path>\n");
+    if (argc > 2) {
+        puts("usage: lsdir [<path>]\n");
         return 1;
     }
 
-    int32_t dd = dirio_open(argv[1]);
+    // Without a path the working directory is listed; the kernel resolves "." against it.
+    const char* path = argc == 2 ? argv[1] : ".";
+
+    int32_t dd = dirio_open(path);
 
     if (dd < 0) {
         puts("lsdir: cannot open directory\n");
