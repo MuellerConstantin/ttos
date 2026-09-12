@@ -11,7 +11,7 @@
 
 #include <util/linked_list.h>
 
-#define KMESSAGE_LEVEL_PANIC "DEBUG"
+#define KMESSAGE_LEVEL_DEBUG "DEBUG"
 #define KMESSAGE_LEVEL_INFO "INFO"
 #define KMESSAGE_LEVEL_WARN "WARN"
 #define KMESSAGE_LEVEL_ERROR "ERROR"
