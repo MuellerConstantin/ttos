@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <proc.h>
 #include <volio.h>
@@ -6,6 +7,9 @@
 
 #define INIT_FIRST_DRIVE 'C'
 #define INIT_LAST_DRIVE 'Z'
+
+/** Where the shell looks for commands; the initrd holds the system programs. */
+#define INIT_PATH "A:/"
 
 static int init_is_mounted(const char* volume_id);
 static char init_next_free_drive(void);
@@ -16,6 +20,9 @@ int main(void) {
     char* shell_argv[] = { (char*) shell_path, 0 };
 
     init_mount_volumes();
+
+    // The environment every process descends from starts here.
+    setenv("PATH", INIT_PATH, 1);
 
     /*
      * init is PID 1: it must never exit. Keep a shell running and respawn it if
