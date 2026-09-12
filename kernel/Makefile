@@ -28,12 +28,16 @@ TARGET := kernel.elf
 
 INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/abi/include'
 
-CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __KERNEL_VERSION__=\"$(VERSION)\" -D __KERNEL_ARCH__=\"$(ARCH)\" -D __KERNEL_PLATFORM__=\"$(PLATFORM)\"
+# -MMD -MP records the headers each object was compiled against, so a header
+# change recompiles what includes it; -MP keeps a deleted header from breaking
+# the build.
+CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __KERNEL_VERSION__=\"$(VERSION)\" -D __KERNEL_ARCH__=\"$(ARCH)\" -D __KERNEL_PLATFORM__=\"$(PLATFORM)\" -MMD -MP
 ASFLAGS := -f elf32 -g
 LDFLAGS := -m $(FORMAT) -T kernel.ld -nostdlib
 
 SRCS := $(shell find $(SRCDIR) -name '*.asm') $(shell find $(SRCDIR) -name '*.c')
 OBJS := $(subst $(SRCDIR), $(OBJDIR), $(patsubst %.c, %.o, $(patsubst %.asm, %.o, $(SRCS))))
+DEPS := $(OBJS:.o=.d)
 
 all: $(TARGET)
 
@@ -57,3 +61,5 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
+
+-include $(DEPS)

@@ -14,11 +14,15 @@ TARGET := libc.a
 
 INCLUDE := -I '$(ROOTDIR)/libc/include' -I '$(ROOTDIR)/libsys/include'
 
-CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra
+# -MMD -MP records the headers each object was compiled against, so a header
+# change recompiles what includes it; -MP keeps a deleted header from breaking
+# the build.
+CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -MMD -MP
 ARFLAGS := rcs
 
 SRCS := $(shell find $(SRCDIR) -name '*.c')
 OBJS := $(subst $(SRCDIR), $(OBJDIR), $(patsubst %.c, %.o, $(SRCS)))
+DEPS := $(OBJS:.o=.d)
 
 all: $(TARGET)
 
@@ -35,3 +39,5 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
+
+-include $(DEPS)
