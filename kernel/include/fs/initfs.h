@@ -6,6 +6,13 @@
 #include <fs/vfs.h>
 #include <device/volume.h>
 
+/*
+ * An initial ramdisk image carries this 16 bit magic in front of the initfs
+ * header (see scripts/mkinitrd.py). It is how the kernel tells the ramdisk
+ * apart from any other multiboot module.
+ */
+#define INITRD_HEADER_MAGIC 0xCAFE
+
 #define INITFS_HEADER_MAGIC 0xDEAD
 #define INITFS_FILE_HEADER_MAGIC 0xBEEF
 

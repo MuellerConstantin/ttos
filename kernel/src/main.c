@@ -20,7 +20,8 @@
 #include <drivers/serial/uart/16550.h>
 #include <drivers/input/ps2/keyboard.h>
 #include <drivers/storage/ata.h>
-#include <drivers/storage/initrd.h>
+#include <drivers/storage/ramdisk.h>
+#include <fs/initfs.h>
 #include <drivers/storage/sata.h>
 #include <fs/mount.h>
 #include <io/tty.h>
@@ -88,21 +89,26 @@ static void init_platform(multiboot_info_t *multiboot_info) {
 
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
-    // Map the initial ramdisk multiboot module to virtual address space
-    if(multiboot_info->mods_count > 0) {
-        multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE;
-        void* initrd_start_physical = (void*) initrd_module->mod_start;
-        size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
+    /*
+     * Map every multiboot module into the kernel's address space. The bootloader
+     * placed them in physical memory; they stay there for the life of the
+     * system and are handed out as RAM disks later.
+     */
+    multiboot_module_t* modules = (multiboot_module_t*) (multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE);
 
-        // Map the initrd's virtual address space
-        void* initrd_start_virtual = vmm_map_memory(NULL, initrd_size, initrd_start_physical, true, true);
+    for(uint32_t index = 0; index < multiboot_info->mods_count; index++) {
+        multiboot_module_t* module = &modules[index];
+        void* module_start_physical = (void*) module->mod_start;
+        size_t module_size = module->mod_end - module->mod_start;
+
+        void* module_start_virtual = vmm_map_memory(NULL, module_size, module_start_physical, true, true);
 
         /*
          * Both ends have to move, otherwise the module looks like it spans the
          * distance between the two address spaces rather than its own length.
          */
-        initrd_module->mod_start = (uint32_t) initrd_start_virtual;
-        initrd_module->mod_end = (uint32_t) initrd_start_virtual + initrd_size;
+        module->mod_start = (uint32_t) module_start_virtual;
+        module->mod_end = (uint32_t) module_start_virtual + module_size;
     }
 }
 
@@ -121,13 +127,23 @@ static void init_kernel(multiboot_info_t *multiboot_info) {
 
     multiboot_info = (multiboot_info_t*) ((uintptr_t) multiboot_info + VMM_KERNEL_SPACE_BASE);
 
-    // Load initial ramdisk multiboot module if provided
-    if(multiboot_info->mods_count > 0) {
-        multiboot_module_t *initrd_module = multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE;
-        void* initrd_start = (void*) initrd_module->mod_start;
-        size_t initrd_size = initrd_module->mod_end - initrd_module->mod_start;
+    /*
+     * Every multiboot module becomes a RAM disk. The initial ramdisk announces
+     * itself with a magic in front of its file system and is kept read-only;
+     * anything else is a plain disk in memory that the volume manager probes
+     * for a file system like any other.
+     */
+    multiboot_module_t* modules = (multiboot_module_t*) (multiboot_info->mods_addr + VMM_KERNEL_SPACE_BASE);
 
-        initrd_init((void*) initrd_start, initrd_size);
+    for(uint32_t index = 0; index < multiboot_info->mods_count; index++) {
+        void* module_start = (void*) modules[index].mod_start;
+        size_t module_size = modules[index].mod_end - modules[index].mod_start;
+
+        if(module_size >= sizeof(uint16_t) && *((uint16_t*) module_start) == INITRD_HEADER_MAGIC) {
+            ramdisk_register("Initial Ramdisk", (void*) ((uintptr_t) module_start + sizeof(uint16_t)), module_size - sizeof(uint16_t), true);
+        } else {
+            ramdisk_register("RAM Disk", module_start, module_size, false);
+        }
     }
 }
 
