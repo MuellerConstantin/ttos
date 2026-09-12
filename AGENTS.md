@@ -187,8 +187,8 @@ The exact QEMU invocation is defined in the top level `Makefile`.
 │   ├── bin/                      # Collected binaries, build output
 │   ├── Makefile
 │   └── README.md
-├── boot/grub/grub.cfg            # GRUB menu template for both media
-├── hdd/                          # Skeleton and staging directory copied onto the installed disk
+├── boot/grub/                    # GRUB menu templates, one for the live medium, one for the disk
+├── hdd/                          # Skeleton of the system tree (bin, boot, etc, sys)
 ├── initrd/                       # Staging directory for the initial ramdisk
 ├── scripts/mkinitrd.py           # Packs initrd/ into initrd.img
 ├── .gdbinit                      # Attaches GDB to the QEMU stub

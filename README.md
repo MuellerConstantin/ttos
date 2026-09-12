@@ -119,11 +119,12 @@ to be available on top of the [build requirements](#requirements):
 
 - **QEMU**: The `qemu-system-i386` binary is used to emulate an Intel x86 machine
   and run the TTOS image without rebooting the development machine.
-- **`fdisk`, `losetup`, `mkfs.ext2` and `mount`**: The bootable disk image is
-  partitioned, formatted and populated on the host, using the util-linux and
-  e2fsprogs tools. Since loop devices and mounting are privileged operations, this
-  part of the build invokes `sudo`. These tools are the main reason why a Linux
-  system is required rather than just a Unix-like one.
+- **`mkfs.ext2`**: The system ramdisk is an ext2 image populated directly from
+  the staged system tree with `mkfs.ext2 -d`, which needs no privileges.
+- **`fdisk`, `losetup` and `mount`**: Only needed for `make hda-install`, which
+  installs the system onto the disk image from the host. Since loop devices and
+  mounting are privileged operations, that target invokes `sudo`. These tools are
+  the main reason why a Linux system is required rather than just a Unix-like one.
 - **GDB**: Only required for source-level debugging of the running kernel, see
   [Debugging](#debugging).
 
@@ -133,12 +134,15 @@ Emulation is also controlled via Make; the following commands are available for
 this purpose:
 
 - **`make qemu-live`**: Builds the bootable image as well as the disk images and
-  boots the live medium. GRUB and the kernel are loaded from the emulated CD-ROM,
-  while `hda.img` is attached as a plain data disk.
+  boots the live medium. GRUB loads the kernel, the initial ramdisk and the system
+  ramdisk `systemrd.img` from the emulated CD-ROM; the system runs from the latter,
+  a writable ext2 image in memory. `hda.img` is attached as the disk an
+  installation would go onto.
 - **`make qemu-installed`**: Boots the installed system. No CD-ROM is attached at
   all; GRUB is loaded from the MBR of `hda.img` and pulls the kernel and the initial
   ramdisk from the ext2 partition of that disk. This is the way to verify that an
-  installation actually boots on its own.
+  installation actually boots on its own. On a blank disk the boot ends at the
+  firmware's boot failure, as it would on a real machine.
 - **`make qemu`**: A shorthand for `make qemu-live`.
 - **`make qemu-debug`**: Same as `make qemu-live`, but starts QEMU with a GDB stub
   attached and the CPU halted, see [Debugging](#debugging).
@@ -147,10 +151,9 @@ this purpose:
 
 Two disk images are used by the emulation targets and are created on demand:
 
-- **`hda.img`**: The bootable disk, attached to the emulated IDE controller. It
-  carries GRUB in the MBR and the boot gap, the kernel and the initial ramdisk in
-  `/boot`, and the userland binaries that are not part of the initial ramdisk. Its
-  contents are taken from the `hdd` directory and `userland/bin`.
+- **`hda.img`**: The disk attached to the emulated IDE controller. It is created
+  blank and keeps whatever is written to it, so a system installed from a live
+  session survives into the next `make qemu-installed`.
 - **`sda.img`**: A blank disk attached to the emulated AHCI controller, used to
   exercise the corresponding driver and the volume and filesystem layers.
 
@@ -158,7 +161,14 @@ Both images are 50 MiB in size and are *not* removed by `make clean`. They are
 managed by their own targets instead:
 
 - **`make qemu-disk`**: Creates the disk images without starting the emulator.
-- **`make qemu-clean`**: Removes both disk images.
+- **`make qemu-clean`**: Removes both disk images, which is the way back to a
+  blank disk.
+- **`make hda-install`**: Installs the system tree onto `hda.img` from the host:
+  partitions and formats the disk, copies the tree the live medium ships in
+  `systemrd.img` and installs GRUB into the MBR and the boot gap. This is the
+  reference for what an installed disk has to look like, independent of any
+  installer running inside the system. Loop devices and mounting are privileged,
+  so this target invokes `sudo`; nothing else in the build does.
 
 ### Debugging
 

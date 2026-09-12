@@ -227,3 +227,6 @@ tags
 !initrd/*
 initrd/*.elf
 !hdd/*
+
+# System tree staged for the system ramdisk and the installed disk
+/sysroot/
