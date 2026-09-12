@@ -9,6 +9,13 @@
 
 #define PROCESS_MAX_FILE_DESCRIPTORS 32
 
+/*
+ * Upper bound for what the arguments and the environment may take of the
+ * initial user stack, which is a single page. The program has to run on what
+ * is left, so the two together may not claim more than half of it.
+ */
+#define PROCESS_STACK_ARGS_LIMIT (PAGE_SIZE / 2)
+
 typedef int32_t pid_t;
 
 typedef struct process_context process_context_t;
@@ -78,12 +85,15 @@ struct process {
  * @param path Path to the executable.
  * @param argc Number of arguments passed to the process.
  * @param argv Argument vector (argv[0] is conventionally the program path).
+ * @param envc Number of environment strings passed to the process.
+ * @param envp Environment vector, each entry of the form NAME=VALUE.
  * @param out Output stream.
  * @param in Input stream.
  * @param err Error stream.
- * @return The new process.
+ * @return The new process or NULL if the executable could not be loaded or the
+ *         arguments and environment do not fit onto the initial stack.
  */
-process_t* process_create(const char* name, const char* path, int argc, const char** argv, stream_t* out, stream_t* in, stream_t* err);
+process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, stream_t* out, stream_t* in, stream_t* err);
 
 /**
  * Destroy a process.

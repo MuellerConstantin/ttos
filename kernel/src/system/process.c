@@ -10,7 +10,20 @@ static process_t* current_process = NULL;
 
 static pid_t process_next_pid();
 
-process_t* process_create(const char* name, const char* path, int argc, const char** argv, stream_t* out, stream_t* in, stream_t* err) {
+static size_t process_vector_size(int count, const char** vector);
+
+process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, stream_t* out, stream_t* in, stream_t* err) {
+    /*
+     * Checked before anything is allocated: the strings of both vectors, their
+     * pointer arrays with a NULL terminator each, argc and the alignment slack
+     * all land on the same page as the stack itself.
+     */
+    size_t args_size = process_vector_size(argc, argv) + process_vector_size(envc, envp) + sizeof(uint32_t) + 3;
+
+    if(args_size > PROCESS_STACK_ARGS_LIMIT) {
+        return NULL;
+    }
+
     // Read the executable file
 
     file_stat_t executable_stat;
@@ -115,20 +128,30 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     process->heap_limit = NULL;
 
     /*
-     * Build the initial user stack. The kernel copies the argument strings onto the stack and
-     * lays out an argv pointer array so that, on entry, esp points at argc with the argv array
-     * (argv[0] .. argv[argc - 1], NULL) directly above it. This has to happen while the new
-     * address space is active, as the stack pages only exist there.
+     * Build the initial user stack. The kernel copies the argument and environment strings onto
+     * the stack and lays out the two pointer arrays so that, on entry, esp points at argc with
+     * the argv array (argv[0] .. argv[argc - 1], NULL) directly above it and the envp array
+     * (envp[0] .. envp[envc - 1], NULL) directly above that, the way the System V i386 ABI
+     * specifies it. This has to happen while the new address space is active, as the stack
+     * pages only exist there.
      */
     uint32_t user_esp = (uint32_t) user_stack_limit + PAGE_SIZE;
 
     uint32_t* arg_addresses = (uint32_t*) kmalloc((argc > 0 ? argc : 1) * sizeof(uint32_t));
+    uint32_t* env_addresses = (uint32_t*) kmalloc((envc > 0 ? envc : 1) * sizeof(uint32_t));
 
-    if(!arg_addresses) {
+    if(!arg_addresses || !env_addresses) {
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
-    // Copy each argument string onto the stack and remember its user-space address.
+    // Copy each string onto the stack and remember its user-space address.
+    for(int index = envc - 1; index >= 0; index--) {
+        size_t length = strlen(envp[index]) + 1;
+        user_esp -= length;
+        memcpy((void*) user_esp, envp[index], length);
+        env_addresses[index] = user_esp;
+    }
+
     for(int index = argc - 1; index >= 0; index--) {
         size_t length = strlen(argv[index]) + 1;
         user_esp -= length;
@@ -138,6 +161,16 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
 
     // Align the stack pointer before pushing pointer-sized values.
     user_esp &= ~0x3u;
+
+    // NULL terminator of the envp array.
+    user_esp -= sizeof(uint32_t);
+    *((uint32_t*) user_esp) = 0;
+
+    // envp pointers, highest index first so envp[0] ends up adjacent to the argv terminator.
+    for(int index = envc - 1; index >= 0; index--) {
+        user_esp -= sizeof(uint32_t);
+        *((uint32_t*) user_esp) = env_addresses[index];
+    }
 
     // NULL terminator of the argv array.
     user_esp -= sizeof(uint32_t);
@@ -154,6 +187,7 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     *((uint32_t*) user_esp) = (uint32_t) argc;
 
     kfree(arg_addresses);
+    kfree(env_addresses);
 
     // Switch back to former address space after loading the executable
     vmm_switch_address_space(former_address_space);
@@ -186,6 +220,20 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     process->exception_code = -1;
 
     return process;
+}
+
+/**
+ * Bytes a string vector takes on the initial stack: the strings themselves
+ * plus the pointer array including its NULL terminator.
+ */
+static size_t process_vector_size(int count, const char** vector) {
+    size_t size = (count + 1) * sizeof(uint32_t);
+
+    for(int index = 0; index < count; index++) {
+        size += strlen(vector[index]) + 1;
+    }
+
+    return size;
 }
 
 void process_destroy(process_t* process) {

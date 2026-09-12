@@ -398,12 +398,18 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
  *
  * - ecx: NULL terminated argument vector (user pointer, argv[0] is the path)
  *
+ * - edx: NULL terminated environment vector (user pointer, entries of the form
+ *        NAME=VALUE), or NULL for an empty environment
+ *
  * On success this syscall returns the child's exit code (delivered when the
  * child exits); it returns -1 if the child could not be created.
  *
  * @param state The CPU state.
  */
 static int32_t syscall_spawn(isr_cpu_state_t *state);
+
+static char** syscall_copy_vector(char** user_vector, int* count);
+static void syscall_free_vector(char** vector, int count);
 
 /**
  * Unlink syscall handler.
@@ -1153,9 +1159,56 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state) {
     return 0;
 }
 
+/**
+ * Copies a NULL terminated vector of strings out of the caller's user address
+ * space into kernel memory. On success *count holds the number of entries and
+ * the returned array has that many kernel copies; NULL is returned when memory
+ * runs out. A NULL vector counts as empty.
+ */
+static char** syscall_copy_vector(char** user_vector, int* count) {
+    int length = 0;
+
+    if(user_vector) {
+        while(user_vector[length] != NULL) {
+            length++;
+        }
+    }
+
+    char** kernel_vector = kmalloc((length > 0 ? length : 1) * sizeof(char*));
+
+    if(!kernel_vector) {
+        return NULL;
+    }
+
+    for(int index = 0; index < length; index++) {
+        size_t size = strlen(user_vector[index]) + 1;
+        kernel_vector[index] = kmalloc(size);
+
+        if(!kernel_vector[index]) {
+            syscall_free_vector(kernel_vector, index);
+            return NULL;
+        }
+
+        memcpy(kernel_vector[index], user_vector[index], size);
+    }
+
+    *count = length;
+
+    return kernel_vector;
+}
+
+static void syscall_free_vector(char** vector, int count) {
+    for(int index = 0; index < count; index++) {
+        kfree(vector[index]);
+    }
+
+    kfree(vector);
+}
+
 static int32_t syscall_spawn(isr_cpu_state_t *state) {
     const char* user_path = (const char*) state->ebx;
     char** user_argv = (char**) state->ecx;
+    char** user_envp = (char**) state->edx;
 
     process_t* parent = process_get_current();
 
@@ -1164,11 +1217,12 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
     }
 
     /*
-     * Marshal the path and argument vector out of the parent's user address
-     * space into kernel memory. process_create copies the argv strings only
-     * after switching into the child's address space, where the parent's user
-     * pointers are no longer mapped. The kernel heap, on the other hand, is
-     * mapped in every address space, so the copies stay valid across the switch.
+     * Marshal the path, the argument vector and the environment out of the
+     * parent's user address space into kernel memory. process_create copies
+     * the strings only after switching into the child's address space, where
+     * the parent's user pointers are no longer mapped. The kernel heap, on the
+     * other hand, is mapped in every address space, so the copies stay valid
+     * across the switch.
      */
 
     size_t path_length = strlen(user_path) + 1;
@@ -1180,50 +1234,33 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
 
     memcpy(kernel_path, user_path, path_length);
 
-    // argv is NULL terminated; argv[0] is conventionally the executable path.
     int argc = 0;
+    int envc = 0;
 
-    if(user_argv) {
-        while(user_argv[argc] != NULL) {
-            argc++;
-        }
-    }
-
-    char** kernel_argv = kmalloc((argc > 0 ? argc : 1) * sizeof(char*));
+    // argv is NULL terminated; argv[0] is conventionally the executable path.
+    char** kernel_argv = syscall_copy_vector(user_argv, &argc);
 
     if(!kernel_argv) {
         kfree(kernel_path);
         return -1;
     }
 
-    for(int index = 0; index < argc; index++) {
-        size_t length = strlen(user_argv[index]) + 1;
-        kernel_argv[index] = kmalloc(length);
+    char** kernel_envp = syscall_copy_vector(user_envp, &envc);
 
-        if(!kernel_argv[index]) {
-            for(int cleanup = 0; cleanup < index; cleanup++) {
-                kfree(kernel_argv[cleanup]);
-            }
-
-            kfree(kernel_argv);
-            kfree(kernel_path);
-            return -1;
-        }
-
-        memcpy(kernel_argv[index], user_argv[index], length);
+    if(!kernel_envp) {
+        syscall_free_vector(kernel_argv, argc);
+        kfree(kernel_path);
+        return -1;
     }
 
     // Preserve the parent's context so it can be resumed once the child exits.
     parent->saved_state = *state;
 
-    process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, parent->out, parent->in, parent->err);
+    process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, envc, (const char**) kernel_envp, parent->out, parent->in, parent->err);
 
-    // process_create has copied path and arguments onto the child's stack.
-    for(int index = 0; index < argc; index++) {
-        kfree(kernel_argv[index]);
-    }
-
-    kfree(kernel_argv);
+    // process_create has copied path, arguments and environment onto the child's stack.
+    syscall_free_vector(kernel_argv, argc);
+    syscall_free_vector(kernel_envp, envc);
     kfree(kernel_path);
 
     if(!child) {
