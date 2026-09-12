@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <fsio.h>
 #include <proc.h>
@@ -6,8 +7,20 @@
 #define SHELL_LINE_MAX 256
 #define SHELL_MAX_ARGS 32
 #define SHELL_PATH_MAX 128
-#define SHELL_MAX_PATHS 8
 #define SHELL_HISTORY_MAX 16
+
+/*
+ * The command search path lives in the PATH environment variable so that it
+ * reaches the shell from init and any program the shell starts. Entries are
+ * separated by ';' - ':' is taken by the drive letters. Where no PATH is
+ * inherited the initrd root is searched.
+ */
+#define SHELL_PATH_VARIABLE "PATH"
+#define SHELL_PATH_SEPARATOR ';'
+#define SHELL_PATH_DEFAULT "A:/"
+
+/** Room for the whole value of an environment variable when it is rebuilt. */
+#define SHELL_ENV_MAX 512
 
 /*
  * The shell paints the terminal in its own background once it takes over, so
@@ -25,13 +38,6 @@
  */
 #define SHELL_PROMPT "> "
 #define SHELL_PROMPT_STYLE ""
-
-/*
- * Directories searched for bare command names, in order. Starts with the initrd
- * root and can be extended at runtime with the `path` builtin.
- */
-static char search_paths[SHELL_MAX_PATHS][SHELL_PATH_MAX];
-static size_t search_path_count = 0;
 
 // Ring of recently entered command lines, navigated with the up/down arrows.
 static char history[SHELL_HISTORY_MAX][SHELL_LINE_MAX];
@@ -61,6 +67,7 @@ static void shell_help(void) {
     printf("Available commands:\n\n");
     printf("help - Display this help message\n");
     printf("path [add <dir> | remove <dir>] - Show or edit the command search path\n");
+    printf("set [NAME=VALUE] - Show the environment or set a variable\n");
     printf("<command> [args...] - Run a program, resolved via the search path\n");
     printf("<path> [args...] - Run a program by its full path\n");
 }
@@ -111,74 +118,168 @@ static size_t shell_tokenize(char* line, char** argv, size_t max_args) {
     return argc;
 }
 
+/*
+ * Copies the next entry of a ';' separated list into `entry`, without a
+ * trailing slash. Returns where the following entry starts, or NULL once the
+ * list is exhausted. Empty entries are skipped.
+ */
+static const char* shell_path_next(const char* cursor, char* entry) {
+    while(cursor && *cursor) {
+        size_t length = 0;
+
+        while(cursor[length] && cursor[length] != SHELL_PATH_SEPARATOR) {
+            length++;
+        }
+
+        const char* next = cursor[length] ? cursor + length + 1 : cursor + length;
+
+        if(length > 0 && length < SHELL_PATH_MAX) {
+            strncpy(entry, cursor, length);
+            entry[length] = '\0';
+
+            if(length > 1 && entry[length - 1] == '/') {
+                entry[length - 1] = '\0';
+            }
+
+            return next;
+        }
+
+        cursor = next;
+    }
+
+    return NULL;
+}
+
+/*
+ * Strips a trailing slash so that `C:/bin` and `C:/bin/` name the same entry.
+ * Returns 0 if the directory is unusable as a search path entry.
+ */
+static int shell_path_normalize(const char* directory, char* entry) {
+    size_t length = strlen(directory);
+
+    if(length == 0 || length >= SHELL_PATH_MAX) {
+        return 0;
+    }
+
+    strcpy(entry, directory);
+
+    if(length > 1 && entry[length - 1] == '/') {
+        entry[length - 1] = '\0';
+    }
+
+    return 1;
+}
+
 static void shell_path(size_t argc, char** argv) {
+    const char* path = getenv(SHELL_PATH_VARIABLE);
+    char entry[SHELL_PATH_MAX];
+
     if(argc == 1) {
-        for(size_t index = 0; index < search_path_count; index++) {
-            printf("%s\n", search_paths[index]);
+        for(const char* cursor = shell_path_next(path, entry); cursor; cursor = shell_path_next(cursor, entry)) {
+            printf("%s\n", entry);
         }
 
         return;
     }
 
     if(argc >= 3 && strcmp(argv[1], "add") == 0) {
-        size_t length = strlen(argv[2]);
+        char addition[SHELL_PATH_MAX];
 
-        if(length == 0 || length >= SHELL_PATH_MAX - 1) {
+        if(!shell_path_normalize(argv[2], addition)) {
             printf("path: invalid directory\n");
             return;
         }
 
-        if(search_path_count >= SHELL_MAX_PATHS) {
+        size_t current_length = path ? strlen(path) : 0;
+
+        if(current_length + 1 + strlen(addition) >= SHELL_ENV_MAX) {
             printf("path: search path is full\n");
             return;
         }
 
-        char* entry = search_paths[search_path_count];
-        strcpy(entry, argv[2]);
+        char value[SHELL_ENV_MAX];
+        value[0] = '\0';
 
-        // Normalize to a trailing slash so candidates concatenate cleanly.
-        if(entry[length - 1] != '/') {
-            entry[length] = '/';
-            entry[length + 1] = '\0';
+        if(current_length > 0) {
+            strcpy(value, path);
+            value[current_length] = SHELL_PATH_SEPARATOR;
+            value[current_length + 1] = '\0';
         }
 
-        search_path_count++;
+        strcat(value, addition);
+
+        if(setenv(SHELL_PATH_VARIABLE, value, 1) != 0) {
+            printf("path: out of memory\n");
+        }
+
         return;
     }
 
     if(argc >= 3 && strcmp(argv[1], "remove") == 0) {
-        // Normalize the query the same way entries are stored before comparing.
         char query[SHELL_PATH_MAX];
-        size_t length = strlen(argv[2]);
 
-        if(length == 0 || length >= SHELL_PATH_MAX - 1) {
+        if(!shell_path_normalize(argv[2], query)) {
             printf("path: invalid directory\n");
             return;
         }
 
-        strcpy(query, argv[2]);
+        // Rebuild the value from every entry but the one being removed.
+        char value[SHELL_ENV_MAX];
+        value[0] = '\0';
+        int found = 0;
 
-        if(query[length - 1] != '/') {
-            query[length] = '/';
-            query[length + 1] = '\0';
-        }
-
-        for(size_t index = 0; index < search_path_count; index++) {
-            if(strcmp(search_paths[index], query) == 0) {
-                for(size_t shift = index; shift + 1 < search_path_count; shift++) {
-                    strcpy(search_paths[shift], search_paths[shift + 1]);
-                }
-
-                search_path_count--;
-                return;
+        for(const char* cursor = shell_path_next(path, entry); cursor; cursor = shell_path_next(cursor, entry)) {
+            if(strcmp(entry, query) == 0) {
+                found = 1;
+                continue;
             }
+
+            if(value[0] != '\0') {
+                size_t length = strlen(value);
+                value[length] = SHELL_PATH_SEPARATOR;
+                value[length + 1] = '\0';
+            }
+
+            strcat(value, entry);
         }
 
-        printf("path: not in search path: %s\n", argv[2]);
+        if(!found) {
+            printf("path: not in search path: %s\n", argv[2]);
+            return;
+        }
+
+        if(setenv(SHELL_PATH_VARIABLE, value, 1) != 0) {
+            printf("path: out of memory\n");
+        }
+
         return;
     }
 
     printf("usage: path [add <dir> | remove <dir>]\n");
+}
+
+static void shell_set(size_t argc, char** argv) {
+    if(argc == 1) {
+        for(char** entry = environ; entry && *entry; entry++) {
+            printf("%s\n", *entry);
+        }
+
+        return;
+    }
+
+    char* separator = strpbrk(argv[1], "=");
+
+    if(argc != 2 || !separator || separator == argv[1]) {
+        printf("usage: set [NAME=VALUE]\n");
+        return;
+    }
+
+    // Split the argument in place; it is the shell's own line buffer.
+    *separator = '\0';
+
+    if(setenv(argv[1], separator + 1, 1) != 0) {
+        printf("set: out of memory\n");
+    }
 }
 
 /*
@@ -220,14 +321,17 @@ static int shell_run(char** argv) {
         return shell_try_spawn(argv[0], argv);
     }
 
-    for(size_t index = 0; index < search_path_count; index++) {
+    char entry[SHELL_PATH_MAX];
+
+    for(const char* cursor = shell_path_next(getenv(SHELL_PATH_VARIABLE), entry); cursor; cursor = shell_path_next(cursor, entry)) {
         char candidate[SHELL_PATH_MAX];
 
-        if(strlen(search_paths[index]) + strlen(argv[0]) >= SHELL_PATH_MAX) {
+        if(strlen(entry) + 1 + strlen(argv[0]) >= SHELL_PATH_MAX) {
             continue;
         }
 
-        strcpy(candidate, search_paths[index]);
+        strcpy(candidate, entry);
+        strcat(candidate, "/");
         strcat(candidate, argv[0]);
 
         int result = shell_try_spawn(candidate, argv);
@@ -434,8 +538,7 @@ int main(void) {
 
     shell_banner();
 
-    strcpy(search_paths[0], "A:/");
-    search_path_count = 1;
+    setenv(SHELL_PATH_VARIABLE, SHELL_PATH_DEFAULT, 0);
 
     char line[SHELL_LINE_MAX];
     char* argv[SHELL_MAX_ARGS + 1];
@@ -459,6 +562,11 @@ int main(void) {
 
         if(strcmp(argv[0], "path") == 0) {
             shell_path(argc, argv);
+            continue;
+        }
+
+        if(strcmp(argv[0], "set") == 0) {
+            shell_set(argc, argv);
             continue;
         }
 
