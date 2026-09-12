@@ -1,5 +1,4 @@
 #include <fsio.h>
-#include <dirio.h>
 #include <stdio.h>
 #include <string.h>
 #include <ttos/syscall.h>
@@ -12,17 +11,20 @@
 
 static char buffer[CP_BUFFER_SIZE];
 
-/** Whether a path names a directory that can be opened. */
+/** Whether a path names an existing directory. */
 static int cp_is_directory(const char* path) {
-    int32_t dd = dirio_open(path);
+    fileinfo_t info;
 
-    if (dd < 0) {
-        return 0;
-    }
+    return fsio_stat(path, &info) == 0 && info.type == FILE_TYPE_DIRECTORY;
+}
 
-    dirio_close(dd);
-
-    return 1;
+/*
+ * Whether two paths name the same object. Volume and inode identify a file;
+ * the type is compared as well, since the initial ramdisk numbers its root
+ * and its first file alike.
+ */
+static int cp_same_file(const fileinfo_t* a, const fileinfo_t* b) {
+    return a->type == b->type && a->inode == b->inode && strcmp(a->volume_id, b->volume_id) == 0;
 }
 
 /** The last component of a path, or the path itself if it has none. */
@@ -81,8 +83,15 @@ int main(int argc, char** argv) {
 
     const char* source = argv[1];
     char target[PATH_MAX];
+    fileinfo_t source_info;
+    fileinfo_t target_info;
 
-    if (cp_is_directory(source)) {
+    if (fsio_stat(source, &source_info) != 0) {
+        puts("cp: cannot open source\n");
+        return 1;
+    }
+
+    if (source_info.type == FILE_TYPE_DIRECTORY) {
         puts("cp: source is a directory\n");
         return 1;
     }
@@ -94,10 +103,10 @@ int main(int argc, char** argv) {
 
     /*
      * Opening the target truncates it, so a target that is the source would be
-     * emptied before a byte is read. Only the spelled out case is caught; the
-     * same file under two names cannot be told apart from here.
+     * emptied before a byte is read. An existing target is compared by identity,
+     * which catches the same file under any two names.
      */
-    if (strcmp(source, target) == 0) {
+    if (fsio_stat(target, &target_info) == 0 && cp_same_file(&source_info, &target_info)) {
         puts("cp: source and destination are the same file\n");
         return 1;
     }
