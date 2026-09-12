@@ -15,8 +15,8 @@ all:
 	mkdir -p $(ROOTDIR)/userland/bin
 
 	@for d in $(DIRS); do \
-		$(MAKE) -C $$d all; \
-		cp $$d/$$(basename $$d).elf $(ROOTDIR)/userland/bin/$$(basename $$d).elf; \
+		$(MAKE) -C $$d all || exit 1; \
+		cp $$d/$$(basename $$d).elf $(ROOTDIR)/userland/bin/$$(basename $$d).elf || exit 1; \
 	done
 
 clean:

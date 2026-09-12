@@ -31,7 +31,7 @@ clean:
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(LIBSYS) $(LIBC)
 
 	$(LD) $(LDFLAGS) -o $@ $(OBJS) --start-group $(LIBSYS) $(LIBC) --end-group
 
