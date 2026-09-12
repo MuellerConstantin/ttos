@@ -32,14 +32,15 @@
 #define SHELL_RESET "\033[0m" SHELL_BACKGROUND
 
 /*
- * The prompt is the working directory followed by this suffix, drawn with the
- * attributes below. Text and style are kept apart on purpose: the redraw counts
- * strlen(prompt) as the prompt's width on screen, so escape sequences must
- * never be part of the string itself. An empty style leaves the prompt in the
- * terminal's default foreground.
+ * The prompt is the working directory followed by this suffix. The directory
+ * is drawn in its own color so that it stands apart from the suffix and the
+ * input; the suffix takes the terminal's default foreground. Text and style
+ * are kept apart on purpose: the redraw counts strlen(prompt) as the prompt's
+ * width on screen, so escape sequences must never be part of the string
+ * itself.
  */
 #define SHELL_PROMPT_SUFFIX "> "
-#define SHELL_PROMPT_STYLE ""
+#define SHELL_PROMPT_PATH_STYLE "\033[93m"
 
 /** Room for the working directory plus the prompt suffix. */
 #define SHELL_PROMPT_MAX (PATH_MAX + sizeof(SHELL_PROMPT_SUFFIX))
@@ -329,6 +330,22 @@ static void shell_prompt(char* prompt) {
 }
 
 /*
+ * Prints the prompt with the directory in its own color. The prompt always
+ * ends in the suffix, so the directory is everything before it.
+ */
+static void shell_print_prompt(const char* prompt) {
+    size_t path_length = strlen(prompt) - (sizeof(SHELL_PROMPT_SUFFIX) - 1);
+
+    printf(SHELL_RESET SHELL_PROMPT_PATH_STYLE);
+
+    for(size_t index = 0; index < path_length; index++) {
+        putchar(prompt[index]);
+    }
+
+    printf(SHELL_RESET "%s", prompt + path_length);
+}
+
+/*
  * Tries to run `path`, then `path.elf` if it does not already end in .elf.
  * Returns the program's status if it ran, or -1 if neither could be started.
  */
@@ -436,7 +453,8 @@ static void shell_redraw(const char* prompt, const char* buffer, size_t length, 
      * Reset attributes first: a program may have exited mid-color, and \033[0J
      * would otherwise smear that background across the rest of the screen.
      */
-    printf(SHELL_RESET SHELL_PROMPT_STYLE "%s" SHELL_RESET "%s\033[0J", prompt, buffer);
+    shell_print_prompt(prompt);
+    printf("%s\033[0J", buffer);
 
     /*
      * Reprinting left the terminal cursor at the end of the buffer; move it back
@@ -458,7 +476,7 @@ static void shell_read_line(const char* prompt, char* buffer, size_t size) {
     size_t nav = history_count;
 
     buffer[0] = '\0';
-    printf(SHELL_RESET SHELL_PROMPT_STYLE "%s" SHELL_RESET, prompt);
+    shell_print_prompt(prompt);
 
     for(;;) {
         int ch = getchar();
