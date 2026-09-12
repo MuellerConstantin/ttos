@@ -3,6 +3,7 @@
 #include <string.h>
 #include <fsio.h>
 #include <proc.h>
+#include <ttos/syscall.h>
 
 #define SHELL_LINE_MAX 256
 #define SHELL_MAX_ARGS 32
@@ -31,13 +32,17 @@
 #define SHELL_RESET "\033[0m" SHELL_BACKGROUND
 
 /*
- * Prompt text and the attributes it is drawn with, kept apart on purpose: the
- * redraw counts strlen(prompt) as the prompt's width on screen, so escape
- * sequences must never be part of the string itself. An empty style leaves the
- * prompt in the terminal's default foreground.
+ * The prompt is the working directory followed by this suffix, drawn with the
+ * attributes below. Text and style are kept apart on purpose: the redraw counts
+ * strlen(prompt) as the prompt's width on screen, so escape sequences must
+ * never be part of the string itself. An empty style leaves the prompt in the
+ * terminal's default foreground.
  */
-#define SHELL_PROMPT "> "
+#define SHELL_PROMPT_SUFFIX "> "
 #define SHELL_PROMPT_STYLE ""
+
+/** Room for the working directory plus the prompt suffix. */
+#define SHELL_PROMPT_MAX (PATH_MAX + sizeof(SHELL_PROMPT_SUFFIX))
 
 // Ring of recently entered command lines, navigated with the up/down arrows.
 static char history[SHELL_HISTORY_MAX][SHELL_LINE_MAX];
@@ -68,6 +73,8 @@ static void shell_help(void) {
     printf("help - Display this help message\n");
     printf("path [add <dir> | remove <dir>] - Show or edit the command search path\n");
     printf("set [NAME=VALUE] - Show the environment or set a variable\n");
+    printf("cd [<dir>] - Change the working directory, or show it\n");
+    printf("pwd - Show the working directory\n");
     printf("<command> [args...] - Run a program, resolved via the search path\n");
     printf("<path> [args...] - Run a program by its full path\n");
 }
@@ -282,6 +289,45 @@ static void shell_set(size_t argc, char** argv) {
     }
 }
 
+static void shell_pwd(void) {
+    char cwd[PATH_MAX];
+
+    if(getcwd(cwd, sizeof(cwd)) != 0) {
+        printf("pwd: cannot read working directory\n");
+        return;
+    }
+
+    printf("%s\n", cwd);
+}
+
+static void shell_cd(size_t argc, char** argv) {
+    if(argc == 1) {
+        shell_pwd();
+        return;
+    }
+
+    if(argc != 2) {
+        printf("usage: cd [<dir>]\n");
+        return;
+    }
+
+    if(chdir(argv[1]) != 0) {
+        printf("cd: no such directory: %s\n", argv[1]);
+    }
+}
+
+/*
+ * Builds the prompt from the current working directory. The directory can
+ * change between two lines, so this runs before every read.
+ */
+static void shell_prompt(char* prompt) {
+    if(getcwd(prompt, PATH_MAX) != 0) {
+        prompt[0] = '\0';
+    }
+
+    strcat(prompt, SHELL_PROMPT_SUFFIX);
+}
+
 /*
  * Tries to run `path`, then `path.elf` if it does not already end in .elf.
  * Returns the program's status if it ran, or -1 if neither could be started.
@@ -312,12 +358,14 @@ static int shell_try_spawn(const char* path, char** argv) {
 }
 
 /*
- * Resolves argv[0] to an executable and runs it. Drive-qualified names (those
- * containing ':') are used as given; bare names are looked up in the search
- * path. Returns the program's status, or -1 if nothing could be executed.
+ * Resolves argv[0] to an executable and runs it. A name that contains a drive
+ * or a path separator is used as given, relative names being resolved by the
+ * kernel against the working directory; a bare name is looked up in the
+ * search path. Returns the program's status, or -1 if nothing could be
+ * executed.
  */
 static int shell_run(char** argv) {
-    if(strpbrk(argv[0], ":") != NULL) {
+    if(strpbrk(argv[0], ":/") != NULL) {
         return shell_try_spawn(argv[0], argv);
     }
 
@@ -541,10 +589,12 @@ int main(void) {
     setenv(SHELL_PATH_VARIABLE, SHELL_PATH_DEFAULT, 0);
 
     char line[SHELL_LINE_MAX];
+    char prompt[SHELL_PROMPT_MAX];
     char* argv[SHELL_MAX_ARGS + 1];
 
     for(;;) {
-        shell_read_line(SHELL_PROMPT, line, sizeof(line));
+        shell_prompt(prompt);
+        shell_read_line(prompt, line, sizeof(line));
 
         size_t argc = shell_tokenize(line, argv, SHELL_MAX_ARGS);
 
@@ -567,6 +617,16 @@ int main(void) {
 
         if(strcmp(argv[0], "set") == 0) {
             shell_set(argc, argv);
+            continue;
+        }
+
+        if(strcmp(argv[0], "cd") == 0) {
+            shell_cd(argc, argv);
+            continue;
+        }
+
+        if(strcmp(argv[0], "pwd") == 0) {
+            shell_pwd();
             continue;
         }
 
