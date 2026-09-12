@@ -6,6 +6,7 @@
 #include <io/stream.h>
 #include <io/file.h>
 #include <arch/i386/isr.h>
+#include <ttos/syscall.h>
 
 #define PROCESS_MAX_FILE_DESCRIPTORS 32
 
@@ -74,6 +75,12 @@ struct process {
 
     file_descriptor_t* files[PROCESS_MAX_FILE_DESCRIPTORS];
 
+    /*
+     * Working directory, absolute and normalized (see path_resolve). Every
+     * relative path this process hands to the kernel is resolved against it.
+     */
+    char cwd[PATH_MAX];
+
     int32_t exit_code;
     int32_t exception_code;
 };
@@ -87,13 +94,14 @@ struct process {
  * @param argv Argument vector (argv[0] is conventionally the program path).
  * @param envc Number of environment strings passed to the process.
  * @param envp Environment vector, each entry of the form NAME=VALUE.
+ * @param cwd Working directory the process starts in, absolute and normalized.
  * @param out Output stream.
  * @param in Input stream.
  * @param err Error stream.
  * @return The new process or NULL if the executable could not be loaded or the
  *         arguments and environment do not fit onto the initial stack.
  */
-process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, stream_t* out, stream_t* in, stream_t* err);
+process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, const char* cwd, stream_t* out, stream_t* in, stream_t* err);
 
 /**
  * Destroy a process.

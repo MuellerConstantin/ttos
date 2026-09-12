@@ -205,8 +205,8 @@ static void init_console() {
     const char* init_path = "A:/init.elf";
     const char* init_argv[] = { init_path };
 
-    // init starts with an empty environment and builds its own.
-    process_t* init = process_create("init", init_path, 1, init_argv, 0, NULL, out_stream, in_stream, err_stream);
+    // init starts with an empty environment and builds its own; its working directory is the root of the ramdisk.
+    process_t* init = process_create("init", init_path, 1, init_argv, 0, NULL, "A:/", out_stream, in_stream, err_stream);
 
     if(!init) {
         KPANIC(KPANIC_INIT_START_FAILED_CODE, KPANIC_INIT_START_FAILED_MESSAGE, NULL);

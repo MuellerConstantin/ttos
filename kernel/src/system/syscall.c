@@ -3,6 +3,7 @@
 #include <io/stream.h>
 #include <io/file.h>
 #include <io/dir.h>
+#include <io/path.h>
 #include <io/tty.h>
 #include <device/device.h>
 #include <device/volume.h>
@@ -410,6 +411,42 @@ static int32_t syscall_spawn(isr_cpu_state_t *state);
 
 static char** syscall_copy_vector(char** user_vector, int* count);
 static void syscall_free_vector(char** vector, int count);
+static int32_t syscall_resolve_path(const char* user_path, char* resolved);
+
+/**
+ * Change directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Path of the directory to change to, absolute or relative to the
+ *        current working directory
+ *
+ * Syscall returns 0 on success or -1 when the path is malformed, does not
+ * exist or is no directory.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_chdir(isr_cpu_state_t *state);
+
+/**
+ * Get working directory syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to a user buffer to fill
+ *
+ * - ecx: Size of that buffer in bytes
+ *
+ * Syscall returns 0 on success or -1 when the buffer is NULL or too small for
+ * the working directory including its terminating NUL.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_getcwd(isr_cpu_state_t *state);
 
 /**
  * Unlink syscall handler.
@@ -571,6 +608,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
             state->eax = syscall_mkdir(state);
             break;
         }
+        case SYSCALL_CHDIR: {
+            state->eax = syscall_chdir(state);
+            break;
+        }
+        case SYSCALL_GETCWD: {
+            state->eax = syscall_getcwd(state);
+            break;
+        }
         default: {
             state->eax = -1;
             break;
@@ -685,7 +730,13 @@ static int32_t syscall_open(isr_cpu_state_t *state) {
             return -1;
         }
 
-        file_descriptor_t* file_descriptor = file_open((char*) name, flags, (uint32_t) mode);
+        char resolved[PATH_MAX];
+
+        if(!name || path_resolve(current_process->cwd, name, resolved) != 0) {
+            return -1;
+        }
+
+        file_descriptor_t* file_descriptor = file_open(resolved, flags, (uint32_t) mode);
 
         if(file_descriptor) {
             current_process->files[fd] = file_descriptor;
@@ -698,33 +749,36 @@ static int32_t syscall_open(isr_cpu_state_t *state) {
 
 static int32_t syscall_unlink(isr_cpu_state_t *state) {
     const char* path = (const char*) state->ebx;
+    char resolved[PATH_MAX];
 
-    if(!path) {
+    if(syscall_resolve_path(path, resolved) != 0) {
         return -1;
     }
 
-    return file_unlink((char*) path);
+    return file_unlink(resolved);
 }
 
 static int32_t syscall_rmdir(isr_cpu_state_t *state) {
     const char* path = (const char*) state->ebx;
+    char resolved[PATH_MAX];
 
-    if(!path) {
+    if(syscall_resolve_path(path, resolved) != 0) {
         return -1;
     }
 
-    return file_rmdir((char*) path);
+    return file_rmdir(resolved);
 }
 
 static int32_t syscall_mkdir(isr_cpu_state_t *state) {
     const char* path = (const char*) state->ebx;
     int32_t mode = state->ecx;
+    char resolved[PATH_MAX];
 
-    if(!path) {
+    if(syscall_resolve_path(path, resolved) != 0) {
         return -1;
     }
 
-    return file_mkdir((char*) path, (uint32_t) mode);
+    return file_mkdir(resolved, (uint32_t) mode);
 }
 
 static int32_t syscall_close(isr_cpu_state_t *state) {
@@ -853,9 +907,14 @@ void syscall_exit(isr_cpu_state_t *state) {
 }
 
 static int32_t syscall_opendir(isr_cpu_state_t *state) {
-    char* path = (char*) state->ebx;
+    const char* path = (const char*) state->ebx;
+    char resolved[PATH_MAX];
 
-    return dir_open(path);
+    if(syscall_resolve_path(path, resolved) != 0) {
+        return -1;
+    }
+
+    return dir_open(resolved);
 }
 
 static int32_t syscall_readdir(isr_cpu_state_t *state) {
@@ -1220,19 +1279,16 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
      * Marshal the path, the argument vector and the environment out of the
      * parent's user address space into kernel memory. process_create copies
      * the strings only after switching into the child's address space, where
-     * the parent's user pointers are no longer mapped. The kernel heap, on the
-     * other hand, is mapped in every address space, so the copies stay valid
-     * across the switch.
+     * the parent's user pointers are no longer mapped. The kernel stack and
+     * heap, on the other hand, are mapped in every address space, so the
+     * copies stay valid across the switch.
      */
 
-    size_t path_length = strlen(user_path) + 1;
-    char* kernel_path = kmalloc(path_length);
+    char kernel_path[PATH_MAX];
 
-    if(!kernel_path) {
+    if(path_resolve(parent->cwd, user_path, kernel_path) != 0) {
         return -1;
     }
-
-    memcpy(kernel_path, user_path, path_length);
 
     int argc = 0;
     int envc = 0;
@@ -1241,7 +1297,6 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
     char** kernel_argv = syscall_copy_vector(user_argv, &argc);
 
     if(!kernel_argv) {
-        kfree(kernel_path);
         return -1;
     }
 
@@ -1249,19 +1304,18 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
 
     if(!kernel_envp) {
         syscall_free_vector(kernel_argv, argc);
-        kfree(kernel_path);
         return -1;
     }
 
     // Preserve the parent's context so it can be resumed once the child exits.
     parent->saved_state = *state;
 
-    process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, envc, (const char**) kernel_envp, parent->out, parent->in, parent->err);
+    // The child starts where its parent stands.
+    process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, envc, (const char**) kernel_envp, parent->cwd, parent->out, parent->in, parent->err);
 
     // process_create has copied path, arguments and environment onto the child's stack.
     syscall_free_vector(kernel_argv, argc);
     syscall_free_vector(kernel_envp, envc);
-    kfree(kernel_path);
 
     if(!child) {
         return -1;
@@ -1273,5 +1327,63 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
     process_run(child);
 
     // process_run does not return; the parent is resumed via process_terminate.
+    return 0;
+}
+
+/**
+ * Resolves a path handed in by userland against the working directory of the
+ * current process. Fails when there is no current process, the path is NULL
+ * or path_resolve refuses it.
+ */
+static int32_t syscall_resolve_path(const char* user_path, char* resolved) {
+    const process_t* current_process = process_get_current();
+
+    if(!current_process || !user_path) {
+        return -1;
+    }
+
+    return path_resolve(current_process->cwd, user_path, resolved);
+}
+
+static int32_t syscall_chdir(isr_cpu_state_t *state) {
+    const char* path = (const char*) state->ebx;
+    char resolved[PATH_MAX];
+
+    if(syscall_resolve_path(path, resolved) != 0) {
+        return -1;
+    }
+
+    // Only a directory that can be opened becomes the working directory.
+    int32_t dd = dir_open(resolved);
+
+    if(dd < 0) {
+        return -1;
+    }
+
+    dir_close(dd);
+
+    process_t* current_process = (process_t*) process_get_current();
+
+    strcpy(current_process->cwd, resolved);
+
+    return 0;
+}
+
+static int32_t syscall_getcwd(isr_cpu_state_t *state) {
+    char* buffer = (char*) state->ebx;
+    size_t size = state->ecx;
+
+    const process_t* current_process = process_get_current();
+
+    if(!current_process || !buffer) {
+        return -1;
+    }
+
+    if(strlen(current_process->cwd) + 1 > size) {
+        return -1;
+    }
+
+    strcpy(buffer, current_process->cwd);
+
     return 0;
 }

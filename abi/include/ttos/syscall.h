@@ -38,6 +38,11 @@ extern "C" {
 #define SYSCALL_UNLINK 0x1A
 #define SYSCALL_RMDIR 0x1B
 #define SYSCALL_MKDIR 0x1C
+#define SYSCALL_CHDIR 0x1D
+#define SYSCALL_GETCWD 0x1E
+
+// Longest path the kernel accepts or reports, including the terminating NUL.
+#define PATH_MAX 256
 
 typedef struct osinfo osinfo_t;
 

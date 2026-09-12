@@ -12,7 +12,7 @@ static pid_t process_next_pid();
 
 static size_t process_vector_size(int count, const char** vector);
 
-process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, stream_t* out, stream_t* in, stream_t* err) {
+process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, const char* cwd, stream_t* out, stream_t* in, stream_t* err) {
     /*
      * Checked before anything is allocated: the strings of both vectors, their
      * pointer arrays with a NULL terminator each, argc and the alignment slack
@@ -209,6 +209,9 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     for(int index = 0; index < PROCESS_MAX_FILE_DESCRIPTORS; index++) {
         process->files[index] = NULL;
     }
+
+    strncpy(process->cwd, cwd, PATH_MAX);
+    process->cwd[PATH_MAX - 1] = '\0';
 
     // Initialize the parent relationship (set by the spawn syscall if any)
 
