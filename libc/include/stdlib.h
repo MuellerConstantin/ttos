@@ -87,6 +87,28 @@ void* realloc(void* ptr, size_t size);
  */
 void free(void* ptr);
 
+/**
+ * Looks up a variable in the environment of the process.
+ * 
+ * @param name The name of the variable.
+ * @return A pointer to the value inside the environment, or NULL if the variable is not set.
+ *         The pointer is only valid until the variable is changed.
+ */
+char* getenv(const char* name);
+
+/**
+ * Sets a variable in the environment of the process. The environment is copied to the heap
+ * the first time it grows; a value that is replaced is not freed, as it may still be
+ * referenced by a pointer getenv handed out.
+ * 
+ * @param name The name of the variable, non-empty and without '='.
+ * @param value The value to set.
+ * @param overwrite Whether an existing variable is replaced. If zero and the variable exists,
+ *                  the call succeeds without changing anything.
+ * @return 0 on success or -1 if the name is invalid or memory ran out.
+ */
+int setenv(const char* name, const char* value, int overwrite);
+
 #ifdef __cplusplus
 }
 #endif
