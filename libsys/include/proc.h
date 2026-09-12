@@ -2,6 +2,7 @@
 #define _LIBSYS_PROC_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /**
  * The environment of the current process, a NULL terminated array of strings of the form
@@ -30,5 +31,25 @@ void _exit(int status);
  *         negative value if the executable could not be started.
  */
 int spawn(const char* path, char* const argv[]);
+
+/**
+ * Changes the working directory of the current process. Relative paths the
+ * process hands to the kernel from then on are resolved against it, and a
+ * child spawned afterwards starts there.
+ *
+ * @param path The directory, absolute or relative to the current working directory
+ * @return 0 on success or -1 if the path is malformed, does not exist or is no directory
+ */
+int chdir(const char* path);
+
+/**
+ * Copies the working directory of the current process into a buffer, as an
+ * absolute, normalized path (see PATH_MAX for the longest possible).
+ *
+ * @param buffer The buffer to fill
+ * @param size The size of the buffer in bytes
+ * @return 0 on success or -1 if the buffer is too small
+ */
+int getcwd(char* buffer, size_t size);
 
 #endif // _LIBSYS_PROC_H

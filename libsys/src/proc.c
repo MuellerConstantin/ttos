@@ -10,3 +10,11 @@ void _exit(int status) {
 int spawn(const char* path, char* const argv[]) {
     return syscall3(SYSCALL_SPAWN, (uint32_t) path, (uint32_t) argv, (uint32_t) environ);
 }
+
+int chdir(const char* path) {
+    return syscall1(SYSCALL_CHDIR, (uint32_t) path);
+}
+
+int getcwd(char* buffer, size_t size) {
+    return syscall2(SYSCALL_GETCWD, (uint32_t) buffer, (uint32_t) size);
+}
