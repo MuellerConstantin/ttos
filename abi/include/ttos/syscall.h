@@ -46,6 +46,8 @@ extern "C" {
 #define SYSCALL_RESCAN 0x22
 #define SYSCALL_GET_FSINFO 0x23
 #define SYSCALL_GET_STORAGEINFO 0x24
+#define SYSCALL_VOLREAD 0x25
+#define SYSCALL_VOLWRITE 0x26
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256

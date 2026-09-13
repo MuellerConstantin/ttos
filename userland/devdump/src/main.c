@@ -1,4 +1,5 @@
 #include <devio.h>
+#include <volio.h>
 #include <stdio.h>
 #include <string.h>
 #include <termio.h>
@@ -102,16 +103,27 @@ static void devdump_line(char* line, size_t offset, const unsigned char* bytes, 
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3 || argc > 4) {
-        puts("usage: devdump <device> <offset> [length]\n");
+    int argument = 1;
+    int volume = 0;
+
+    if (argument < argc && strcmp(argv[argument], "-v") == 0) {
+        volume = 1;
+        argument++;
+    }
+
+    int count = argc - argument;
+
+    if (count < 2 || count > 3) {
+        puts("usage: devdump [-v] <device> <offset> [length]\n");
+        puts("       -v dumps a volume instead of a device, from its own start\n");
         return 1;
     }
 
-    const char* id = argv[1];
+    const char* id = argv[argument++];
     size_t offset;
     size_t length = DEVDUMP_CHUNK;
 
-    if (!devdump_number(argv[2], &offset) || (argc == 4 && !devdump_number(argv[3], &length))) {
+    if (!devdump_number(argv[argument], &offset) || (count == 3 && !devdump_number(argv[argument + 1], &length))) {
         puts("devdump: offset and length have to be numbers, 0x for hex\n");
         return 1;
     }
@@ -123,10 +135,10 @@ int main(int argc, char** argv) {
 
     while (length > 0) {
         size_t chunk = length < DEVDUMP_CHUNK ? length : DEVDUMP_CHUNK;
-        int32_t read = devio_read(id, offset, buffer, chunk);
+        int32_t read = volume ? volio_read(id, offset, buffer, chunk) : devio_read(id, offset, buffer, chunk);
 
         if (read < 0) {
-            puts("devdump: cannot read from device\n");
+            puts(volume ? "devdump: cannot read from volume\n" : "devdump: cannot read from device\n");
             return 1;
         }
 

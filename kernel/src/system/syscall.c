@@ -570,6 +570,58 @@ static int32_t syscall_get_fsinfo(isr_cpu_state_t *state);
 static int32_t syscall_get_storageinfo(isr_cpu_state_t *state);
 
 /**
+ * Raw volume read syscall handler.
+ *
+ * Reads from a volume past any file system on it, with the offset counted from
+ * the start of the volume rather than of the device it sits on. A read that
+ * would reach past the volume is cut short at its end.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to the short id of the volume
+ *
+ * - ecx: Offset into the volume in bytes
+ *
+ * - edx: Number of bytes to read
+ *
+ * - esi: Pointer to the buffer to read into
+ *
+ * Syscall returns the number of bytes read or -1 when the volume does not
+ * exist.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_volread(isr_cpu_state_t *state);
+
+/**
+ * Raw volume write syscall handler.
+ *
+ * Writes to a volume past any file system on it. A write that would reach past
+ * the volume is cut short at its end, so what is written cannot land on a
+ * neighbouring partition or the partition table.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to the short id of the volume
+ *
+ * - ecx: Offset into the volume in bytes
+ *
+ * - edx: Number of bytes to write
+ *
+ * - esi: Pointer to the buffer to write from
+ *
+ * Syscall returns the number of bytes written or -1 when the volume does not
+ * exist.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_volwrite(isr_cpu_state_t *state);
+
+/**
  * Unlink syscall handler.
  *
  * Syscall expects the following parameters:
@@ -759,6 +811,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_GET_STORAGEINFO: {
             state->eax = syscall_get_storageinfo(state);
+            break;
+        }
+        case SYSCALL_VOLREAD: {
+            state->eax = syscall_volread(state);
+            break;
+        }
+        case SYSCALL_VOLWRITE: {
+            state->eax = syscall_volwrite(state);
             break;
         }
         default: {
@@ -1696,4 +1756,42 @@ static int32_t syscall_get_storageinfo(isr_cpu_state_t *state) {
     info->sector_size = device->driver.storage->sector_size(device);
 
     return 0;
+}
+
+static int32_t syscall_volread(isr_cpu_state_t *state) {
+    const char* id = (const char*) state->ebx;
+    size_t offset = state->ecx;
+    size_t size = state->edx;
+    char* buffer = (char*) state->esi;
+
+    if(!id || !buffer) {
+        return -1;
+    }
+
+    const volume_t* volume = volume_find_by_id(id);
+
+    if(!volume) {
+        return -1;
+    }
+
+    return (int32_t) volume->operations->read((volume_t*) volume, offset, size, buffer);
+}
+
+static int32_t syscall_volwrite(isr_cpu_state_t *state) {
+    const char* id = (const char*) state->ebx;
+    size_t offset = state->ecx;
+    size_t size = state->edx;
+    char* buffer = (char*) state->esi;
+
+    if(!id || !buffer) {
+        return -1;
+    }
+
+    const volume_t* volume = volume_find_by_id(id);
+
+    if(!volume) {
+        return -1;
+    }
+
+    return (int32_t) volume->operations->write((volume_t*) volume, offset, size, buffer);
 }
