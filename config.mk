@@ -9,3 +9,8 @@
 # an installed disk hold the same tree and are told apart by their label.
 LIVE_LABEL ?= ttos-live
 SYSTEM_LABEL ?= ttos-system
+
+# First sector of the first partition, in 512 byte sectors. The gap in front of
+# it holds the second stage of the bootloader, so it has to be large enough for
+# that; 2048 is what partitioning tools have aligned to for a long time.
+PARTITION_START ?= 2048

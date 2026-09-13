@@ -63,7 +63,6 @@ GRUB_PREFIX := (hd0,msdos1)/boot/grub
 # Layout of an installed disk, in 512 byte sectors. core.img goes into the gap
 # between the master boot record and the first partition.
 CORE_SECTOR := 1
-PARTITION_START := 2048
 
 # Bytes of boot.img that belong into the master boot record. Its code ends
 # there; what follows is the disk signature, the partition table and the boot
