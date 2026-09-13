@@ -68,8 +68,8 @@ corresponding Makefiles.
 
 Both building and developing the project require a **Linux** system. The project does
 not use a cross-compiler; it relies on the host GCC and GNU `ld` being able to target
-32-bit ELF directly, and the disk image is assembled with Linux-specific tools such as
-loop devices. Running the build on WSL works as well and is what the project is
+32-bit ELF directly, and the disk images are assembled with Linux-specific tools
+such as `mkfs.ext2` and `fdisk`. Running the build on WSL works as well and is what the project is
 developed on. Other Unix-like systems, macOS in particular, are not supported without
 providing a proper i686 cross-toolchain first.
 
@@ -89,8 +89,10 @@ providing a proper i686 cross-toolchain first.
   x86 architecture. It is used to compile the assembly code of the TTOS project.
 - **GRUB**: The GNU GRUB (GRand Unified Bootloader) is a multiboot compliant
   bootloader that is used to boot the TTOS kernel. For creating a bootable image,
-  GRUB command line tools, especially `grub-mkrescue`, are required. The latter in
-  turn relies on `xorriso` to author the ISO image.
+  GRUB command line tools are required: `grub-mkrescue`, which in turn relies on
+  `xorriso` to author the ISO image, and `grub-mkimage`, which builds the boot
+  image an installed disk is started from. The stock `boot.img` is taken from the
+  GRUB installation itself.
 - **Python 3**: The initial ramdisk, which is part of every bootable image, is packed
   by `scripts/mkinitrd.py` and therefore requires a Python 3 interpreter.
 
@@ -119,12 +121,10 @@ to be available on top of the [build requirements](#requirements):
 
 - **QEMU**: The `qemu-system-i386` binary is used to emulate an Intel x86 machine
   and run the TTOS image without rebooting the development machine.
-- **`mkfs.ext2`**: The system ramdisk is an ext2 image populated directly from
-  the staged system tree with `mkfs.ext2 -d`, which needs no privileges.
-- **`fdisk`, `losetup` and `mount`**: Only needed for `make hda-install`, which
-  installs the system onto the disk image from the host. Since loop devices and
-  mounting are privileged operations, that target invokes `sudo`. These tools are
-  the main reason why a Linux system is required rather than just a Unix-like one.
+- **`mkfs.ext2`**: Both the system ramdisk and the partition of the installed disk
+  are ext2 images populated directly from the staged system tree with
+  `mkfs.ext2 -d`, which needs no privileges.
+- **`fdisk`**: Writes the partition table of the disk image in `make hda-install`.
 - **GDB**: Only required for source-level debugging of the running kernel, see
   [Debugging](#debugging).
 
@@ -164,11 +164,10 @@ managed by their own targets instead:
 - **`make qemu-clean`**: Removes both disk images, which is the way back to a
   blank disk.
 - **`make hda-install`**: Installs the system tree onto `hda.img` from the host:
-  partitions and formats the disk, copies the tree the live medium ships in
-  `systemrd.img` and installs GRUB into the MBR and the boot gap. This is the
-  reference for what an installed disk has to look like, independent of any
-  installer running inside the system. Loop devices and mounting are privileged,
-  so this target invokes `sudo`; nothing else in the build does.
+  partitions the disk, writes the system tree onto its ext2 partition and places
+  the GRUB boot code in front of it. This is the reference for what an installed
+  disk has to look like, independent of any installer running inside the system,
+  and it writes the same bytes such an installer would have to write.
 
 ### Debugging
 

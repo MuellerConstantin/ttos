@@ -49,6 +49,33 @@ INITRD_EXCLUDE := $(foreach bin,$(INITRD_BINS),! -name $(bin))
 # ext2 feature set understood by the kernel's ext2 driver.
 MKFS_FLAGS := -b 1024 -I 128 -O ^resize_inode,^dir_index,^ext_attr,^metadata_csum,^64bit,^huge_file,^flex_bg
 
+# Where the host's GRUB keeps the boot images for the BIOS target.
+GRUB_LIB ?= /usr/lib/grub/i386-pc
+GRUB_MODULES := biosdisk part_msdos ext2 normal multiboot
+
+# Where core.img looks for grub.cfg. It is compressed together with the image
+# and cannot be patched afterwards, so the layout of an installed disk is
+# fixed here, at build time.
+GRUB_PREFIX := (hd0,msdos1)/boot/grub
+
+# Layout of an installed disk, in 512 byte sectors. core.img goes into the gap
+# between the master boot record and the first partition.
+CORE_SECTOR := 1
+PARTITION_START := 2048
+
+# Bytes of boot.img that belong into the master boot record. Its code ends
+# there; what follows is the disk signature, the partition table and the boot
+# signature of the disk being written to, none of which may be overwritten.
+# boot.img carries its floppy fallback in that space, which a hard disk has no
+# use for.
+MBR_CODE_SIZE := 440
+
+# Size of the partition, derived from the disk and the gap in front of it. The
+# block count assumes the 1 KiB blocks MKFS_FLAGS asks for.
+PARTITION_SECTORS := $(shell expr $(DISK_SIZE) \* 2048 - $(PARTITION_START))
+PARTITION_BLOCKS := $(shell expr $(PARTITION_SECTORS) / 2)
+PARTITION_IMAGE := hda-part.img
+
 # Renders one of the GRUB menus in boot/grub, stamping the entry with the
 # version and the medium the system was started from, so it is visible on the
 # GRUB screen whether the live medium or the installed disk was booted.
@@ -153,8 +180,11 @@ $(SYSTEMRD): $(TARGET) $(INITRD) boot/grub/installed.cfg
 	cp $(TARGET) $(SYSROOT)/boot/kernel.elf
 	cp $(INITRD) $(SYSROOT)/boot/initrd.img
 
-	mkdir -p $(SYSROOT)/boot/grub
+	mkdir -p $(SYSROOT)/boot/grub/i386-pc
 	$(call grub-cfg,installed.cfg,Installed) > $(SYSROOT)/boot/grub/grub.cfg
+
+	cp $(GRUB_LIB)/boot.img $(SYSROOT)/boot/grub/i386-pc/boot.img
+	grub-mkimage -O i386-pc -p '$(GRUB_PREFIX)' -o $(SYSROOT)/boot/grub/i386-pc/core.img $(GRUB_MODULES)
 
 	rm -f $@
 	mkfs.ext2 -q $(MKFS_FLAGS) -d $(SYSROOT) $@ $(SYSTEMRD_SIZE)
@@ -169,28 +199,19 @@ $(SDA):
 
 	dd if=/dev/zero of=$(SDA) bs=1M count=$(DISK_SIZE)
 
-# Install the system tree onto hda from the host: partition, format, copy the
-# tree and put GRUB into the MBR and the boot gap. This is the reference for
-# what an installed disk has to look like and needs root for the loop device.
+# Install the system tree onto hda from the host: partition the disk, put the
+# tree on its file system and the boot code in front of it. This is the
+# reference for what an installed disk has to look like, and it writes the same
+# bytes an installer running inside the system would have to write.
 .PHONY: hda-install
 hda-install: $(SYSTEMRD)
 
-	-while mountpoint -q mnt; do sudo umount mnt; done
-	-sudo rm -rf mnt
-
 	dd if=/dev/zero of=$(HDA) bs=1M count=$(DISK_SIZE)
-	(echo n; echo p; echo 1; echo ; echo ; echo t; echo 83; echo a; echo w) | fdisk $(HDA)
+	(echo n; echo p; echo 1; echo $(PARTITION_START); echo ; echo t; echo 83; echo a; echo w) | fdisk $(HDA)
 
-	mkdir -p mnt
+	mkfs.ext2 -q $(MKFS_FLAGS) -d $(SYSROOT) $(PARTITION_IMAGE) $(PARTITION_BLOCKS)
+	dd if=$(PARTITION_IMAGE) of=$(HDA) bs=512 seek=$(PARTITION_START) conv=notrunc
+	rm -f $(PARTITION_IMAGE)
 
-	set -e; \
-	loopdev=$$(sudo losetup -f); \
-	sudo losetup -P $$loopdev $(HDA); \
-	sudo mkfs.ext2 $(MKFS_FLAGS) $${loopdev}p1; \
-	sudo mount $${loopdev}p1 mnt; \
-	sudo cp -r $(SYSROOT)/. mnt; \
-	sudo grub-install --target=i386-pc --boot-directory=mnt/boot --modules="ext2 part_msdos" --no-floppy $$loopdev; \
-	sudo umount mnt; \
-	sudo losetup -d $$loopdev
-
-	rm -rf mnt
+	dd if=$(SYSROOT)/boot/grub/i386-pc/boot.img of=$(HDA) bs=1 count=$(MBR_CODE_SIZE) conv=notrunc
+	dd if=$(SYSROOT)/boot/grub/i386-pc/core.img of=$(HDA) bs=512 seek=$(CORE_SECTOR) conv=notrunc
