@@ -997,6 +997,12 @@ static int32_t syscall_lsvol(isr_cpu_state_t *state) {
 
     info->size = volume->size;
 
+    /*
+     * Probed on every call rather than remembered: a volume that is formatted
+     * while the system runs carries a different file system afterwards.
+     */
+    mnt_probe_volume(volume, info->fs_type, info->label);
+
     return 0;
 }
 

@@ -82,7 +82,11 @@ struct ext2_superblock {
     uint32_t s_feature_incompat;    // Incompatible feature set
     uint32_t s_feature_ro_compat;   // Read-only compatible feature set
 
-    uint8_t  s_reserved[920];       // Padding to a full 1024-byte superblock
+    uint8_t  s_uuid[16];            // 128 bit identifier of the file system
+    char     s_volume_name[16];     // Volume label, NUL padded rather than terminated
+    char     s_last_mounted[64];    // Path the file system was last mounted at
+
+    uint8_t  s_reserved[824];       // Padding to a full 1024-byte superblock
 } __attribute__((packed));
 
 typedef struct ext2_superblock ext2_superblock_t;
@@ -140,6 +144,16 @@ typedef struct ext2_dir_entry ext2_dir_entry_t;
  * @return True if the file system is an ext2 file system, false otherwise.
  */
 bool ext2_probe(volume_t* volume);
+
+/**
+ * Read the volume label of an ext2 file system.
+ *
+ * @param volume The volume to read from.
+ * @param buffer The buffer to write the label to, terminated on return.
+ * @param size The size of the buffer.
+ * @return 0 on success or -1 if the volume carries no ext2 file system.
+ */
+int32_t ext2_label(volume_t* volume, char* buffer, size_t size);
 
 /**
  * Initialize an ext2 file system.

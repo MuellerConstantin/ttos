@@ -45,6 +45,22 @@
 #define DRIVE_Y 'Y'
 #define DRIVE_Z 'Z'
 
+/** Length of the buffers mnt_probe_volume fills, including the terminator. */
+#define MNT_TYPE_LENGTH 16
+#define MNT_LABEL_LENGTH 16
+
+/**
+ * Determine which file system a volume carries, without mounting it.
+ *
+ * @param volume The volume to probe.
+ * @param type Buffer of MNT_TYPE_LENGTH bytes for the file system type.
+ * @param label Buffer of MNT_LABEL_LENGTH bytes for the volume label, empty for
+ *              a file system that has none.
+ * @return 0 if a known file system was found, -1 otherwise. Both buffers are
+ *         terminated either way.
+ */
+int32_t mnt_probe_volume(volume_t* volume, char* type, char* label);
+
 /**
  * Mount a volume by trying to detect an appropriate file system.
  * 

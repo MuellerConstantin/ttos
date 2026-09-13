@@ -11,6 +11,28 @@ static bool mnt_locked[FS_VOLUME_MAX_MOUNTPOINTS];
 static int32_t mnt_get_drive_index(char drive);
 static void mnt_log(const char* action, char drive, const char* volume_id, const char* type);
 
+int32_t mnt_probe_volume(volume_t* volume, char* type, char* label) {
+    type[0] = '\0';
+    label[0] = '\0';
+
+    if(!volume) {
+        return -1;
+    }
+
+    if(initfs_probe(volume)) {
+        strcpy(type, "initfs");
+        return 0;
+    }
+
+    if(ext2_probe(volume)) {
+        strcpy(type, "ext2");
+        ext2_label(volume, label, MNT_LABEL_LENGTH);
+        return 0;
+    }
+
+    return -1;
+}
+
 int32_t mnt_volume_mount(char drive, volume_t* volume) {
     int32_t index = mnt_get_drive_index(drive);
 

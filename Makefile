@@ -46,6 +46,9 @@ INITRD_BINS := init.elf shell.elf clear.elf lsvol.elf poweroff.elf lsdev.elf lsm
 # Userland binaries that must live on the disk.
 INITRD_EXCLUDE := $(foreach bin,$(INITRD_BINS),! -name $(bin))
 
+LIVE_LABEL := ttos-live
+SYSTEM_LABEL := ttos-system
+
 # ext2 feature set understood by the kernel's ext2 driver.
 MKFS_FLAGS := -b 1024 -I 128 -O ^resize_inode,^dir_index,^ext_attr,^metadata_csum,^64bit,^huge_file,^flex_bg
 
@@ -187,7 +190,7 @@ $(SYSTEMRD): $(TARGET) $(INITRD) boot/grub/installed.cfg
 	grub-mkimage -O i386-pc -p '$(GRUB_PREFIX)' -o $(SYSROOT)/boot/grub/i386-pc/core.img $(GRUB_MODULES)
 
 	rm -f $@
-	mkfs.ext2 -q $(MKFS_FLAGS) -d $(SYSROOT) $@ $(SYSTEMRD_SIZE)
+	mkfs.ext2 -q $(MKFS_FLAGS) -L $(LIVE_LABEL) -d $(SYSROOT) $@ $(SYSTEMRD_SIZE)
 
 # A blank disk attached to the IDE controller.
 $(HDA):
@@ -209,7 +212,7 @@ hda-install: $(SYSTEMRD)
 	dd if=/dev/zero of=$(HDA) bs=1M count=$(DISK_SIZE)
 	(echo n; echo p; echo 1; echo $(PARTITION_START); echo ; echo t; echo 83; echo a; echo w) | fdisk $(HDA)
 
-	mkfs.ext2 -q $(MKFS_FLAGS) -d $(SYSROOT) $(PARTITION_IMAGE) $(PARTITION_BLOCKS)
+	mkfs.ext2 -q $(MKFS_FLAGS) -L $(SYSTEM_LABEL) -d $(SYSROOT) $(PARTITION_IMAGE) $(PARTITION_BLOCKS)
 	dd if=$(PARTITION_IMAGE) of=$(HDA) bs=512 seek=$(PARTITION_START) conv=notrunc
 	rm -f $(PARTITION_IMAGE)
 

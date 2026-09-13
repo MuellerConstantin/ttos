@@ -97,6 +97,12 @@ struct volinfo {
     char name[64];
     char id[16];
     uint32_t size;
+
+    // File system the volume carries, empty if none is recognized.
+    char fs_type[16];
+
+    // Label of that file system, empty if it carries none.
+    char label[16];
 };
 
 // Device types, as reported in devinfo.

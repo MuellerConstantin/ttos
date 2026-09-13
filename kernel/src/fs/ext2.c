@@ -105,6 +105,32 @@ bool ext2_probe(volume_t* volume) {
     return superblock.s_magic == EXT2_SUPER_MAGIC;
 }
 
+int32_t ext2_label(volume_t* volume, char* buffer, size_t size) {
+    ext2_superblock_t superblock;
+
+    volume->operations->read(volume, EXT2_SUPERBLOCK_OFFSET, sizeof(ext2_superblock_t), (char*) &superblock);
+
+    if(superblock.s_magic != EXT2_SUPER_MAGIC) {
+        return -1;
+    }
+
+    if(size == 0) {
+        return -1;
+    }
+
+    /* The label fills its field without a terminator when it uses all of it. */
+    size_t length = sizeof(superblock.s_volume_name);
+
+    if(length > size - 1) {
+        length = size - 1;
+    }
+
+    memcpy(buffer, superblock.s_volume_name, length);
+    buffer[length] = '\0';
+
+    return 0;
+}
+
 vfs_filesystem_t* ext2_init(volume_t* volume) {
     if(!ext2_probe(volume)) {
         return NULL;

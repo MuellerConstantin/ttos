@@ -4,25 +4,32 @@
 #include <proc.h>
 #include <volio.h>
 #include <mntio.h>
+#include <ttos/syscall.h>
 
-#define INIT_FIRST_DRIVE 'C'
-#define INIT_LAST_DRIVE 'Z'
+/** The drive the system volume is mounted to. A: belongs to the initial ramdisk. */
+#define INIT_SYSTEM_DRIVE 'C'
 
-/** Where the shell looks for commands; the initrd holds the system programs. */
-#define INIT_PATH "A:/"
+/*
+ * Labels a system volume carries, in the order they are looked for. The live
+ * medium and an installed disk hold the same tree and are told apart by their
+ * label, so a live session keeps running from the medium it was booted from
+ * even when a system is installed on the disk. The build writes these labels,
+ * see LIVE_LABEL and SYSTEM_LABEL in the top level Makefile.
+ */
+#define INIT_LIVE_LABEL "ttos-live"
+#define INIT_SYSTEM_LABEL "ttos-system"
 
-static int init_is_mounted(const char* volume_id);
-static char init_next_free_drive(void);
-static void init_mount_volumes(void);
+/** Where programs are looked for: the ramdisk holds the system programs, the system volume the rest. */
+#define INIT_PATH_FORMAT "A:/;%c:/bin"
+
+static int init_find_volume(const char* label, char* id);
+static void init_mount_system(void);
 
 int main(void) {
     const char* shell_path = "A:/shell.elf";
     char* shell_argv[] = { (char*) shell_path, 0 };
 
-    init_mount_volumes();
-
-    // The environment every process descends from starts here.
-    setenv("PATH", INIT_PATH, 1);
+    init_mount_system();
 
     /*
      * init is PID 1: it must never exit. Keep a shell running and respawn it if
@@ -39,58 +46,39 @@ int main(void) {
 }
 
 /*
- * Mounts every volume the system found and that is not mounted yet, the initial
- * ramdisk included: the kernel mounted it before this process existed, so it is
- * skipped by the same check as anything else. A volume that carries no known
- * file system is passed over; an empty disk is a normal state. The kernel logs
- * what ends up mounted.
+ * Mounts the system volume and publishes the environment every process
+ * descends from. Volumes that are not the system are left alone; they are
+ * mounted by hand when they are needed.
  */
-static void init_mount_volumes(void) {
+static void init_mount_system(void) {
+    char id[sizeof(((volinfo_t*) 0)->id)];
+    char path[PATH_MAX];
+
+    if(init_find_volume(INIT_LIVE_LABEL, id) != 0 && init_find_volume(INIT_SYSTEM_LABEL, id) != 0) {
+        setenv("PATH", "A:/", 1);
+        return;
+    }
+
+    if(mntio_mount(INIT_SYSTEM_DRIVE, id) != MOUNT_OK) {
+        setenv("PATH", "A:/", 1);
+        return;
+    }
+
+    sprintf(path, INIT_PATH_FORMAT, INIT_SYSTEM_DRIVE);
+
+    setenv("PATH", path, 1);
+}
+
+/** Finds the volume carrying a label and copies its id. Returns 0 when one was found. */
+static int init_find_volume(const char* label, char* id) {
     volinfo_t volume;
 
-    for (uint32_t index = 0; volio_list(index, &volume) == 0; index++) {
-        if (init_is_mounted(volume.id)) {
-            continue;
-        }
-
-        char drive = init_next_free_drive();
-
-        if (drive == 0) {
-            return;
-        }
-
-        mntio_mount(drive, volume.id);
-    }
-}
-
-static int init_is_mounted(const char* volume_id) {
-    mntinfo_t mount;
-
-    for (uint32_t index = 0; mntio_list(index, &mount) == 0; index++) {
-        if (strcmp(mount.volume_id, volume_id) == 0) {
-            return 1;
+    for(uint32_t index = 0; volio_list(index, &volume) == 0; index++) {
+        if(strcmp(volume.label, label) == 0) {
+            strcpy(id, volume.id);
+            return 0;
         }
     }
 
-    return 0;
-}
-
-static char init_next_free_drive(void) {
-    for (char drive = INIT_FIRST_DRIVE; drive <= INIT_LAST_DRIVE; drive++) {
-        mntinfo_t mount;
-        int taken = 0;
-
-        for (uint32_t index = 0; mntio_list(index, &mount) == 0; index++) {
-            if (mount.drive == drive) {
-                taken = 1;
-                break;
-            }
-        }
-
-        if (!taken) {
-            return drive;
-        }
-    }
-
-    return 0;
+    return -1;
 }
