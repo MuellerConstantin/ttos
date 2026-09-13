@@ -17,4 +17,39 @@
  */
 int32_t devio_list(uint32_t index, devinfo_t* info);
 
+/**
+ * Reads from a storage device, past any file system on it.
+ *
+ * @param id The short id of the device, as listed in devinfo.
+ * @param offset The offset into the device in bytes.
+ * @param buffer The buffer to read into.
+ * @param size The number of bytes to read.
+ * @return The number of bytes read or -1 if the device is unknown or carries no storage.
+ */
+int32_t devio_read(const char* id, size_t offset, void* buffer, size_t size);
+
+/**
+ * Writes to a storage device, past any file system on it. There is nothing
+ * between this and the medium: a partition table, a boot sector and a file
+ * system that is being created are all written this way, and so is anything
+ * that destroys them.
+ *
+ * @param id The short id of the device, as listed in devinfo.
+ * @param offset The offset into the device in bytes.
+ * @param buffer The buffer to write from.
+ * @param size The number of bytes to write.
+ * @return The number of bytes written or -1 if the device is unknown or carries no storage.
+ */
+int32_t devio_write(const char* id, size_t offset, const void* buffer, size_t size);
+
+/**
+ * Scans a device for volumes again, after its partition table was changed.
+ * Volumes found before are discarded, so their ids do not survive the call.
+ *
+ * @param id The short id of the device, as listed in devinfo.
+ * @return The number of volumes found, -1 if the device is unknown or carries
+ *         no storage, or -2 while one of its volumes is still mounted.
+ */
+int32_t devio_rescan(const char* id);
+
 #endif // _LIBSYS_DEVIO_H

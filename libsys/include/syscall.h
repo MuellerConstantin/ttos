@@ -102,6 +102,29 @@ SYSCALL_INLINE int32_t syscall3(uint32_t number, uint32_t argument1, uint32_t ar
     return result;
 }
 
+/**
+ * Issues a system call with four arguments.
+ *
+ * @param number The system call number.
+ * @param argument1 The first argument.
+ * @param argument2 The second argument.
+ * @param argument3 The third argument.
+ * @param argument4 The fourth argument.
+ * @return The value the kernel left in eax.
+ */
+SYSCALL_INLINE int32_t syscall4(uint32_t number, uint32_t argument1, uint32_t argument2, uint32_t argument3, uint32_t argument4) {
+    int32_t result;
+
+    __asm__ volatile(
+        "int $" SYSCALL_STR(SYSCALL_INTERRUPT) "\n"
+        : "=a"(result)
+        : "a"(number), "b"(argument1), "c"(argument2), "d"(argument3), "S"(argument4)
+        : "memory"
+    );
+
+    return result;
+}
+
 #ifdef __cplusplus
 }
 #endif

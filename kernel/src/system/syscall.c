@@ -468,6 +468,72 @@ static int32_t syscall_getcwd(isr_cpu_state_t *state);
 static int32_t syscall_stat(isr_cpu_state_t *state);
 
 /**
+ * Raw device read syscall handler.
+ *
+ * Reads from a storage device past any file system on it, which is what
+ * writing a partition table or a boot sector has to be able to do.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to the short id of the device
+ *
+ * - ecx: Offset into the device in bytes
+ *
+ * - edx: Number of bytes to read
+ *
+ * - esi: Pointer to the buffer to read into
+ *
+ * Syscall returns the number of bytes read or -1 when the device does not
+ * exist or is no storage device.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_devread(isr_cpu_state_t *state);
+
+/**
+ * Raw device write syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to the short id of the device
+ *
+ * - ecx: Offset into the device in bytes
+ *
+ * - edx: Number of bytes to write
+ *
+ * - esi: Pointer to the buffer to write from
+ *
+ * Syscall returns the number of bytes written or -1 when the device does not
+ * exist or is no storage device.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_devwrite(isr_cpu_state_t *state);
+
+/**
+ * Volume rescan syscall handler.
+ *
+ * Discards the volumes of a device and scans it again, which is how a
+ * partition table written through syscall_devwrite reaches the volume manager.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to the short id of the device
+ *
+ * Syscall returns the number of volumes found, -1 when the device does not
+ * exist or is no storage device, or -2 while one of its volumes is mounted.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_rescan(isr_cpu_state_t *state);
+
+/**
  * Unlink syscall handler.
  *
  * Syscall expects the following parameters:
@@ -637,6 +703,18 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_STAT: {
             state->eax = syscall_stat(state);
+            break;
+        }
+        case SYSCALL_DEVREAD: {
+            state->eax = syscall_devread(state);
+            break;
+        }
+        case SYSCALL_DEVWRITE: {
+            state->eax = syscall_devwrite(state);
+            break;
+        }
+        case SYSCALL_RESCAN: {
+            state->eax = syscall_rescan(state);
             break;
         }
         default: {
@@ -1458,4 +1536,78 @@ static int32_t syscall_stat(isr_cpu_state_t *state) {
     info->gid = stat.gid;
 
     return 0;
+}
+
+/**
+ * Looks a storage device up by the short id userland named it with. Returns
+ * NULL for an unknown id or a device that is not backed by a storage driver.
+ */
+static storage_device_t* syscall_find_storage_device(const char* id) {
+    if(!id) {
+        return NULL;
+    }
+
+    const device_t* device = device_find_by_id(id);
+
+    if(!device || device->type != DEVICE_TYPE_STORAGE || !device->driver.storage) {
+        return NULL;
+    }
+
+    return (storage_device_t*) device;
+}
+
+static int32_t syscall_devread(isr_cpu_state_t *state) {
+    const char* id = (const char*) state->ebx;
+    size_t offset = state->ecx;
+    size_t size = state->edx;
+    char* buffer = (char*) state->esi;
+
+    storage_device_t* device = syscall_find_storage_device(id);
+
+    if(!device || !buffer) {
+        return -1;
+    }
+
+    return (int32_t) device->driver.storage->read(device, offset, size, buffer);
+}
+
+static int32_t syscall_devwrite(isr_cpu_state_t *state) {
+    const char* id = (const char*) state->ebx;
+    size_t offset = state->ecx;
+    size_t size = state->edx;
+    char* buffer = (char*) state->esi;
+
+    storage_device_t* device = syscall_find_storage_device(id);
+
+    if(!device || !buffer) {
+        return -1;
+    }
+
+    return (int32_t) device->driver.storage->write(device, offset, size, buffer);
+}
+
+static int32_t syscall_rescan(isr_cpu_state_t *state) {
+    const char* id = (const char*) state->ebx;
+
+    storage_device_t* device = syscall_find_storage_device(id);
+
+    if(!device) {
+        return -1;
+    }
+
+    /*
+     * The volumes are about to be freed, so none of them may still be mounted:
+     * a mounted file system holds the volume it reads through.
+     */
+    linked_list_foreach(volume_get_all(), node) {
+        volume_t* volume = (volume_t*) node->data;
+
+        if(volume->device == device && mnt_get_volume_drive(volume) != 0) {
+            return -2;
+        }
+    }
+
+    volume_unregister_device(device);
+
+    return (int32_t) volume_register_device(device);
 }

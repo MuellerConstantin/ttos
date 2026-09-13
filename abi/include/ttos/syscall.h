@@ -41,6 +41,9 @@ extern "C" {
 #define SYSCALL_CHDIR 0x1D
 #define SYSCALL_GETCWD 0x1E
 #define SYSCALL_STAT 0x1F
+#define SYSCALL_DEVREAD 0x20
+#define SYSCALL_DEVWRITE 0x21
+#define SYSCALL_RESCAN 0x22
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256

@@ -139,19 +139,23 @@ static bool volume_unregister_device_compare(void* node_data, void* compare_data
 }
 
 void volume_unregister_device(storage_device_t* device) {
-    linked_list_node_t* node = linked_list_find(volumes, volume_unregister_device_compare, device);
+    // A device carries one volume per partition, so the list is walked until none is left.
+    for(;;) {
+        linked_list_node_t* node = linked_list_find(volumes, volume_unregister_device_compare, device);
 
-    if(!node) {
-        return;
+        if(!node) {
+            return;
+        }
+
+        linked_list_remove(volumes, node);
+
+        volume_t* volume = (volume_t*) node->data;
+
+        kfree(volume->name);
+        kfree(volume->operations);
+        kfree(volume);
+        kfree(node);
     }
-
-    linked_list_remove(volumes, node);
-
-    volume_t* volume = (volume_t*) node->data;
-
-    kfree(volume->name);
-    kfree(volume);
-    kfree(node);
 }
 
 static bool volume_find_by_id_compare(void* node_data, void* compare_data) {
