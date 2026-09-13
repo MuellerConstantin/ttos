@@ -552,6 +552,24 @@ static int32_t syscall_rescan(isr_cpu_state_t *state);
 static int32_t syscall_get_fsinfo(isr_cpu_state_t *state);
 
 /**
+ * Storage device info syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Pointer to the short id of the device
+ *
+ * - ecx: Pointer to a user storageinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the device does not exist or is no
+ * storage device.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_get_storageinfo(isr_cpu_state_t *state);
+
+/**
  * Unlink syscall handler.
  *
  * Syscall expects the following parameters:
@@ -737,6 +755,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_GET_FSINFO: {
             state->eax = syscall_get_fsinfo(state);
+            break;
+        }
+        case SYSCALL_GET_STORAGEINFO: {
+            state->eax = syscall_get_storageinfo(state);
             break;
         }
         default: {
@@ -1656,6 +1678,22 @@ static int32_t syscall_get_fsinfo(isr_cpu_state_t *state) {
 
     info->total = usage.total;
     info->free = usage.free;
+
+    return 0;
+}
+
+static int32_t syscall_get_storageinfo(isr_cpu_state_t *state) {
+    const char* id = (const char*) state->ebx;
+    struct storageinfo* info = (struct storageinfo*) state->ecx;
+
+    storage_device_t* device = syscall_find_storage_device(id);
+
+    if(!device || !info) {
+        return -1;
+    }
+
+    info->size = device->driver.storage->total_size(device);
+    info->sector_size = device->driver.storage->sector_size(device);
 
     return 0;
 }

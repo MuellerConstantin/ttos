@@ -45,6 +45,7 @@ extern "C" {
 #define SYSCALL_DEVWRITE 0x21
 #define SYSCALL_RESCAN 0x22
 #define SYSCALL_GET_FSINFO 0x23
+#define SYSCALL_GET_STORAGEINFO 0x24
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256
@@ -160,6 +161,20 @@ struct devinfo {
      * belongs to the root and is never set.
      */
     uint32_t last_child_mask;
+};
+
+typedef struct storageinfo storageinfo_t;
+
+/**
+ * Describes the medium behind a storage device. Kept apart from devinfo, which
+ * holds what every device has: a property that only one kind of device knows
+ * is answered by asking that kind of device.
+ */
+struct storageinfo {
+    uint32_t size;
+
+    // Size of an addressable sector, zero for a device that has none.
+    uint32_t sector_size;
 };
 
 typedef struct mntinfo mntinfo_t;

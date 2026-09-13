@@ -5,6 +5,10 @@ int32_t devio_list(uint32_t index, devinfo_t* info) {
     return syscall2(SYSCALL_LSDEV, index, (uint32_t) info);
 }
 
+int32_t devio_get_storageinfo(const char* id, storageinfo_t* info) {
+    return syscall2(SYSCALL_GET_STORAGEINFO, (uint32_t) id, (uint32_t) info);
+}
+
 int32_t devio_read(const char* id, size_t offset, void* buffer, size_t size) {
     return syscall4(SYSCALL_DEVREAD, (uint32_t) id, offset, size, (uint32_t) buffer);
 }

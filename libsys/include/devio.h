@@ -18,6 +18,15 @@
 int32_t devio_list(uint32_t index, devinfo_t* info);
 
 /**
+ * Queries the medium behind a storage device.
+ *
+ * @param id The short id of the device, as listed in devinfo.
+ * @param info The storage information to fill.
+ * @return 0 on success or -1 if the device is unknown or carries no storage.
+ */
+int32_t devio_get_storageinfo(const char* id, storageinfo_t* info);
+
+/**
  * Reads from a storage device, past any file system on it.
  *
  * @param id The short id of the device, as listed in devinfo.
