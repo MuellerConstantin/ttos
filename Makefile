@@ -11,6 +11,8 @@ ARCH ?= x86
 PLATFORM ?= intel
 ROOTDIR := $(realpath .)
 
+include config.mk
+
 export VERSION
 export ARCH
 export PLATFORM
@@ -45,9 +47,6 @@ INITRD_BINS := init.elf shell.elf clear.elf lsvol.elf poweroff.elf lsdev.elf lsm
 
 # Userland binaries that must live on the disk.
 INITRD_EXCLUDE := $(foreach bin,$(INITRD_BINS),! -name $(bin))
-
-LIVE_LABEL := ttos-live
-SYSTEM_LABEL := ttos-system
 
 # ext2 feature set understood by the kernel's ext2 driver.
 MKFS_FLAGS := -b 1024 -I 128 -O ^resize_inode,^dir_index,^ext_attr,^metadata_csum,^64bit,^huge_file,^flex_bg

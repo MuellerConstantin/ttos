@@ -9,16 +9,6 @@
 /** The drive the system volume is mounted to. A: belongs to the initial ramdisk. */
 #define INIT_SYSTEM_DRIVE 'C'
 
-/*
- * Labels a system volume carries, in the order they are looked for. The live
- * medium and an installed disk hold the same tree and are told apart by their
- * label, so a live session keeps running from the medium it was booted from
- * even when a system is installed on the disk. The build writes these labels,
- * see LIVE_LABEL and SYSTEM_LABEL in the top level Makefile.
- */
-#define INIT_LIVE_LABEL "ttos-live"
-#define INIT_SYSTEM_LABEL "ttos-system"
-
 /** Where programs are looked for: the ramdisk holds the system programs, the system volume the rest. */
 #define INIT_PATH_FORMAT "A:/;%c:/bin"
 
@@ -54,7 +44,12 @@ static void init_mount_system(void) {
     char id[sizeof(((volinfo_t*) 0)->id)];
     char path[PATH_MAX];
 
-    if(init_find_volume(INIT_LIVE_LABEL, id) != 0 && init_find_volume(INIT_SYSTEM_LABEL, id) != 0) {
+    /*
+     * The live medium is looked for first: it and an installed disk hold the
+     * same tree, so a live session keeps running from the medium it was booted
+     * from even when a system is installed on the disk.
+     */
+    if(init_find_volume(TTOS_LIVE_LABEL, id) != 0 && init_find_volume(TTOS_SYSTEM_LABEL, id) != 0) {
         setenv("PATH", "A:/", 1);
         return;
     }

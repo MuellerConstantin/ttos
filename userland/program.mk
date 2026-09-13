@@ -7,6 +7,8 @@
 
 ROOTDIR ?= $(realpath ../..)
 
+include $(ROOTDIR)/config.mk
+
 LD := ld
 CC := gcc
 
@@ -19,7 +21,8 @@ LIBSYS := $(ROOTDIR)/libsys/libsys.a
 
 INCLUDE := -I '$(ROOTDIR)/abi/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOTDIR)/libc/include'
 
-CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O0 -fno-stack-protector -g -MMD -MP
+CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O0 -fno-stack-protector -g -MMD -MP \
+          -DTTOS_LIVE_LABEL='"$(LIVE_LABEL)"' -DTTOS_SYSTEM_LABEL='"$(SYSTEM_LABEL)"'
 LDFLAGS := -m $(FORMAT) -e _start -nostdlib
 
 SRCS := $(shell find $(SRCDIR) -name '*.c')
