@@ -5,6 +5,7 @@
 
 static int32_t initfs_mount(vfs_filesystem_t* filesystem);
 static int32_t initfs_unmount(vfs_filesystem_t* filesystem);
+static int32_t initfs_usage(vfs_filesystem_t* filesystem, vfs_usage_t* usage);
 
 static int32_t initfs_open(vfs_node_t* node);
 static int32_t initfs_close(vfs_node_t* node);
@@ -81,6 +82,7 @@ vfs_filesystem_t* initfs_init(volume_t* volume) {
 
     initfs_mountpoint->operations->mount = &initfs_mount;
     initfs_mountpoint->operations->unmount = &initfs_unmount;
+    initfs_mountpoint->operations->usage = &initfs_usage;
 
     return initfs_mountpoint;
 }
@@ -105,6 +107,14 @@ static int32_t initfs_mount(vfs_filesystem_t* filesystem) {
     root->filesystem = filesystem;
 
     filesystem->root = root;
+
+    return 0;
+}
+
+/* The image is packed when it is built and cannot be written to, so none of it is free. */
+static int32_t initfs_usage(vfs_filesystem_t* filesystem, vfs_usage_t* usage) {
+    usage->total = filesystem->volume->size;
+    usage->free = 0;
 
     return 0;
 }

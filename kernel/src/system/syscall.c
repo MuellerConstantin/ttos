@@ -534,6 +534,24 @@ static int32_t syscall_devwrite(isr_cpu_state_t *state);
 static int32_t syscall_rescan(isr_cpu_state_t *state);
 
 /**
+ * File system usage syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Drive letter of the mount point
+ *
+ * - ecx: Pointer to a user fsinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the drive is not mounted or the file
+ * system cannot report its usage.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_get_fsinfo(isr_cpu_state_t *state);
+
+/**
  * Unlink syscall handler.
  *
  * Syscall expects the following parameters:
@@ -715,6 +733,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_RESCAN: {
             state->eax = syscall_rescan(state);
+            break;
+        }
+        case SYSCALL_GET_FSINFO: {
+            state->eax = syscall_get_fsinfo(state);
             break;
         }
         default: {
@@ -1610,4 +1632,30 @@ static int32_t syscall_rescan(isr_cpu_state_t *state) {
     volume_unregister_device(device);
 
     return (int32_t) volume_register_device(device);
+}
+
+static int32_t syscall_get_fsinfo(isr_cpu_state_t *state) {
+    char drive = (char) state->ebx;
+    struct fsinfo* info = (struct fsinfo*) state->ecx;
+
+    if(!info) {
+        return -1;
+    }
+
+    const vfs_filesystem_t* filesystem = mnt_get_drive(drive);
+
+    if(!filesystem || !filesystem->operations->usage) {
+        return -1;
+    }
+
+    vfs_usage_t usage;
+
+    if(filesystem->operations->usage((vfs_filesystem_t*) filesystem, &usage) != 0) {
+        return -1;
+    }
+
+    info->total = usage.total;
+    info->free = usage.free;
+
+    return 0;
 }

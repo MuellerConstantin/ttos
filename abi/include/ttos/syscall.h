@@ -44,6 +44,7 @@ extern "C" {
 #define SYSCALL_DEVREAD 0x20
 #define SYSCALL_DEVWRITE 0x21
 #define SYSCALL_RESCAN 0x22
+#define SYSCALL_GET_FSINFO 0x23
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256
@@ -69,6 +70,17 @@ typedef struct meminfo meminfo_t;
 struct meminfo {
     size_t total;
     size_t free;
+};
+
+typedef struct fsinfo fsinfo_t;
+
+/**
+ * Describes how much of a volume the file system on it occupies. Counted in
+ * bytes rather than in blocks or inodes, as not every file system knows those.
+ */
+struct fsinfo {
+    uint32_t total;
+    uint32_t free;
 };
 
 typedef struct terminfo terminfo_t;

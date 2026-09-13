@@ -22,6 +22,7 @@ typedef struct ext2_fs {
 
 static int32_t ext2_mount(vfs_filesystem_t* filesystem);
 static int32_t ext2_unmount(vfs_filesystem_t* filesystem);
+static int32_t ext2_usage(vfs_filesystem_t* filesystem, vfs_usage_t* usage);
 
 // Node operations
 
@@ -155,6 +156,7 @@ vfs_filesystem_t* ext2_init(volume_t* volume) {
 
     ext2_mountpoint->operations->mount = &ext2_mount;
     ext2_mountpoint->operations->unmount = &ext2_unmount;
+    ext2_mountpoint->operations->usage = &ext2_usage;
 
     return ext2_mountpoint;
 }
@@ -205,6 +207,29 @@ static int32_t ext2_unmount(vfs_filesystem_t* filesystem) {
     kfree(filesystem->fs_data);
     kfree(filesystem->operations);
     kfree(filesystem);
+
+    return 0;
+}
+
+/*
+ * The superblock is kept in memory and its counters are maintained as blocks
+ * are taken and released, so this needs no access to the volume.
+ */
+static int32_t ext2_usage(vfs_filesystem_t* filesystem, vfs_usage_t* usage) {
+    ext2_fs_t* data = (ext2_fs_t*) filesystem->fs_data;
+
+    if(!data) {
+        return -1;
+    }
+
+    /* A byte count beyond the addressable range is reported clamped rather than wrapped. */
+    uint32_t max_blocks = 0xFFFFFFFFUL / data->block_size;
+
+    uint32_t total_blocks = data->superblock.s_blocks_count;
+    uint32_t free_blocks = data->superblock.s_free_blocks_count;
+
+    usage->total = (total_blocks > max_blocks ? max_blocks : total_blocks) * data->block_size;
+    usage->free = (free_blocks > max_blocks ? max_blocks : free_blocks) * data->block_size;
 
     return 0;
 }

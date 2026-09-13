@@ -68,9 +68,21 @@ struct vfs_dirent {
     uint32_t inode;
 } __attribute__((packed));
 
+typedef struct vfs_usage vfs_usage_t;
+
+/**
+ * How much of its volume a file system occupies, in bytes. Blocks and inodes
+ * are left out on purpose: not every file system has either.
+ */
+struct vfs_usage {
+    size_t total;
+    size_t free;
+};
+
 struct vfs_filesystem_operations {
     int32_t (*mount)(vfs_filesystem_t* filesystem);
     int32_t (*unmount)(vfs_filesystem_t* filesystem);
+    int32_t (*usage)(vfs_filesystem_t* filesystem, vfs_usage_t* usage);
 } __attribute__((packed));
 
 struct vfs_filesystem {

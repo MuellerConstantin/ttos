@@ -31,6 +31,15 @@
 int32_t mntio_list(uint32_t index, mntinfo_t* info);
 
 /**
+ * Queries how much of a volume the file system mounted on a drive occupies.
+ *
+ * @param drive The drive letter to query.
+ * @param info The usage information to fill.
+ * @return 0 on success or -1 when the drive is not mounted.
+ */
+int32_t mntio_usage(char drive, fsinfo_t* info);
+
+/**
  * Mounts a volume to a drive.
  *
  * @param drive The drive letter to mount to.
