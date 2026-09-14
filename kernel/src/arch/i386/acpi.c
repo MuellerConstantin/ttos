@@ -17,6 +17,7 @@ static uint32_t acpi_sdts_count = 0;
 
 static acpi_rsdp_t* acpi_find_rsdp();
 static void acpi_init_poweroff();
+static void acpi_log_bytes(const char* prefix, const uint8_t* bytes, size_t count);
 
 int32_t acpi_init(void) {
     kmessage(KMESSAGE_LEVEL_INFO, "acpi: Initializing ACPI...");
@@ -157,15 +158,55 @@ static void acpi_init_poweroff() {
         return;
     }
 
-    uint8_t* aml_pointer = acpi_dsdt->aml_definitions;
+    char* kernel_message_dsdt = kmalloc(64);
 
-    for(size_t index = 0; index < acpi_dsdt->sdt.length - sizeof(acpi_dsdt_t); index++) {
-        if(memcmp(aml_pointer, "_S5_", 4) == 0) {
-            break;
-        }
-
-        aml_pointer++;
+    if(!kernel_message_dsdt) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
+
+    strfmt(kernel_message_dsdt, "acpi: DSDT at %x, length %d", acpi_fadt->dsdt, acpi_dsdt->sdt.length);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message_dsdt);
+
+    /*
+     * Whether the firmware still owns the power management registers: SCI_EN
+     * in PM1a_CNT is set once ACPI mode is on, and SMI_CMD/ACPI_ENABLE are
+     * how it is asked for.
+     */
+    char* kernel_message_mode = kmalloc(64);
+
+    if(!kernel_message_mode) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strfmt(kernel_message_mode, "acpi: SMI_CMD: %x ACPI_ENABLE: %x SCI_EN: %d", acpi_fadt->smi_cmd, acpi_fadt->acpi_enable,
+           acpi_fadt->pm1a_cnt_blk != 0 ? (inw(acpi_fadt->pm1a_cnt_blk) & ACPI_SCI_ENABLE) : 0);
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message_mode);
+
+    uint8_t* aml_pointer = acpi_dsdt->aml_definitions;
+    size_t aml_length = acpi_dsdt->sdt.length - sizeof(acpi_dsdt_t);
+    size_t aml_offset = 0;
+
+    while(aml_offset < aml_length && memcmp(aml_pointer, "_S5_", 4) != 0) {
+        aml_pointer++;
+        aml_offset++;
+    }
+
+    if(aml_offset >= aml_length) {
+        kmessage(KMESSAGE_LEVEL_WARN, "acpi: _S5_ not found in DSDT, poweroff is not supported");
+        return;
+    }
+
+    char* kernel_message_s5 = kmalloc(64);
+
+    if(!kernel_message_s5) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    // The two bytes before the name and the package behind it are what the parser judges by.
+    strfmt(kernel_message_s5, "acpi: _S5_ at DSDT offset %d:", aml_offset + sizeof(acpi_dsdt_t));
+    acpi_log_bytes(kernel_message_s5, aml_pointer - 2, 16);
 
     // Validate the AML pointer
     if ((*(aml_pointer - 1) == ACPI_AML_NAME_OP_CODE || ( *(aml_pointer - 2) == ACPI_AML_NAME_OP_CODE && *(aml_pointer - 1) == '\\')) && *(aml_pointer + 4) == ACPI_AML_PACKAGE_OP_CODE) {
@@ -212,4 +253,28 @@ static void acpi_init_poweroff() {
     strfmt(kernel_message_pm2, "acpi: PM1B_CNT: %x SLP_TYP_B: %x", acpi_poweroff_info.pm1b_cnt, acpi_poweroff_info.slp_type_b);
 
     kmessage(KMESSAGE_LEVEL_INFO, kernel_message_pm2);
+}
+
+/** Logs a run of bytes as hex behind a prefix, one entry, for tables that are only readable as raw AML. */
+static void acpi_log_bytes(const char* prefix, const uint8_t* bytes, size_t count) {
+    static const char digits[] = "0123456789abcdef";
+    char* kernel_message = kmalloc(strlen(prefix) + count * 3 + 1);
+
+    if(!kernel_message) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    strcpy(kernel_message, prefix);
+
+    char* cursor = kernel_message + strlen(prefix);
+
+    for(size_t index = 0; index < count; index++) {
+        *cursor++ = ' ';
+        *cursor++ = digits[bytes[index] >> 4];
+        *cursor++ = digits[bytes[index] & 0x0F];
+    }
+
+    *cursor = '\0';
+
+    kmessage(KMESSAGE_LEVEL_INFO, kernel_message);
 }
