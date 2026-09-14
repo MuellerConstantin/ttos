@@ -25,6 +25,7 @@ static bool ata_wait_busy(uint16_t io_base, uint32_t timeout);
 static bool ata_wait_data(uint16_t io_base, uint32_t timeout);
 static bool ata_select_sector_lba28(uint16_t io_base, uint32_t lba);
 static bool ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
+static bool ata_flush_cache(ata_device_t* device);
 static bool ata_read_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* buffer);
 
 static size_t ata_driver_sector_size(device_t* device);
@@ -433,10 +434,8 @@ size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer)
     size_t total_size = 0;
 
     for(size_t sector_index = start_sector; sector_index <= end_sector; sector_index++) {
-        // A drive that stops answering ends the transfer, the caller gets what arrived.
-        if(!ata_read_sector_lba28(device, sector_index, sector_buffer)) {
-            break;
-        }
+        write_offset = 0;
+        write_size = ATA_SECTOR_SIZE;
 
         if(sector_index == start_sector) {
             write_offset = start_sector_offset;
@@ -447,10 +446,21 @@ size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer)
             write_size = end_sector_offset - write_offset + 1;
         }
 
-        // Alter the sector buffer
-        memcpy(sector_buffer + write_offset, buffer_pointer, write_size);
+        /*
+         * Only a sector that is overwritten in part has to be read first, to keep the bytes
+         * around the write. A sector covered in full is taken from the caller as it is.
+         */
+        if(write_size < ATA_SECTOR_SIZE) {
+            // A drive that stops answering ends the transfer, the caller gets what arrived.
+            if(!ata_read_sector_lba28(device, sector_index, sector_buffer)) {
+                break;
+            }
 
-        // Write whole sector back to the drive
+            memcpy(sector_buffer + write_offset, buffer_pointer, write_size);
+        } else {
+            memcpy(sector_buffer, buffer_pointer, ATA_SECTOR_SIZE);
+        }
+
         if(!ata_write_sector_lba28(device, sector_index, sector_buffer)) {
             break;
         }
@@ -460,6 +470,15 @@ size_t ata_write(ata_device_t* device, size_t offset, size_t size, char* buffer)
     }
 
     kfree(sector_buffer);
+
+    /*
+     * The sectors so far only sit in the drive's write cache. One flush for the whole transfer
+     * puts them on the medium, including whatever arrived before a failed sector; a write that
+     * cannot be flushed has not reached the medium and is reported as none.
+     */
+    if(total_size > 0 && !ata_flush_cache(device)) {
+        return 0;
+    }
 
     return total_size;
 }
@@ -605,10 +624,21 @@ static bool ata_write_sector_lba28(ata_device_t* device, uint32_t lba, uint8_t* 
     }
 
     /*
-     * The transfer only queues the sector. Flushing the cache waits for it to reach the medium,
-     * which also keeps the next command from programming the registers while this write is still
-     * in flight -- writing a 1 KiB block means two of these back to back.
+     * The drive raises BSY while it takes the sector into its cache. Its registers must not be
+     * programmed for the next command until BSY is clear again; the sector reaches the medium
+     * with the flush the caller issues after the transfer.
      */
+    return ata_wait_busy(io_base, ATA_COMMAND_TIMEOUT);
+}
+
+/**
+ * Write the drive's cache out to the medium and wait until it is there.
+ *
+ * @return True once the drive went idle after the flush, false when it never did.
+ */
+static bool ata_flush_cache(ata_device_t* device) {
+    uint16_t io_base = device->io_base;
+
     if(!ata_wait_busy(io_base, ATA_COMMAND_TIMEOUT)) {
         return false;
     }
