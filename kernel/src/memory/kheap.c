@@ -250,6 +250,12 @@ static void* kheap_find_best_fit(size_t size, bool align) {
     return best_fit;
 }
 
+/*
+ * Freed memory is not cleared. It keeps whatever the block held, and a block
+ * handed out again by kmalloc arrives with that content; nothing may expect
+ * zeros from kmalloc, kcalloc is what promises them. Clearing on free would
+ * cost as much as the merged free region is large, which is most of the heap.
+ */
 void kfree(void* ptr) {
     if (ptr == NULL) {
         return;
@@ -275,8 +281,6 @@ void kfree(void* ptr) {
         }
 
         block = block->prev;
-
-        memset((void*) ((uintptr_t) block + sizeof(kheap_block_t)), 0, block->size);
     }
 
     // Merge with next block if it is free
@@ -291,8 +295,6 @@ void kfree(void* ptr) {
         } else {
             kheap_tail = block;
         }
-
-        memset((void*) ((uintptr_t) block + sizeof(kheap_block_t)), 0, block->size);
     }
 }
 

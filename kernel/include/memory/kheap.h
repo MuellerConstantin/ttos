@@ -72,6 +72,9 @@ void* kmalloc_a(size_t size);
  * If the kernel heap is not initialized yet, the memory is allocated
  * from the placement memory. Otherwise, the memory is allocated
  * from the kernel heap.
+ *
+ * The block is not cleared: it holds whatever was left in it. A caller that
+ * needs zeros uses kcalloc or clears the block itself.
  * 
  * @param size The size of the block.
  * @return The address of the allocated block.

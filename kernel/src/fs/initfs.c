@@ -101,6 +101,7 @@ static int32_t initfs_mount(vfs_filesystem_t* filesystem) {
     root->uid = 0;
     root->gid = 0;
     root->inode = 0;
+    root->inode_data = NULL;
     root->length = 0;
     root->link = NULL;
     root->operations = &initfs_directory_operations;
@@ -263,6 +264,7 @@ static vfs_node_t* initfs_finddir(vfs_node_t* node, char* name) {
             new_node->uid = 0;
             new_node->gid = 0;
             new_node->inode = index;
+            new_node->inode_data = NULL;
             new_node->length = file_header.length;
             new_node->link = NULL;
             new_node->operations = &initfs_file_operations;

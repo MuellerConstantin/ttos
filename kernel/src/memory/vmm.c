@@ -242,6 +242,13 @@ page_directory_t* vmm_clone_address_space(page_directory_t *src_page_directory) 
         KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
     }
 
+    /*
+     * Only the slots the source uses are filled below. Every other entry has
+     * to read as not present, and an entry is not present exactly when its
+     * present bit is clear, so the whole directory starts out as zeros.
+     */
+    memset(dst_page_directory, 0, sizeof(page_directory_t));
+
     for(size_t directory_index = 0; directory_index < PAGE_DIRECTORY_SIZE; directory_index++) {
         // Check if the page table is present
         if(src_page_directory->tables[directory_index]) {
@@ -256,6 +263,9 @@ page_directory_t* vmm_clone_address_space(page_directory_t *src_page_directory) 
                 if(!dst_page_table) {
                     KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
                 }
+
+                // Same as for the directory: the pages the source lacks stay not present.
+                memset(dst_page_table, 0, sizeof(page_table_t));
 
                 dst_page_directory->tables[directory_index] = dst_page_table;
 
