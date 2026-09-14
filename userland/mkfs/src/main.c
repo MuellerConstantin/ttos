@@ -152,6 +152,16 @@ typedef struct {
 static unsigned char block[MKFS_BLOCK_SIZE];
 static struct superblock superblock;
 
+/*
+ * Zeroes the inode tables are cleared with. A table is written in runs of this
+ * size rather than block by block: every write is a round trip to the drive
+ * that ends with its cache being flushed, and the tables are nearly all of
+ * what formatting writes.
+ */
+#define MKFS_ZERO_BLOCKS 64
+
+static unsigned char zeros[MKFS_ZERO_BLOCKS * MKFS_BLOCK_SIZE];
+
 static uint32_t mkfs_divide_up(uint32_t value, uint32_t divisor) {
     return (value + divisor - 1) / divisor;
 }
@@ -204,6 +214,25 @@ static int mkfs_write_block(const mkfs_layout_t* layout, uint32_t number, const 
     if (volio_write(layout->id, offset, data, MKFS_BLOCK_SIZE) != MKFS_BLOCK_SIZE) {
         printf("mkfs: cannot write block %d\n", (int) number);
         return -1;
+    }
+
+    return 0;
+}
+
+/** Clears a run of blocks, as many per write as the zero buffer holds. */
+static int mkfs_write_zeros(const mkfs_layout_t* layout, uint32_t first, uint32_t count) {
+    while (count > 0) {
+        uint32_t run = count < MKFS_ZERO_BLOCKS ? count : MKFS_ZERO_BLOCKS;
+        size_t offset = (size_t) first * MKFS_BLOCK_SIZE;
+        size_t size = (size_t) run * MKFS_BLOCK_SIZE;
+
+        if (volio_write(layout->id, offset, zeros, size) != (int32_t) size) {
+            printf("mkfs: cannot write block %d\n", (int) first);
+            return -1;
+        }
+
+        first += run;
+        count -= run;
     }
 
     return 0;
@@ -348,15 +377,7 @@ static int mkfs_write_group(const mkfs_layout_t* layout, uint32_t group) {
         return -1;
     }
 
-    memset(block, 0, sizeof(block));
-
-    for (uint32_t index = 0; index < layout->inode_table_blocks; index++) {
-        if (mkfs_write_block(layout, group_start + 2 + index, block) != 0) {
-            return -1;
-        }
-    }
-
-    return 0;
+    return mkfs_write_zeros(layout, group_start + 2, layout->inode_table_blocks);
 }
 
 /*
