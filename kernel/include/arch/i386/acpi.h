@@ -29,8 +29,9 @@
 typedef struct acpi_poweroff_information acpi_poweroff_information_t;
 
 struct acpi_poweroff_information {
-    uint8_t slp_type_a;
-    uint8_t slp_type_b;
+    // SLP_TYP values already shifted into place for the 16 bit PM1_CNT register.
+    uint16_t slp_type_a;
+    uint16_t slp_type_b;
     uint32_t pm1a_cnt;
     uint32_t pm1b_cnt;
 };

@@ -86,6 +86,9 @@ int32_t acpi_poweroff() {
     if(acpi_poweroff_info.pm1b_cnt != 0) {
         outw(acpi_poweroff_info.pm1b_cnt, acpi_poweroff_info.slp_type_b | ACPI_SLP_EN_CODE);
     }
+
+    // Still running: the hardware did not act on the sleep request.
+    return -1;
 }
 
 static acpi_rsdp_t* acpi_find_rsdp() {
