@@ -22,6 +22,24 @@
 #define EXT2_ROOT_INODE 2
 
 /**
+ * Largest block size ext2 defines, as the exponent stored in s_log_block_size.
+ */
+#define EXT2_MAX_LOG_BLOCK_SIZE 2
+
+/**
+ * Incompatible features. A file system that carries one of these must not be
+ * touched by a driver that does not implement it, which is what tells an ext2
+ * apart from the later file systems that share its signature: ext4 announces
+ * extents and 64 bit block numbers here.
+ *
+ * The driver implements filetype and depends on it, as it stores the type of an
+ * entry in the byte a file system without the feature uses for the upper half
+ * of the name length.
+ */
+#define EXT2_FEATURE_INCOMPAT_FILETYPE 0x0002
+#define EXT2_FEATURE_INCOMPAT_SUPPORTED EXT2_FEATURE_INCOMPAT_FILETYPE
+
+/**
  * i_mode format mask and the file type values relevant to this driver.
  */
 #define EXT2_S_IFMT  0xF000     // Format mask

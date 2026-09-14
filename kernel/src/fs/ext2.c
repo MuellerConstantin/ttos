@@ -1,4 +1,5 @@
 #include <fs/ext2.h>
+#include <system/kmessage.h>
 #include <memory/kheap.h>
 #include <system/kpanic.h>
 #include <util/string.h>
@@ -171,6 +172,39 @@ static int32_t ext2_mount(vfs_filesystem_t* filesystem) {
     filesystem->volume->operations->read(filesystem->volume, EXT2_SUPERBLOCK_OFFSET, sizeof(ext2_superblock_t), (char*) &data->superblock);
 
     if(data->superblock.s_magic != EXT2_SUPER_MAGIC) {
+        kfree(data);
+        return -1;
+    }
+
+    if(data->superblock.s_log_block_size > EXT2_MAX_LOG_BLOCK_SIZE) {
+        kmessage(KMESSAGE_LEVEL_WARN, "ext2: refusing a file system with an invalid block size");
+        kfree(data);
+        return -1;
+    }
+
+    /*
+     * The signature alone does not say that this driver may touch the file
+     * system: the later file systems built on ext2 carry the same one and
+     * announce what they added here.
+     */
+    if(data->superblock.s_rev_level >= 1) {
+        uint32_t incompatible = data->superblock.s_feature_incompat;
+
+        if((incompatible & ~EXT2_FEATURE_INCOMPAT_SUPPORTED) != 0 || !(incompatible & EXT2_FEATURE_INCOMPAT_FILETYPE)) {
+            kmessage(KMESSAGE_LEVEL_WARN, "ext2: refusing a file system with unsupported features");
+            kfree(data);
+            return -1;
+        }
+    }
+
+    /*
+     * Every access is computed as a block number times the block size, in the
+     * width of the volume offset. A file system larger than the volume it was
+     * found on would run past that width and wrap around, landing inside the
+     * volume again and past the bounds check with it, so it is refused instead.
+     */
+    if(data->superblock.s_blocks_count > filesystem->volume->size / (1024u << data->superblock.s_log_block_size)) {
+        kmessage(KMESSAGE_LEVEL_WARN, "ext2: refusing a file system larger than the volume it is on");
         kfree(data);
         return -1;
     }
