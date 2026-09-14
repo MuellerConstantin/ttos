@@ -114,6 +114,10 @@ typedef struct volinfo volinfo_t;
 struct volinfo {
     char name[64];
     char id[16];
+
+    // Short id of the storage device the volume sits on, as listed in devinfo.
+    char device_id[16];
+
     uint32_t size;
 
     // File system the volume carries, empty if none is recognized.

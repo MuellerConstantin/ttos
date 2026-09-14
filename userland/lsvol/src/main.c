@@ -23,13 +23,13 @@ int main(void) {
      * The name is the only column of unpredictable width, so it goes last and
      * nothing can push the columns out of line.
      */
-    sprintf(line, "%-8s%6s  %-8s%-14s%s\n", "ID", "SIZE", "TYPE", "LABEL", "NAME");
+    sprintf(line, "%-8s%-8s%6s  %-8s%-14s%s\n", "ID", "DEVICE", "SIZE", "TYPE", "LABEL", "NAME");
     termio_pager_puts(&pager, line);
 
     for (uint32_t index = 0; volio_list(index, &info) == 0; index++) {
         sizetoa(info.size, size);
 
-        sprintf(line, "%-8s%6s  %-8s%-14s%s\n", info.id, size, column(info.fs_type), column(info.label), info.name);
+        sprintf(line, "%-8s%-8s%6s  %-8s%-14s%s\n", info.id, info.device_id, size, column(info.fs_type), column(info.label), info.name);
 
         // The reader has seen enough, the rest of the list is not worth listing.
         if (termio_pager_puts(&pager, line) < 0) {

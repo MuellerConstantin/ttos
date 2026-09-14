@@ -1177,6 +1177,9 @@ static int32_t syscall_lsvol(isr_cpu_state_t *state) {
     strncpy(info->id, volume->id, sizeof(info->id));
     info->id[sizeof(info->id) - 1] = '\0';
 
+    strncpy(info->device_id, volume->device->id, sizeof(info->device_id));
+    info->device_id[sizeof(info->device_id) - 1] = '\0';
+
     info->size = volume->size;
 
     /*
