@@ -4,6 +4,9 @@
 
 ROOTDIR ?= $(realpath ..)
 
+# Warnings and anything else the subprojects share.
+include $(ROOTDIR)/config.mk
+
 CC := gcc
 AR := ar
 
@@ -17,7 +20,7 @@ INCLUDE := -I '$(ROOTDIR)/abi/include' -I '$(ROOTDIR)/libsys/include' -I '$(ROOT
 # -MMD -MP records the headers each object was compiled against, so a header
 # change recompiles what includes it; -MP keeps a deleted header from breaking
 # the build.
-CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -MMD -MP
+CFLAGS := -c -std=c99 -ffreestanding -m32 $(WARNINGS) -MMD -MP
 ARFLAGS := rcs
 
 SRCS := $(shell find $(SRCDIR) -name '*.c')

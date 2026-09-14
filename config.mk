@@ -3,6 +3,12 @@
 # Configuration the build and the programs have to agree on. Everything here
 # reaches C code as a macro, see the CFLAGS in userland/program.mk.
 
+# Warnings every subproject is built with. EXTRA_WARNINGS is added to them for a
+# single run without changing what the normal build reports, for example
+# `make kernel EXTRA_WARNINGS=-Wconversion` to find assignments that silently
+# truncate a value, which -Wall and -Wextra say nothing about.
+WARNINGS ?= -Wall -Wextra $(EXTRA_WARNINGS)
+
 # Labels the system volumes carry. The build writes them onto the file systems
 # it creates, init finds the volume the system runs from by them, and an
 # installer labels the file system it creates the same way. The live medium and

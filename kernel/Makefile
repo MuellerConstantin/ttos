@@ -4,6 +4,9 @@
 
 ROOTDIR ?= $(realpath ..)
 
+# Warnings and anything else the subprojects share.
+include $(ROOTDIR)/config.mk
+
 ifndef VERSION
 $(error Required variable VERSION is not set)
 endif
@@ -31,7 +34,7 @@ INCLUDE := -I '$(ROOTDIR)/kernel/include' -I '$(ROOTDIR)/abi/include'
 # -MMD -MP records the headers each object was compiled against, so a header
 # change recompiles what includes it; -MP keeps a deleted header from breaking
 # the build.
-CFLAGS := -c -std=c99 -ffreestanding -m32 -Wall -Wextra -O -fno-stack-protector -g -D __KERNEL_VERSION__=\"$(VERSION)\" -D __KERNEL_ARCH__=\"$(ARCH)\" -D __KERNEL_PLATFORM__=\"$(PLATFORM)\" -MMD -MP
+CFLAGS := -c -std=c99 -ffreestanding -m32 $(WARNINGS) -O -fno-stack-protector -g -D __KERNEL_VERSION__=\"$(VERSION)\" -D __KERNEL_ARCH__=\"$(ARCH)\" -D __KERNEL_PLATFORM__=\"$(PLATFORM)\" -MMD -MP
 ASFLAGS := -f elf32 -g
 LDFLAGS := -m $(FORMAT) -T kernel.ld -nostdlib
 
