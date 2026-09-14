@@ -60,17 +60,6 @@ GRUB_MODULES := biosdisk part_msdos ext2 normal multiboot
 # fixed here, at build time.
 GRUB_PREFIX := (hd0,msdos1)/boot/grub
 
-# Layout of an installed disk, in 512 byte sectors. core.img goes into the gap
-# between the master boot record and the first partition.
-CORE_SECTOR := 1
-
-# Bytes of boot.img that belong into the master boot record. Its code ends
-# there; what follows is the disk signature, the partition table and the boot
-# signature of the disk being written to, none of which may be overwritten.
-# boot.img carries its floppy fallback in that space, which a hard disk has no
-# use for.
-MBR_CODE_SIZE := 440
-
 # Size of the partition, derived from the disk and the gap in front of it. The
 # block count assumes the 1 KiB blocks MKFS_FLAGS asks for.
 PARTITION_SECTORS := $(shell expr $(DISK_SIZE) \* 2048 - $(PARTITION_START))
