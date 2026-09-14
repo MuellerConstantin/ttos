@@ -1,6 +1,7 @@
 #include <devio.h>
 #include <volio.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termio.h>
 
@@ -15,40 +16,13 @@
 
 static unsigned char buffer[DEVDUMP_CHUNK];
 
-/*
- * Reads a decimal or, with a 0x prefix, a hexadecimal number. Returns 0 when
- * the text is not a number at all, which the caller reports as usage.
- */
+/** Reads a whole argument as a number, decimal or with a 0x prefix hexadecimal. */
 static int devdump_number(const char* text, size_t* out) {
-    size_t value = 0;
-    size_t base = 10;
-    int digits = 0;
+    char* end;
 
-    if (text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
-        base = 16;
-        text += 2;
-    }
+    *out = strtoul(text, &end, 0);
 
-    for (; *text; text++) {
-        size_t digit;
-
-        if (*text >= '0' && *text <= '9') {
-            digit = (size_t) (*text - '0');
-        } else if (base == 16 && *text >= 'a' && *text <= 'f') {
-            digit = (size_t) (*text - 'a') + 10;
-        } else if (base == 16 && *text >= 'A' && *text <= 'F') {
-            digit = (size_t) (*text - 'A') + 10;
-        } else {
-            return 0;
-        }
-
-        value = value * base + digit;
-        digits++;
-    }
-
-    *out = value;
-
-    return digits > 0;
+    return end != text && *end == '\0';
 }
 
 /*

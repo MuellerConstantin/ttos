@@ -65,28 +65,23 @@ static int mkpart_size(const char* text, uint32_t* out) {
         return 1;
     }
 
-    uint32_t value = 0;
-    int digits = 0;
+    char* end;
+    uint32_t value = strtoul(text, &end, 10);
 
-    for (; *text >= '0' && *text <= '9'; text++) {
-        value = value * 10 + (uint32_t) (*text - '0');
-        digits++;
-    }
-
-    if (digits == 0) {
+    if (end == text) {
         return 0;
     }
 
-    switch (*text) {
+    switch (*end) {
         case 'G': case 'g': value *= 1024; // fall through
         case 'M': case 'm': value *= 1024; // fall through
-        case 'K': case 'k': value *= 1024; text++; break;
+        case 'K': case 'k': value *= 1024; end++; break;
         case '\0': break;
         default: return 0;
     }
 
     // Only the suffix may follow the digits.
-    if (*text != '\0') {
+    if (*end != '\0') {
         return 0;
     }
 

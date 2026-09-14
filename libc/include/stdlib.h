@@ -88,6 +88,21 @@ void* realloc(void* ptr, size_t size);
 void free(void* ptr);
 
 /**
+ * Converts the leading number of a text. Whitespace in front is skipped, a
+ * sign is honoured the way the standard does it, by negating the unsigned
+ * result. Base 0 reads a 0x prefix as hexadecimal and a leading 0 as octal;
+ * base 16 accepts the 0x prefix as well. A number too large for the result is
+ * reported as the largest value there is. There is no errno to say so.
+ * 
+ * @param text The text to convert.
+ * @param end Where to store a pointer to the first character not converted, or
+ *            to the text itself when no digit was found. May be NULL.
+ * @param base The base, 0 or 2 to 36.
+ * @return The value, 0 if there was no number or the base is invalid.
+ */
+unsigned long strtoul(const char* text, char** end, int base);
+
+/**
  * Looks up a variable in the environment of the process.
  * 
  * @param name The name of the variable.
