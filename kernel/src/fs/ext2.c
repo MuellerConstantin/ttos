@@ -99,12 +99,39 @@ static vfs_node_operations_t ext2_file_operations = {
     .finddir = NULL,
 };
 
+static const char* ext2_reject_reason(const ext2_superblock_t* superblock, const volume_t* volume) {
+    if(superblock->s_magic != EXT2_SUPER_MAGIC) {
+        return "ext2: no ext2 signature";
+    }
+
+    if(superblock->s_log_block_size > EXT2_MAX_LOG_BLOCK_SIZE) {
+        return "ext2: refusing a file system with an invalid block size";
+    }
+
+    // The feature fields only exist from the dynamic revision on.
+    if(superblock->s_rev_level >= 1) {
+        uint32_t incompatible = superblock->s_feature_incompat;
+
+        if((incompatible & ~EXT2_FEATURE_INCOMPAT_SUPPORTED) != 0 || !(incompatible & EXT2_FEATURE_INCOMPAT_FILETYPE)) {
+            return "ext2: refusing a file system with unsupported features";
+        }
+    }
+
+    // Phrased as a division so that the check cannot overflow itself.
+    if(superblock->s_blocks_count > volume->size / (1024u << superblock->s_log_block_size)) {
+        return "ext2: refusing a file system larger than the volume it is on";
+    }
+
+    return NULL;
+}
+
 bool ext2_probe(volume_t* volume) {
     ext2_superblock_t superblock;
 
     volume->operations->read(volume, EXT2_SUPERBLOCK_OFFSET, sizeof(ext2_superblock_t), (char*) &superblock);
 
-    return superblock.s_magic == EXT2_SUPER_MAGIC;
+    // A file system the driver would refuse to mount is not reported as one it recognizes.
+    return ext2_reject_reason(&superblock, volume) == NULL;
 }
 
 int32_t ext2_label(volume_t* volume, char* buffer, size_t size) {
@@ -171,40 +198,10 @@ static int32_t ext2_mount(vfs_filesystem_t* filesystem) {
 
     filesystem->volume->operations->read(filesystem->volume, EXT2_SUPERBLOCK_OFFSET, sizeof(ext2_superblock_t), (char*) &data->superblock);
 
-    if(data->superblock.s_magic != EXT2_SUPER_MAGIC) {
-        kfree(data);
-        return -1;
-    }
+    const char* reason = ext2_reject_reason(&data->superblock, filesystem->volume);
 
-    if(data->superblock.s_log_block_size > EXT2_MAX_LOG_BLOCK_SIZE) {
-        kmessage(KMESSAGE_LEVEL_WARN, "ext2: refusing a file system with an invalid block size");
-        kfree(data);
-        return -1;
-    }
-
-    /*
-     * The signature alone does not say that this driver may touch the file
-     * system: the later file systems built on ext2 carry the same one and
-     * announce what they added here.
-     */
-    if(data->superblock.s_rev_level >= 1) {
-        uint32_t incompatible = data->superblock.s_feature_incompat;
-
-        if((incompatible & ~EXT2_FEATURE_INCOMPAT_SUPPORTED) != 0 || !(incompatible & EXT2_FEATURE_INCOMPAT_FILETYPE)) {
-            kmessage(KMESSAGE_LEVEL_WARN, "ext2: refusing a file system with unsupported features");
-            kfree(data);
-            return -1;
-        }
-    }
-
-    /*
-     * Every access is computed as a block number times the block size, in the
-     * width of the volume offset. A file system larger than the volume it was
-     * found on would run past that width and wrap around, landing inside the
-     * volume again and past the bounds check with it, so it is refused instead.
-     */
-    if(data->superblock.s_blocks_count > filesystem->volume->size / (1024u << data->superblock.s_log_block_size)) {
-        kmessage(KMESSAGE_LEVEL_WARN, "ext2: refusing a file system larger than the volume it is on");
+    if(reason) {
+        kmessage(KMESSAGE_LEVEL_WARN, reason);
         kfree(data);
         return -1;
     }
