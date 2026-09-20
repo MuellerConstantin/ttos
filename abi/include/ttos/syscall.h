@@ -53,6 +53,7 @@ extern "C" {
 #define SYSCALL_GETPID 0x29
 #define SYSCALL_LSPROC 0x2A
 #define SYSCALL_KILL 0x2B
+#define SYSCALL_SLEEP 0x2C
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256

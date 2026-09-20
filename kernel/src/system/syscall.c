@@ -465,6 +465,22 @@ static int32_t syscall_getpid(isr_cpu_state_t *state);
 static int32_t syscall_kill(isr_cpu_state_t *state);
 
 /**
+ * Sleep syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Time to sleep in milliseconds, rounded up to whole timer ticks
+ *
+ * Syscall returns 0 once the time has passed, or -1 if the process was
+ * asked to terminate meanwhile.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_sleep(isr_cpu_state_t *state);
+
+/**
  * List processes syscall handler.
  *
  * Syscall expects the following parameters:
@@ -936,6 +952,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_KILL: {
             state->eax = syscall_kill(state);
+            break;
+        }
+        case SYSCALL_SLEEP: {
+            state->eax = syscall_sleep(state);
             break;
         }
         default: {
@@ -1669,6 +1689,10 @@ static int32_t syscall_kill(isr_cpu_state_t *state) {
     process_kill(process, 137);
 
     return 0;
+}
+
+static int32_t syscall_sleep(isr_cpu_state_t *state) {
+    return timer_sleep(state->ebx);
 }
 
 static int32_t syscall_lsproc(isr_cpu_state_t *state) {

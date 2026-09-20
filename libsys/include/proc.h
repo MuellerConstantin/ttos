@@ -59,6 +59,15 @@ pid_t wait(pid_t pid, int* status, int options);
 int kill(pid_t pid);
 
 /**
+ * Suspends the calling process for at least the given time. The resolution
+ * is the kernel's timer tick; the time is rounded up to whole ticks.
+ *
+ * @param milliseconds The time to sleep
+ * @return 0 once the time has passed, or -1 if the sleep was cut short
+ */
+int sleep(uint32_t milliseconds);
+
+/**
  * Returns the PID of the calling process.
  *
  * @return The PID

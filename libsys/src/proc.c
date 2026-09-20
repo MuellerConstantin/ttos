@@ -19,6 +19,10 @@ int kill(pid_t pid) {
     return syscall1(SYSCALL_KILL, (uint32_t) pid);
 }
 
+int sleep(uint32_t milliseconds) {
+    return syscall1(SYSCALL_SLEEP, milliseconds);
+}
+
 pid_t getpid(void) {
     return syscall0(SYSCALL_GETPID);
 }

@@ -26,11 +26,14 @@ void timer_init();
 uint32_t timer_get_uptime();
 
 /**
- * Sleep for the given amount of seconds.
- * 
- * @param seconds The amount of seconds to sleep.
+ * Put the current process to sleep for at least the given time, rounded up
+ * to whole timer ticks. Other processes run in the meantime. Returns early
+ * if the process is asked to terminate.
+ *
+ * @param milliseconds The time to sleep.
+ * @return 0 once the time has passed, or -1 if the sleep was cut short.
  */
-void timer_sleep(uint32_t seconds);
+int32_t timer_sleep(uint32_t milliseconds);
 
 /**
  * Register a wakeup call to be called every given amount of seconds.
