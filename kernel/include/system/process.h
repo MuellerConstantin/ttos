@@ -34,6 +34,11 @@ struct process_context {
     uint32_t eflags;
 };
 
+/*
+ * READY: created or resumable, not on the CPU. RUNNING: on the CPU. WAITING:
+ * blocked until an event occurs (a spawned child exiting). EXITED: terminated,
+ * about to be destroyed.
+ */
 typedef enum {
     PROCESS_STATE_READY = 0,
     PROCESS_STATE_RUNNING = 1,
@@ -139,5 +144,13 @@ void process_kill_current(int32_t exit_code);
  * @return The current process.
  */
 const process_t* process_get_current();
+
+/**
+ * Look up a process by its PID.
+ *
+ * @param pid The PID to look up.
+ * @return The process or NULL if no process with that PID exists.
+ */
+const process_t* process_get_by_pid(pid_t pid);
 
 #endif // _KERNEL_SYSTEM_PROCESS_H

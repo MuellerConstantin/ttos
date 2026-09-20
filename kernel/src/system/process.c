@@ -5,10 +5,18 @@
 #include <system/elf.h>
 #include <memory/kheap.h>
 #include <util/string.h>
+#include <util/linked_list.h>
 
 static process_t* current_process = NULL;
 
+/* Every process that exists, from process_create until process_destroy. */
+static linked_list_t* process_list = NULL;
+
 static pid_t process_next_pid();
+
+static void process_register(process_t* process);
+static void process_unregister(process_t* process);
+static bool process_compare_pid(void* node_data, void* compare_data);
 
 static size_t process_vector_size(int count, const char** vector);
 
@@ -222,6 +230,8 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     process->exit_code = 0;
     process->exception_code = -1;
 
+    process_register(process);
+
     return process;
 }
 
@@ -240,6 +250,8 @@ static size_t process_vector_size(int count, const char** vector) {
 }
 
 void process_destroy(process_t* process) {
+    process_unregister(process);
+
     vmm_destroy_address_space(process->address_space);
     kfree(process->name);
     kfree(process->path);
@@ -287,6 +299,8 @@ void process_terminate(process_t* process) {
     int32_t exit_code = process->exit_code;
     int32_t exception_code = process->exception_code;
     process_t* parent = process->parent;
+
+    process->state = PROCESS_STATE_EXITED;
 
     /*
      * Destroy the exiting process while its own address space is still the
@@ -348,8 +362,47 @@ const process_t* process_get_current() {
     return current_process;
 }
 
+const process_t* process_get_by_pid(pid_t pid) {
+    if(process_list == NULL) {
+        return NULL;
+    }
+
+    linked_list_node_t* node = linked_list_find(process_list, process_compare_pid, &pid);
+
+    return node != NULL ? (process_t*) node->data : NULL;
+}
+
+/* PID 0 is never handed out; it is free to mean "no process". */
 static pid_t process_next_pid() {
-    static pid_t pid = 0;
+    static pid_t pid = 1;
 
     return pid++;
+}
+
+static void process_register(process_t* process) {
+    if(process_list == NULL && (process_list = linked_list_create()) == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    linked_list_node_t* node = linked_list_create_node(process);
+
+    if(node == NULL) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    linked_list_append(process_list, node);
+}
+
+static void process_unregister(process_t* process) {
+    linked_list_foreach(process_list, node) {
+        if(node->data == process) {
+            linked_list_remove(process_list, node);
+            kfree(node);
+            return;
+        }
+    }
+}
+
+static bool process_compare_pid(void* node_data, void* compare_data) {
+    return ((process_t*) node_data)->pid == *((pid_t*) compare_data);
 }
