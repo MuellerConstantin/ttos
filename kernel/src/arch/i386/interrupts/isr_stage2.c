@@ -70,11 +70,12 @@ void isr_stage2(isr_cpu_state_t *state) {
 	}
 
 	/*
-	 * Only a return to user space may switch processes. A frame that returns
-	 * into the kernel (the idle loop, a nested interrupt) is left alone, so
-	 * kernel code is never preempted.
+	 * Only a return to user space may end or switch processes. A frame that
+	 * returns into the kernel (the idle loop, a nested interrupt) is left
+	 * alone, so kernel code is never preempted.
 	 */
 	if(from_user) {
+		process_deliver_kill();
 		process_preempt();
 	}
 }

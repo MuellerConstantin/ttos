@@ -4,6 +4,7 @@
 #include <fsio.h>
 #include <dirio.h>
 #include <proc.h>
+#include <termio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -321,12 +322,17 @@ static int install_run(const char* root, const char* program, char* const argv[]
         return -1;
     }
 
-    int status = spawn(path, argv);
+    pid_t pid = spawn(path, argv, SPAWN_FOREGROUND);
 
-    if (status < 0) {
+    if (pid < 0) {
         printf("install: cannot run %s\n", path);
         return -1;
     }
+
+    int status;
+
+    wait(pid, &status, 0);
+    termio_set_foreground(0);
 
     if (status != 0) {
         printf("install: %s failed (%d)\n", path, status);

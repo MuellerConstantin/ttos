@@ -237,6 +237,15 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
 
     process->parent = NULL;
 
+    wait_queue_init(&process->child_exited);
+
+    process->wait_node.prev = NULL;
+    process->wait_node.next = NULL;
+    process->wait_node.data = process;
+
+    process->kill_pending = false;
+    process->kill_code = 0;
+
     // Initialize the signals
 
     process->exit_code = 0;
@@ -390,15 +399,59 @@ void process_preempt() {
     process_schedule();
 }
 
-void process_block() {
-    current_process->state = PROCESS_STATE_WAITING;
-
-    process_schedule();
+void wait_queue_init(wait_queue_t* queue) {
+    queue->waiters.head = NULL;
+    queue->waiters.tail = NULL;
 }
 
-void process_wake(process_t* process) {
+void wait_queue_sleep(wait_queue_t* queue) {
+    process_t* process = current_process;
+
+    linked_list_append(&queue->waiters, &process->wait_node);
+    process->state = PROCESS_STATE_WAITING;
+
+    process_schedule();
+
+    /*
+     * Back on the CPU, whoever woke us. The entry is removed here rather than
+     * by the waker, so that a process is only ever taken off a queue by itself.
+     */
+    linked_list_remove(&queue->waiters, &process->wait_node);
+}
+
+void wait_queue_wake_all(wait_queue_t* queue) {
+    linked_list_t* waiters = &queue->waiters;
+
+    linked_list_foreach(waiters, node) {
+        process_t* process = (process_t*) node->data;
+
+        if(process->state == PROCESS_STATE_WAITING) {
+            process->state = PROCESS_STATE_READY;
+        }
+    }
+}
+
+void process_kill(process_t* process, int32_t exit_code) {
+    if(process == current_process) {
+        process_exit(exit_code, -1);
+    }
+
+    process->kill_pending = true;
+    process->kill_code = exit_code;
+
+    // A sleeper leaves its wait loop once it sees the pending kill.
     if(process->state == PROCESS_STATE_WAITING) {
         process->state = PROCESS_STATE_READY;
+    }
+}
+
+bool process_kill_pending() {
+    return current_process != NULL && current_process->kill_pending;
+}
+
+void process_deliver_kill() {
+    if(process_kill_pending()) {
+        process_exit(current_process->kill_code, -1);
     }
 }
 
@@ -432,7 +485,7 @@ void process_exit(int32_t exit_code, int32_t exception_code) {
     }
 
     if(init != NULL && init != process->parent) {
-        process_wake(init);
+        wait_queue_wake_all(&init->child_exited);
     }
 
     /*
@@ -444,7 +497,7 @@ void process_exit(int32_t exit_code, int32_t exception_code) {
     vmm_destroy_address_space(process->address_space);
     process->address_space = NULL;
 
-    process_wake(process->parent);
+    wait_queue_wake_all(&process->parent->child_exited);
 
     process_schedule();
 

@@ -3,6 +3,20 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <ttos/syscall.h>
+
+/**
+ * Hands the terminal's foreground to a process. The foreground process is the
+ * only one that may read from the terminal and the one Ctrl+C terminates.
+ * Only the current foreground process may hand it over, and only to itself
+ * or one of its children; while no process holds the foreground, anyone may
+ * claim it and becomes the terminal's leader, which Ctrl+C leaves alone.
+ *
+ * @param pid The PID of the new foreground process, or 0 for the caller
+ * @return 0 on success, or -1 if the caller may not hand over the foreground
+ *         or the PID is neither the caller nor a live child of it
+ */
+int termio_set_foreground(pid_t pid);
 
 typedef struct termio_pager termio_pager_t;
 

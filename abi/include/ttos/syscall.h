@@ -49,6 +49,7 @@ extern "C" {
 #define SYSCALL_VOLREAD 0x25
 #define SYSCALL_VOLWRITE 0x26
 #define SYSCALL_WAIT 0x27
+#define SYSCALL_SET_FOREGROUND 0x28
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256
@@ -58,6 +59,9 @@ typedef int32_t pid_t;
 
 // Option for SYSCALL_WAIT: return 0 instead of blocking when no child has exited yet.
 #define WAIT_NOHANG 0x01
+
+// Flag for SYSCALL_SPAWN: make the child the terminal's foreground process as it is created.
+#define SPAWN_FOREGROUND 0x01
 
 typedef struct osinfo osinfo_t;
 

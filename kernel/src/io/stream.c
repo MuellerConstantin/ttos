@@ -4,16 +4,16 @@ void stream_putchar(stream_t* stream, char ch) {
     stream->putchar(stream, ch);
 }
 
-char stream_getchar(stream_t* stream) {
-    return stream->getchar(stream);
+int32_t stream_read(stream_t* stream, char* buffer, size_t size) {
+    return stream->read(stream, buffer, size);
 }
 
 void stream_puts(stream_t* stream, const char* str) {
     stream->puts(stream, str);
 }
 
-char* stream_gets(stream_t* stream) {
-    return stream->gets(stream);
+int32_t stream_write(stream_t* stream, const char* buffer, size_t size) {
+    return stream->write(stream, buffer, size);
 }
 
 int stream_printf(stream_t* stream, const char *format, ...) {

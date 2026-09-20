@@ -26,10 +26,13 @@ void _exit(int status);
  *
  * @param path The path to the executable
  * @param argv NULL terminated argument vector (argv[0] is conventionally the path)
+ * @param flags 0, or SPAWN_FOREGROUND to hand the child the terminal's
+ *              foreground as it is created (see termio_set_foreground); only
+ *              the current foreground process may do that
  * @return The PID of the child, or a negative value if the executable could
- *         not be started.
+ *         not be started or the foreground could not be handed over.
  */
-pid_t spawn(const char* path, char* const argv[]);
+pid_t spawn(const char* path, char* const argv[], int flags);
 
 /**
  * Collects a child that has exited. Blocks until one does, unless WAIT_NOHANG

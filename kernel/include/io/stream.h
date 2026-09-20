@@ -9,9 +9,9 @@ typedef struct stream stream_t;
 
 struct stream {
     void (*putchar)(stream_t* stream, char ch);
-    char (*getchar)(stream_t* stream);
     void (*puts)(stream_t* stream, const char* str);
-    char* (*gets)(stream_t* stream);
+    int32_t (*read)(stream_t* stream, char* buffer, size_t size);
+    int32_t (*write)(stream_t* stream, const char* buffer, size_t size);
     void* data;
 };
 
@@ -24,12 +24,16 @@ struct stream {
 void stream_putchar(stream_t* stream, char ch);
 
 /**
- * Reads a character from the stream.
- * 
+ * Reads from the stream into a buffer, blocking until at least one byte is
+ * available.
+ *
  * @param stream The stream.
- * @return The character read.
+ * @param buffer The buffer to fill.
+ * @param size The size of the buffer.
+ * @return The number of bytes read, or -1 if the caller may not read from
+ *         this stream.
  */
-char stream_getchar(stream_t* stream);
+int32_t stream_read(stream_t* stream, char* buffer, size_t size);
 
 /**
  * Prints a string to the stream.
@@ -40,12 +44,16 @@ char stream_getchar(stream_t* stream);
 void stream_puts(stream_t* stream, const char* str);
 
 /**
- * Reads a line from the stream.
- * 
+ * Writes a buffer to the stream. Unlike stream_puts the data is not a string:
+ * it may contain NUL bytes and carries its own length.
+ *
  * @param stream The stream.
- * @return The line read.
+ * @param buffer The bytes to write.
+ * @param size The number of bytes.
+ * @return The number of bytes written, or -1 if the caller may not write to
+ *         this stream.
  */
-char* stream_gets(stream_t* stream);
+int32_t stream_write(stream_t* stream, const char* buffer, size_t size);
 
 /**
  * Naive printf implementation that writes to a stream. This function does not

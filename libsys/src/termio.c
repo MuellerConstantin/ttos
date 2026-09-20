@@ -1,6 +1,11 @@
 #include <termio.h>
+#include <syscall.h>
 #include <fsio.h>
 #include <sysinfo.h>
+
+int termio_set_foreground(pid_t pid) {
+    return syscall1(SYSCALL_SET_FOREGROUND, (uint32_t) pid);
+}
 
 /** Dimensions to fall back to when the terminal does not report its own. */
 #define TERMIO_DEFAULT_ROWS 25

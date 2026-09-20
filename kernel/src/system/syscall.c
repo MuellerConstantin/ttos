@@ -401,11 +401,36 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
  * - edx: NULL terminated environment vector (user pointer, entries of the form
  *        NAME=VALUE), or NULL for an empty environment
  *
- * Syscall returns the PID of the child or -1 if it could not be created.
+ * - esi: Flags. SPAWN_FOREGROUND makes the child the terminal's foreground
+ *        process in the same step, which only the current foreground process
+ *        may ask for.
+ *
+ * Syscall returns the PID of the child or -1 if it could not be created or
+ * the caller may not hand over the foreground.
  *
  * @param state The CPU state.
  */
 static int32_t syscall_spawn(isr_cpu_state_t *state);
+
+/**
+ * Set foreground syscall handler.
+ *
+ * Hands the terminal's foreground to a process. Only the current foreground
+ * process may do so (or anyone, while no foreground process exists), and
+ * only to itself or one of its children.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: PID of the new foreground process, or 0 for the caller itself
+ *
+ * Syscall returns 0 on success or -1 if the caller may not set the
+ * foreground or the PID is not the caller or a live child of it.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_set_foreground(isr_cpu_state_t *state);
 
 /**
  * Wait syscall handler.
@@ -848,6 +873,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
             state->eax = syscall_wait(state);
             break;
         }
+        case SYSCALL_SET_FOREGROUND: {
+            state->eax = syscall_set_foreground(state);
+            break;
+        }
         default: {
             state->eax = -1;
             break;
@@ -866,27 +895,9 @@ static int32_t syscall_read(isr_cpu_state_t *state) {
 
     process_t* current_process = process_get_current();
 
-    // Read from stdin
+    // Read from stdin: sleeps until input arrives, foreground process only.
     if(current_process && current_process->in && fd == 0) {
-        char ch;
-        for(size_t i = 0; i < size; i++) {
-            /*
-             * It is important to read character wise using getchar, because gets or
-             * similar functions will read until it encounters a newline character
-             * and hence will block the whole system because interrupts are disabled
-             * during syscalls. It will result in a deadlock because interrupts are
-             * required to handle keyboard input. Because getchar is implemented using
-             * raw instead of canonical mode, it will not block on missing input.
-             */
-
-            if((ch = stream_getchar(current_process->in)) <= 0) {
-                return i;
-            }
-
-            buffer[i] = ch;
-        }
-
-        return size;
+        return stream_read(current_process->in, (char*) buffer, size);
     }
 
     // Read from file
@@ -910,26 +921,12 @@ static int32_t syscall_write(isr_cpu_state_t *state) {
 
     // Write to stdout
     if(current_process && current_process->out && fd == 1) {
-        char* message = kmalloc(size + 1);
-        memcpy(message, buffer, size);
-        message[size] = '\0';
-
-        stream_puts(current_process->out, message);
-
-        kfree(message);
-        return size;
+        return stream_write(current_process->out, (const char*) buffer, size);
     }
 
     // Write to stderr
     if(current_process && current_process->err && fd == 2) {
-        char* message = kmalloc(size + 1);
-        memcpy(message, buffer, size);
-        message[size] = '\0';
-
-        stream_puts(current_process->err, message);
-
-        kfree(message);
-        return size;
+        return stream_write(current_process->err, (const char*) buffer, size);
     }
 
     // Write to file
@@ -1507,10 +1504,18 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
     const char* user_path = (const char*) state->ebx;
     char** user_argv = (char**) state->ecx;
     char** user_envp = (char**) state->edx;
+    uint32_t flags = state->esi;
 
-    process_t* parent = process_get_current();
+    process_t* parent = (process_t*) process_get_current();
 
     if(!parent || !user_path) {
+        return -1;
+    }
+
+    tty_t* tty = (tty_t*) tty_get_stdterm();
+
+    // Checked up front: once the child exists it cannot be taken back.
+    if((flags & SPAWN_FOREGROUND) && !tty_may_set_foreground(tty, parent)) {
         return -1;
     }
 
@@ -1559,7 +1564,45 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
 
     child->parent = parent;
 
+    /*
+     * Done before returning, with interrupts still disabled: the child cannot
+     * run and read before it is the foreground process.
+     */
+    if(flags & SPAWN_FOREGROUND) {
+        tty_set_foreground(tty, parent, child->pid);
+    }
+
     return child->pid;
+}
+
+static int32_t syscall_set_foreground(isr_cpu_state_t *state) {
+    pid_t pid = (pid_t) state->ebx;
+
+    process_t* caller = (process_t*) process_get_current();
+
+    if(!caller) {
+        return -1;
+    }
+
+    tty_t* tty = (tty_t*) tty_get_stdterm();
+
+    if(!tty_may_set_foreground(tty, caller)) {
+        return -1;
+    }
+
+    const process_t* target = caller;
+
+    if(pid != 0 && pid != caller->pid) {
+        target = process_find_child(caller, pid);
+
+        if(target == NULL || target->state == PROCESS_STATE_EXITED) {
+            return -1;
+        }
+    }
+
+    tty_set_foreground(tty, caller, target->pid);
+
+    return 0;
 }
 
 static int32_t syscall_wait(isr_cpu_state_t *state) {
@@ -1606,8 +1649,12 @@ static int32_t syscall_wait(isr_cpu_state_t *state) {
             return 0;
         }
 
+        if(process_kill_pending()) {
+            return -1;
+        }
+
         // Woken by an exiting child; look again, it may have been another one.
-        process_block();
+        wait_queue_sleep(&parent->child_exited);
     }
 }
 

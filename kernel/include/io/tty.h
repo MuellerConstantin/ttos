@@ -7,6 +7,8 @@
 #include <device/device.h>
 #include <io/stream.h>
 #include <util/circular_buffer.h>
+#include <system/wait_queue.h>
+#include <ttos/syscall.h>
 
 #define TTY_BUFFER_SIZE 1024
 
@@ -59,6 +61,8 @@ typedef enum {
 
 typedef struct tty tty_t;
 
+struct process;
+
 struct tty {
     size_t rows;
     size_t columns;
@@ -77,6 +81,19 @@ struct tty {
     uint32_t ansi_params[TTY_ANSI_MAX_PARAMS];
     size_t ansi_param_count;
     uint32_t ansi_current;
+
+    /*
+     * Job control. The foreground process is the only one that may read
+     * input and the one Ctrl+C terminates. The leader is the process that
+     * first claimed the terminal (the shell); it is never terminated by
+     * Ctrl+C. Both are kept as PIDs: a process that has exited is simply no
+     * longer found, and the terminal is free to be claimed again.
+     */
+    pid_t foreground_pid;
+    pid_t leader_pid;
+
+    // Processes asleep in tty_read until input arrives.
+    wait_queue_t readers;
 };
 
 extern tty_keyboard_layout_t tty_keyboard_layout_de_DE;
@@ -162,6 +179,41 @@ void tty_putchar(tty_t* tty0, char c);
 char tty_getchar(tty_t* tty0);
 
 /**
+ * Reads input on behalf of the current process, which has to be the terminal's
+ * foreground process. Sleeps until at least one byte is available and then
+ * returns what is buffered, up to size bytes. Gives up when the process is
+ * asked to terminate or loses the terminal while asleep.
+ *
+ * @param tty The terminal.
+ * @param buffer The buffer to fill.
+ * @param size The size of the buffer.
+ * @return The number of bytes read, or -1 if the current process is not the
+ *         foreground process.
+ */
+int32_t tty_read(tty_t* tty, char* buffer, size_t size);
+
+/**
+ * Whether a process may hand the terminal's foreground to a process: it has
+ * to hold the foreground itself, or nobody may hold it.
+ *
+ * @param tty The terminal.
+ * @param process The process asking.
+ * @return true if the process may set the foreground.
+ */
+bool tty_may_set_foreground(tty_t* tty, const struct process* process);
+
+/**
+ * Makes a process the terminal's foreground process. The caller must be
+ * allowed to (see tty_may_set_foreground); the terminal has no leader yet or
+ * its leader has exited, the caller becomes the leader.
+ *
+ * @param tty The terminal.
+ * @param caller The process handing over the foreground.
+ * @param pid The PID of the new foreground process.
+ */
+void tty_set_foreground(tty_t* tty, const struct process* caller, pid_t pid);
+
+/**
  * Writes a string to the TTY.
  * 
  * @param tty The TTY.
@@ -170,12 +222,14 @@ char tty_getchar(tty_t* tty0);
 void tty_puts(tty_t* tty, const char* str);
 
 /**
- * Reads a line from the TTY.
- * 
+ * Writes a buffer to the TTY. The data may contain NUL bytes.
+ *
  * @param tty The TTY.
- * @return The line read.
+ * @param buffer The bytes to write.
+ * @param size The number of bytes.
+ * @return The number of bytes written.
  */
-char* tty_gets(tty_t* tty);
+int32_t tty_write(tty_t* tty, const char* buffer, size_t size);
 
 /**
  * Changes the foreground color of the TTY.

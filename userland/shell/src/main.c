@@ -3,6 +3,7 @@
 #include <string.h>
 #include <fsio.h>
 #include <proc.h>
+#include <termio.h>
 #include <ttos/syscall.h>
 
 #define SHELL_LINE_MAX 256
@@ -350,8 +351,8 @@ static void shell_print_prompt(const char* prompt) {
  * Tries to start `path`, then `path.elf` if it does not already end in .elf.
  * Returns the PID of the started program, or -1 if neither could be started.
  */
-static pid_t shell_try_spawn(const char* path, char** argv) {
-    pid_t result = spawn(path, argv);
+static pid_t shell_try_spawn(const char* path, char** argv, int flags) {
+    pid_t result = spawn(path, argv, flags);
 
     if(result >= 0) {
         return result;
@@ -364,7 +365,7 @@ static pid_t shell_try_spawn(const char* path, char** argv) {
             strcpy(with_extension, path);
             strcat(with_extension, ".elf");
 
-            result = spawn(with_extension, argv);
+            result = spawn(with_extension, argv, flags);
 
             if(result >= 0) {
                 return result;
@@ -382,9 +383,9 @@ static pid_t shell_try_spawn(const char* path, char** argv) {
  * search path. Returns the PID of the started program, or -1 if nothing could
  * be executed.
  */
-static pid_t shell_run(char** argv) {
+static pid_t shell_run(char** argv, int flags) {
     if(strpbrk(argv[0], ":/") != NULL) {
-        return shell_try_spawn(argv[0], argv);
+        return shell_try_spawn(argv[0], argv, flags);
     }
 
     char entry[SHELL_PATH_MAX];
@@ -400,7 +401,7 @@ static pid_t shell_run(char** argv) {
         strcat(candidate, "/");
         strcat(candidate, argv[0]);
 
-        pid_t result = shell_try_spawn(candidate, argv);
+        pid_t result = shell_try_spawn(candidate, argv, flags);
 
         if(result >= 0) {
             return result;
@@ -621,6 +622,9 @@ int main(void) {
 
     setenv(SHELL_PATH_VARIABLE, SHELL_PATH_DEFAULT, 0);
 
+    // Take the terminal: from here on only the shell and the command it runs may read it.
+    termio_set_foreground(0);
+
     char line[SHELL_LINE_MAX];
     char prompt[SHELL_PROMPT_MAX];
     char* argv[SHELL_MAX_ARGS + 1];
@@ -672,7 +676,8 @@ int main(void) {
             continue;
         }
 
-        pid_t pid = shell_run(argv);
+        // A foreground command gets the terminal as it starts and hands it back when it is done.
+        pid_t pid = shell_run(argv, background ? 0 : SPAWN_FOREGROUND);
 
         if(pid < 0) {
             printf("shell: command not found: %s\n", argv[0]);
@@ -683,6 +688,7 @@ int main(void) {
             printf("[%d]\n", pid);
         } else {
             wait(pid, NULL, 0);
+            termio_set_foreground(0);
         }
     }
 

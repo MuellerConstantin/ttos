@@ -7,8 +7,8 @@ void _exit(int status) {
     syscall1(SYSCALL_EXIT, (uint32_t) status);
 }
 
-pid_t spawn(const char* path, char* const argv[]) {
-    return syscall3(SYSCALL_SPAWN, (uint32_t) path, (uint32_t) argv, (uint32_t) environ);
+pid_t spawn(const char* path, char* const argv[], int flags) {
+    return syscall4(SYSCALL_SPAWN, (uint32_t) path, (uint32_t) argv, (uint32_t) environ, (uint32_t) flags);
 }
 
 pid_t wait(pid_t pid, int* status, int options) {

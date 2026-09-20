@@ -28,7 +28,7 @@ int main(void) {
      * restarted. If init itself were to return, the kernel raises a panic (see
      * process_exit).
      */
-    pid_t shell = spawn(shell_path, shell_argv);
+    pid_t shell = spawn(shell_path, shell_argv, 0);
 
     for(;;) {
         int status = -1;
@@ -36,7 +36,7 @@ int main(void) {
 
         if(pid == shell || shell < 0) {
             printf("init: shell exited (%d), restarting\n", status);
-            shell = spawn(shell_path, shell_argv);
+            shell = spawn(shell_path, shell_argv, 0);
         }
     }
 

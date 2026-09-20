@@ -12,11 +12,12 @@ static void tty_render_char(tty_t* tty, char ch);
 static void tty_csi_dispatch(tty_t* tty, char command);
 static void tty_sgr_apply(tty_t* tty, uint32_t param);
 static tty_stream_putchar(stream_t* stream, char ch);
-static char tty_stream_getchar(stream_t* stream);
 static void tty_stream_puts(stream_t* stream, const char* str);
-static char* tty_stream_gets(stream_t* stream);
+static int32_t tty_stream_read(stream_t* stream, char* buffer, size_t size);
+static int32_t tty_stream_write(stream_t* stream, const char* buffer, size_t size);
 
 static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted);
+static process_t* tty_foreground_process(tty_t* tty);
 
 void tty_set_stdterm(tty_t* tty) {
     tty_stdterm = tty;
@@ -50,6 +51,10 @@ tty_t* tty_create(video_device_t* video, keyboard_device_t* keyboard, tty_keyboa
     tty->ansi_state = TTY_ANSI_STATE_NORMAL;
     tty->ansi_param_count = 0;
     tty->ansi_current = 0;
+
+    tty->foreground_pid = 0;
+    tty->leader_pid = 0;
+    wait_queue_init(&tty->readers);
 
     tty->input = circular_buffer_create(TTY_BUFFER_SIZE, sizeof(char));
 
@@ -109,22 +114,17 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
     }
 
     /*
-     * Ctrl+C interrupts the foreground process and hands control back to its
-     * parent. Only a process launched from the shell is interruptible (i.e. one
-     * that has a parent which itself has a parent), so the shell and init are
-     * never killed. The keystroke is always swallowed.
+     * Ctrl+C terminates the foreground process, unless it is the terminal's
+     * leader (the shell), which stays. The keystroke is always swallowed.
      */
     if(ctrl && event->keycode == KEYBOARD_KEYCODE_C) {
-        const process_t* current = process_get_current();
+        process_t* foreground = tty_foreground_process(tty);
 
-        if(current != NULL && current->parent != NULL && current->parent->parent != NULL) {
+        if(foreground != NULL && foreground->pid != tty->leader_pid) {
             tty_puts(tty, "^C\n");
 
-            /*
-             * 128 + SIGINT(2), mirroring the conventional shell exit code.
-             * Does not return: the parent process is resumed.
-             */
-            process_exit(130, -1);
+            // 128 + SIGINT(2), mirroring the conventional shell exit code.
+            process_kill(foreground, 130);
         }
 
         return;
@@ -140,6 +140,7 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
         char eot = 0x04;
 
         circular_buffer_enqueue(tty->input, &eot);
+        wait_queue_wake_all(&tty->readers);
         return;
     }
 
@@ -165,6 +166,7 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
         circular_buffer_enqueue(tty->input, &escape);
         circular_buffer_enqueue(tty->input, &bracket);
         circular_buffer_enqueue(tty->input, &arrow);
+        wait_queue_wake_all(&tty->readers);
         return;
     }
 
@@ -173,6 +175,7 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
     // Wait for a displayable character
     if(ch) {
         circular_buffer_enqueue(tty->input, &ch);
+        wait_queue_wake_all(&tty->readers);
     }
 }
 
@@ -445,9 +448,9 @@ stream_t* tty_get_out_stream(tty_t* tty) {
     }
 
     stream->putchar = tty_stream_putchar;
-    stream->getchar = NULL;
     stream->puts = tty_stream_puts;
-    stream->gets = NULL;
+    stream->read = NULL;
+    stream->write = tty_stream_write;
     stream->data = tty;
 
     return stream;
@@ -461,9 +464,9 @@ stream_t* tty_get_in_stream(tty_t* tty) {
     }
 
     stream->putchar = NULL;
-    stream->getchar = tty_stream_getchar;
     stream->puts = NULL;
-    stream->gets = tty_stream_gets;
+    stream->read = tty_stream_read;
+    stream->write = NULL;
     stream->data = tty;
 
     return stream;
@@ -477,16 +480,16 @@ static tty_stream_putchar(stream_t* stream, char ch) {
     tty_putchar((tty_t*) stream->data, ch);
 }
 
-static char tty_stream_getchar(stream_t* stream) {
-    return tty_getchar((tty_t*) stream->data);
+static int32_t tty_stream_read(stream_t* stream, char* buffer, size_t size) {
+    return tty_read((tty_t*) stream->data, buffer, size);
+}
+
+static int32_t tty_stream_write(stream_t* stream, const char* buffer, size_t size) {
+    return tty_write((tty_t*) stream->data, buffer, size);
 }
 
 static void tty_stream_puts(stream_t* stream, const char* str) {
     tty_puts((tty_t*) stream->data, str);
-}
-
-static char* tty_stream_gets(stream_t* stream) {
-    return tty_gets((tty_t*) stream->data);
 }
 
 void tty_clear(tty_t* tty) {
@@ -518,6 +521,67 @@ char tty_getchar(tty_t* tty) {
     return ch;
 }
 
+int32_t tty_read(tty_t* tty, char* buffer, size_t size) {
+    const process_t* current = process_get_current();
+
+    if(current == NULL || current->pid != tty->foreground_pid) {
+        return -1;
+    }
+
+    size_t count = 0;
+
+    while(count < size) {
+        if(circular_buffer_empty(tty->input)) {
+            if(count > 0) {
+                break;
+            }
+
+            if(process_kill_pending()) {
+                return -1;
+            }
+
+            wait_queue_sleep(&tty->readers);
+
+            // The terminal may have changed hands while we slept.
+            if(current->pid != tty->foreground_pid) {
+                return -1;
+            }
+
+            continue;
+        }
+
+        circular_buffer_dequeue(tty->input, &buffer[count]);
+        count++;
+    }
+
+    return (int32_t) count;
+}
+
+bool tty_may_set_foreground(tty_t* tty, const process_t* process) {
+    const process_t* holder = tty_foreground_process(tty);
+
+    return holder == NULL || holder == process;
+}
+
+/* The live foreground process, or NULL if it has exited or was never set. */
+static process_t* tty_foreground_process(tty_t* tty) {
+    process_t* process = (process_t*) process_get_by_pid(tty->foreground_pid);
+
+    if(process == NULL || process->state == PROCESS_STATE_EXITED) {
+        return NULL;
+    }
+
+    return process;
+}
+
+void tty_set_foreground(tty_t* tty, const process_t* caller, pid_t pid) {
+    tty->foreground_pid = pid;
+
+    if(process_get_by_pid(tty->leader_pid) == NULL) {
+        tty->leader_pid = caller->pid;
+    }
+}
+
 static char tty_keycode_to_char(tty_t* tty, uint32_t keycode, bool shifted) {
     for(size_t index = 0; index < tty->layout->keymap_size; index++) {
         if(tty->layout->keymap[index].keycode == keycode) {
@@ -538,45 +602,12 @@ void tty_puts(tty_t* tty, const char* str) {
     }
 }
 
-char* tty_gets(tty_t* tty) {
-    char *buffer = kmalloc(1);
-    size_t buffer_size = 1;
-    size_t buffer_index = 0;
-
-    while(true) {
-        char ch;
-        while((ch = tty_getchar(tty)) == -1);
-
-        if(ch == '\n') {
-            tty_putchar(tty, ch);
-            break;
-        }
-
-        if(ch == '\b') {
-            if(buffer_index == 0) {
-                continue;
-            }
-
-            buffer_index--;
-
-            tty_putchar(tty, ch);
-
-            continue;
-        }
-
-        if(buffer_index == buffer_size) {
-            buffer_size *= 2;
-            buffer = krealloc(buffer, buffer_size);
-        }
-
-        buffer[buffer_index] = ch;
-        buffer_index++;
-        tty_putchar(tty, ch);
+int32_t tty_write(tty_t* tty, const char* buffer, size_t size) {
+    for(size_t i = 0; i < size; i++) {
+        tty_putchar(tty, buffer[i]);
     }
 
-    buffer[buffer_index] = '\0';
-
-    return buffer;
+    return (int32_t) size;
 }
 
 void tty_set_fgcolor(tty_t* tty, uint8_t fgcolor) {

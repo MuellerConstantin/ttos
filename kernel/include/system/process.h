@@ -6,6 +6,7 @@
 #include <io/stream.h>
 #include <io/file.h>
 #include <arch/i386/isr.h>
+#include <system/wait_queue.h>
 #include <ttos/syscall.h>
 
 #define PROCESS_MAX_FILE_DESCRIPTORS 32
@@ -43,8 +44,8 @@ struct process_context {
 
 /*
  * READY: created or resumable, not on the CPU. RUNNING: on the CPU. WAITING:
- * blocked until an event occurs (a spawned child exiting). EXITED: terminated,
- * waiting to be destroyed by its parent.
+ * asleep on a wait queue until an event occurs. EXITED: terminated, waiting to
+ * be destroyed by its parent.
  */
 typedef enum {
     PROCESS_STATE_READY = 0,
@@ -86,6 +87,20 @@ struct process {
      * whose parent exits first is handed to init.
      */
     struct process* parent;
+
+    /* Woken whenever one of this process' children exits. */
+    wait_queue_t child_exited;
+
+    /* This process' entry in the wait queue it is asleep on, if any. */
+    linked_list_node_t wait_node;
+
+    /*
+     * A termination requested from outside while the process was not on the
+     * CPU (Ctrl+C on a process asleep in read). Carried out by the process
+     * itself the next time it is about to return to userland.
+     */
+    bool kill_pending;
+    int32_t kill_code;
 
     void* stack_base;
     void* stack_limit;
@@ -162,18 +177,29 @@ void process_tick();
 void process_preempt();
 
 /**
- * Block the current process until it is woken by process_wake, and run
- * something else in the meantime. Returns once the process is resumed.
+ * Terminate a process with the given exit code. The current process exits
+ * right away (see process_exit); any other process is marked and woken, and
+ * exits by itself before it next returns to userland.
+ *
+ * @param process The process to terminate.
+ * @param exit_code The exit code delivered to its parent.
  */
-void process_block();
+void process_kill(process_t* process, int32_t exit_code);
 
 /**
- * Mark a blocked process ready to run again. Has no effect on a process that
- * is not blocked.
+ * Whether a termination has been requested for the current process. A loop
+ * that sleeps in the kernel gives up when this becomes true, so that the
+ * process gets to exit.
  *
- * @param process The process to wake.
+ * @return true if the current process has been asked to terminate.
  */
-void process_wake(process_t* process);
+bool process_kill_pending();
+
+/**
+ * Carry out a termination requested for the current process, if any. Called
+ * on the way back to userland. Does not return in that case.
+ */
+void process_deliver_kill();
 
 /**
  * Terminate the current process. Records the outcome, releases the address

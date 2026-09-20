@@ -1,10 +1,11 @@
 #include <stdio.h>
 
 char *gets(char *str) {
-    char ch;
+    int ch;
     int index = 0;
 
-    while ((ch = getchar()) != '\n') {
+    // Input may end early: a process that is not allowed to read gets EOF.
+    while ((ch = getchar()) != '\n' && ch != EOF) {
         if(ch == '\b') {
             if(index == 0) {
                 continue;
