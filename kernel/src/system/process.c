@@ -18,6 +18,9 @@ static linked_list_t* process_list = NULL;
 /* Stack pointer of the idle context (kmain on the boot stack) while a process runs. */
 static uint32_t idle_esp = 0;
 
+/* Set by the timer once the running process' time slice is used up. */
+static volatile bool need_resched = false;
+
 static pid_t process_next_pid();
 
 static void process_enter();
@@ -349,6 +352,7 @@ void process_schedule() {
     }
 
     next->state = PROCESS_STATE_RUNNING;
+    next->ticks_left = PROCESS_TIME_SLICE_TICKS;
     current_process = next;
 
     /*
@@ -360,6 +364,30 @@ void process_schedule() {
     tss_update_ring0_stack(0x10, (uintptr_t) next->kernel_stack + PROCESS_KERNEL_STACK_SIZE);
 
     context_switch(previous != NULL ? &previous->kernel_esp : &idle_esp, next->kernel_esp);
+}
+
+void process_tick() {
+    if(current_process == NULL) {
+        return;
+    }
+
+    if(current_process->ticks_left > 0) {
+        current_process->ticks_left--;
+    }
+
+    if(current_process->ticks_left == 0) {
+        need_resched = true;
+    }
+}
+
+void process_preempt() {
+    if(!need_resched || current_process == NULL) {
+        return;
+    }
+
+    need_resched = false;
+
+    process_schedule();
 }
 
 void process_block() {

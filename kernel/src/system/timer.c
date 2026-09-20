@@ -2,6 +2,7 @@
 #include <system/kpanic.h>
 #include <arch/i386/isr.h>
 #include <drivers/pit/8253.h>
+#include <system/process.h>
 #include <util/linked_list.h>
 
 static volatile uint32_t timer_jiffies = 0;
@@ -33,6 +34,8 @@ static void timer_set_frequency(uint16_t hz) {
 
 static void timer_interrupt_handler(isr_cpu_state_t *state) {
     timer_jiffies++;
+
+    process_tick();
 
     linked_list_foreach(timer_wakeup_calls, node) {
         timer_wakeup_info_t *info = (timer_wakeup_info_t*) node->data;

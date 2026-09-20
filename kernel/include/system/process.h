@@ -23,6 +23,9 @@
  */
 #define PROCESS_KERNEL_STACK_SIZE 8192
 
+/* Timer ticks a process may run before it is preempted, at the PIT's 100 Hz. */
+#define PROCESS_TIME_SLICE_TICKS 10
+
 typedef int32_t pid_t;
 
 typedef struct process_context process_context_t;
@@ -74,6 +77,9 @@ struct process {
      */
     void* kernel_stack;
     uint32_t kernel_esp;
+
+    /* Timer ticks left in the current time slice. */
+    uint32_t ticks_left;
 
     /*
      * The process that spawned this one and blocks until it exits, or NULL for
@@ -140,6 +146,21 @@ void process_destroy(process_t* process);
  * Must be called with interrupts disabled.
  */
 void process_schedule();
+
+/**
+ * Account one timer tick to the running process. When its time slice is used
+ * up, a reschedule is requested for the next return to userland. Called from
+ * the timer interrupt.
+ */
+void process_tick();
+
+/**
+ * Give the CPU to another ready process if a reschedule has been requested.
+ * Called on the way out of an interrupt that returns to userland; the kernel
+ * itself is never preempted. Returns once the current process is scheduled
+ * again, or immediately if nothing else is ready.
+ */
+void process_preempt();
 
 /**
  * Block the current process until it is woken by process_wake, and run

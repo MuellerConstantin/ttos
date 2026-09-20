@@ -57,16 +57,25 @@ void isr_stage2(isr_cpu_state_t *state) {
         listener(state);
     }
 
+	// The interrupt came from user space if the saved cs carries RPL 3.
+	bool from_user = (state->cs & 0x3) == 3;
+
     // In case of an unhandled exception
 	if(0 == listener && 32 > state->interrupt_code && 0x80 != state->interrupt_code) {
-		// Check if exception did occurred in user space by checking the CPL
-		if(state->cs & 0x3 == 3) {
-			if(process_get_current()) {
-				process_exit(0, state->interrupt_code);
-			}
+		if(from_user && process_get_current()) {
+			process_exit(0, state->interrupt_code);
 		}
 
 		KPANIC(KPANIC_CPU_EXCEPTION_TYPE(state->interrupt_code), isr_exception_messages[state->interrupt_code], state);
+	}
+
+	/*
+	 * Only a return to user space may switch processes. A frame that returns
+	 * into the kernel (the idle loop, a nested interrupt) is left alone, so
+	 * kernel code is never preempted.
+	 */
+	if(from_user) {
+		process_preempt();
 	}
 }
 
