@@ -17,6 +17,12 @@
  */
 #define PROCESS_STACK_ARGS_LIMIT (PAGE_SIZE / 2)
 
+/*
+ * Size of the kernel stack each process runs on while it is inside the kernel.
+ * There is no guard page; an overflow corrupts the neighbouring heap block.
+ */
+#define PROCESS_KERNEL_STACK_SIZE 8192
+
 typedef int32_t pid_t;
 
 typedef struct process_context process_context_t;
@@ -37,7 +43,7 @@ struct process_context {
 /*
  * READY: created or resumable, not on the CPU. RUNNING: on the CPU. WAITING:
  * blocked until an event occurs (a spawned child exiting). EXITED: terminated,
- * about to be destroyed.
+ * waiting to be destroyed by its parent.
  */
 typedef enum {
     PROCESS_STATE_READY = 0,
@@ -56,17 +62,25 @@ struct process {
     process_state_t state;
 
     page_directory_t* address_space;
+
+    /* Ring 3 entry state, used once when the process first runs. */
     process_context_t context;
 
     /*
-     * When this process spawns a child and blocks on it, its full CPU state at
-     * the spawn syscall boundary is stored here so process_terminate can resume
-     * it once the child exits. parent points at the process to resume, or NULL
-     * for a process without a userland parent (the init process launched by the
-     * kernel).
+     * The kernel stack this process runs on inside the kernel, and its stack
+     * pointer while the process is not on the CPU. The stack holds whatever the
+     * process was doing when it was switched away from, down to the ISR frame
+     * through which it entered the kernel.
+     */
+    void* kernel_stack;
+    uint32_t kernel_esp;
+
+    /*
+     * The process that spawned this one and blocks until it exits, or NULL for
+     * a process without a userland parent (the init process launched by the
+     * kernel). The parent is woken by process_exit and destroys the child.
      */
     struct process* parent;
-    isr_cpu_state_t saved_state;
 
     void* stack_base;
     void* stack_limit;
@@ -109,34 +123,58 @@ struct process {
 process_t* process_create(const char* name, const char* path, int argc, const char** argv, int envc, const char** envp, const char* cwd, stream_t* out, stream_t* in, stream_t* err);
 
 /**
- * Destroy a process.
- * 
+ * Destroy a process that has exited: releases its kernel stack, its bookkeeping
+ * and its table entry. The address space has already been released by
+ * process_exit. Called by the parent once it has read the exit information.
+ *
  * @param process The process to destroy.
  */
 void process_destroy(process_t* process);
 
 /**
- * Run a process.
- * 
- * @param process The process to run.
+ * Hand the CPU to the next process that is ready to run, or to the kernel's
+ * idle context if there is none. Returns once the calling context is scheduled
+ * again. A caller that wants to give up the CPU marks its state before calling;
+ * a process still marked RUNNING is kept running if nothing else is ready.
+ *
+ * Must be called with interrupts disabled.
  */
-void process_run(process_t* process);
+void process_schedule();
 
 /**
- * Terminate a process.
- *
- * @param process The process to terminate.
+ * Block the current process until it is woken by process_wake, and run
+ * something else in the meantime. Returns once the process is resumed.
  */
-void process_terminate(process_t* process);
+void process_block();
 
 /**
- * Terminate the currently running process from outside a syscall (e.g. from an
- * interrupt handler, for Ctrl+C) and resume its parent with the given exit code.
- * Does not return when the current process has a userland parent.
+ * Mark a blocked process ready to run again. Has no effect on a process that
+ * is not blocked.
  *
- * @param exit_code The exit code delivered to the resumed parent.
+ * @param process The process to wake.
  */
-void process_kill_current(int32_t exit_code);
+void process_wake(process_t* process);
+
+/**
+ * Terminate the current process. Records the outcome, releases the address
+ * space, wakes the parent and switches away for good; the parent destroys what
+ * is left. May be called from a syscall or from an interrupt handler (the
+ * interrupted kernel path is abandoned with the process' kernel stack). Does not
+ * return. A process without a parent is the init process; its exit is a kernel
+ * panic.
+ *
+ * @param exit_code The exit code delivered to the parent.
+ * @param exception_code The CPU exception that terminated the process, or -1
+ *                       for a normal exit.
+ */
+void process_exit(int32_t exit_code, int32_t exception_code);
+
+/**
+ * Run the kernel's idle context: schedules whenever something is ready and
+ * halts the CPU in between. Never returns; the calling stack becomes the stack
+ * of the idle context.
+ */
+void process_idle();
 
 /**
  * Get the current process.

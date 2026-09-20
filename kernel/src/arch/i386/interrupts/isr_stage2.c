@@ -44,7 +44,7 @@ const char *isr_exception_messages[] = {
 void isr_stage2(isr_cpu_state_t *state) {
 	// Send EOI to the PIC for hardware interrupts before dispatching the
 	// listener. A listener may perform a non-local exit (e.g. Ctrl+C tearing
-	// down the foreground process via context_restore), which would otherwise
+	// down the foreground process via process_exit), which would otherwise
 	// skip the EOI and leave the PIC unable to deliver further interrupts.
 	if(32 <= state->interrupt_code) {
 		pic_8259_send_eoi(state->interrupt_code - 32);
@@ -61,11 +61,8 @@ void isr_stage2(isr_cpu_state_t *state) {
 	if(0 == listener && 32 > state->interrupt_code && 0x80 != state->interrupt_code) {
 		// Check if exception did occurred in user space by checking the CPL
 		if(state->cs & 0x3 == 3) {
-			process_t* current_process = process_get_current();
-
-			if(current_process) {
-				current_process->exception_code = state->interrupt_code;
-				process_terminate(current_process);
+			if(process_get_current()) {
+				process_exit(0, state->interrupt_code);
 			}
 		}
 

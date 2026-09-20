@@ -1,5 +1,7 @@
 #include <system/process.h>
 #include <arch/i386/isr.h>
+#include <arch/i386/tss.h>
+#include <arch/i386/context_switch.h>
 #include <io/file.h>
 #include <system/kpanic.h>
 #include <system/elf.h>
@@ -7,12 +9,19 @@
 #include <util/string.h>
 #include <util/linked_list.h>
 
+/* The process on the CPU, or NULL while the idle context runs. */
 static process_t* current_process = NULL;
 
 /* Every process that exists, from process_create until process_destroy. */
 static linked_list_t* process_list = NULL;
 
+/* Stack pointer of the idle context (kmain on the boot stack) while a process runs. */
+static uint32_t idle_esp = 0;
+
 static pid_t process_next_pid();
+
+static void process_enter();
+static process_t* process_pick_next();
 
 static void process_register(process_t* process);
 static void process_unregister(process_t* process);
@@ -230,6 +239,29 @@ process_t* process_create(const char* name, const char* path, int argc, const ch
     process->exit_code = 0;
     process->exception_code = -1;
 
+    // Allocate the kernel stack
+
+    process->kernel_stack = kmalloc(PROCESS_KERNEL_STACK_SIZE);
+
+    if(!process->kernel_stack) {
+        KPANIC(KPANIC_KHEAP_OUT_OF_MEMORY_CODE, KPANIC_KHEAP_OUT_OF_MEMORY_MESSAGE, NULL);
+    }
+
+    /*
+     * Lay out the kernel stack the way context_switch expects to find it, so
+     * that the first switch to this process pops four registers and returns
+     * into process_enter, which performs the ring 3 entry.
+     */
+    uint32_t* kernel_esp = (uint32_t*) ((uintptr_t) process->kernel_stack + PROCESS_KERNEL_STACK_SIZE);
+
+    *--kernel_esp = (uint32_t) process_enter;   // ret target of context_switch
+    *--kernel_esp = 0;                          // ebp
+    *--kernel_esp = 0;                          // ebx
+    *--kernel_esp = 0;                          // esi
+    *--kernel_esp = 0;                          // edi
+
+    process->kernel_esp = (uint32_t) kernel_esp;
+
     process_register(process);
 
     return process;
@@ -252,29 +284,24 @@ static size_t process_vector_size(int count, const char** vector) {
 void process_destroy(process_t* process) {
     process_unregister(process);
 
-    vmm_destroy_address_space(process->address_space);
+    kfree(process->kernel_stack);
     kfree(process->name);
     kfree(process->path);
     kfree(process);
 }
 
-void process_run(process_t* process) {
-    if(process->state != PROCESS_STATE_READY) {
-        return;
-    }
-
-    current_process = process;
-
-    process->state = PROCESS_STATE_RUNNING;
-
-    // Switch to the new address space
-    vmm_switch_address_space(process->address_space);
+/*
+ * First code a process runs on its own kernel stack, reached through the ret
+ * of context_switch. Enters ring 3 with the state process_create prepared: an
+ * iret frame is built by hand because there is no interrupt to return from.
+ */
+static void process_enter() {
+    process_t* process = current_process;
 
     const uint32_t USER_DS_SELECTOR = 0x23;
     const uint32_t USER_CS_SELECTOR = 0x1B;
 
     __asm__ volatile (
-        "cli\n"
         "mov %0, %%ds\n"
         "mov %0, %%es\n"
         "mov %0, %%fs\n"
@@ -295,67 +322,96 @@ void process_run(process_t* process) {
     );
 }
 
-void process_terminate(process_t* process) {
-    int32_t exit_code = process->exit_code;
-    int32_t exception_code = process->exception_code;
-    process_t* parent = process->parent;
+void process_schedule() {
+    process_t* previous = current_process;
+    process_t* next = process_pick_next();
 
-    process->state = PROCESS_STATE_EXITED;
-
-    /*
-     * Destroy the exiting process while its own address space is still the
-     * active one, so that vmm_destroy_address_space tears down the exiting
-     * process' user space (it operates on the current address space) and not
-     * some other process'. This leaves the kernel page directory active.
-     */
-    process_destroy(process);
-
-    if(parent != NULL) {
-        /*
-         * The process was spawned by a waiting userland parent. Switch into the
-         * parent's address space and resume it right after its spawn syscall,
-         * handing it the child's exit code as the syscall return value. A child
-         * that faulted is reported as -1.
-         */
-        vmm_switch_address_space(parent->address_space);
-
-        current_process = parent;
-        parent->state = PROCESS_STATE_RUNNING;
-
-        /*
-         * Encode the child's outcome as the spawn syscall's return value. It is
-         * always non-negative: a normal exit code (masked to a byte) or, for a
-         * process terminated by a CPU exception, 128 + the exception number.
-         * This lets the caller reserve negative values for "could not execute".
-         */
-        if(exception_code != -1) {
-            parent->saved_state.eax = (uint32_t) (128 + exception_code);
-        } else {
-            parent->saved_state.eax = (uint32_t) (exit_code & 0xFF);
+    if(next == NULL) {
+        // Nothing else to run: stay where we are unless the current process gave up the CPU.
+        if(previous == NULL || previous->state == PROCESS_STATE_RUNNING) {
+            return;
         }
 
-        context_restore(&parent->saved_state);
+        /*
+         * Fall back to the idle context. Its page directory does not matter,
+         * the kernel half is the same everywhere, and it never leaves ring 0,
+         * so the TSS stays as it is.
+         */
+        current_process = NULL;
 
-        // context_restore does not return.
+        context_switch(&previous->kernel_esp, idle_esp);
+
+        return;
     }
+
+    if(previous != NULL && previous->state == PROCESS_STATE_RUNNING) {
+        previous->state = PROCESS_STATE_READY;
+    }
+
+    next->state = PROCESS_STATE_RUNNING;
+    current_process = next;
+
+    /*
+     * The next process' ring 0 entries have to land on its own kernel stack.
+     * The stack lives on the kernel heap, which is mapped identically in every
+     * address space, so the page directory can be switched before the stack.
+     */
+    vmm_switch_address_space(next->address_space);
+    tss_update_ring0_stack(0x10, (uintptr_t) next->kernel_stack + PROCESS_KERNEL_STACK_SIZE);
+
+    context_switch(previous != NULL ? &previous->kernel_esp : &idle_esp, next->kernel_esp);
+}
+
+void process_block() {
+    current_process->state = PROCESS_STATE_WAITING;
+
+    process_schedule();
+}
+
+void process_wake(process_t* process) {
+    if(process->state == PROCESS_STATE_WAITING) {
+        process->state = PROCESS_STATE_READY;
+    }
+}
+
+void process_exit(int32_t exit_code, int32_t exception_code) {
+    process_t* process = current_process;
 
     /*
      * A process without a userland parent is the init process (PID 1). It is
      * expected to run forever, so its termination is a fatal condition.
      */
-    KPANIC(KPANIC_INIT_DIED_CODE, KPANIC_INIT_DIED_MESSAGE, NULL);
-}
-
-void process_kill_current(int32_t exit_code) {
-    if(current_process == NULL) {
-        return;
+    if(process->parent == NULL) {
+        KPANIC(KPANIC_INIT_DIED_CODE, KPANIC_INIT_DIED_MESSAGE, NULL);
     }
 
-    current_process->exit_code = exit_code;
-    current_process->exception_code = -1;
+    process->exit_code = exit_code;
+    process->exception_code = exception_code;
+    process->state = PROCESS_STATE_EXITED;
 
-    // Resumes the parent via process_terminate; does not return here.
-    process_terminate(current_process);
+    /*
+     * Release the address space while it is still the active one, as
+     * vmm_destroy_address_space tears down the user half of the current
+     * address space. This leaves the kernel page directory active. The kernel
+     * stack we are running on is heap memory and stays valid.
+     */
+    vmm_destroy_address_space(process->address_space);
+    process->address_space = NULL;
+
+    process_wake(process->parent);
+
+    process_schedule();
+
+    // Not reached: an exited process is never picked again.
+}
+
+void process_idle() {
+    isr_cli();
+
+    while(true) {
+        process_schedule();
+        isr_wait_interrupt();
+    }
 }
 
 const process_t* process_get_current() {
@@ -405,4 +461,39 @@ static void process_unregister(process_t* process) {
 
 static bool process_compare_pid(void* node_data, void* compare_data) {
     return ((process_t*) node_data)->pid == *((pid_t*) compare_data);
+}
+
+/*
+ * Round robin: the first READY process after the current one in table order,
+ * wrapping around to the start. NULL if no process is ready.
+ */
+static process_t* process_pick_next() {
+    if(process_list == NULL) {
+        return NULL;
+    }
+
+    linked_list_node_t* start = process_list->head;
+
+    if(current_process != NULL) {
+        linked_list_foreach(process_list, node) {
+            if(node->data == current_process) {
+                start = node->next;
+                break;
+            }
+        }
+    }
+
+    for(linked_list_node_t* node = start; node != NULL; node = node->next) {
+        if(((process_t*) node->data)->state == PROCESS_STATE_READY) {
+            return (process_t*) node->data;
+        }
+    }
+
+    for(linked_list_node_t* node = process_list->head; node != start; node = node->next) {
+        if(((process_t*) node->data)->state == PROCESS_STATE_READY) {
+            return (process_t*) node->data;
+        }
+    }
+
+    return NULL;
 }

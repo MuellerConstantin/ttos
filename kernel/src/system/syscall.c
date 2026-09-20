@@ -388,8 +388,7 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
  * Spawn syscall handler.
  *
  * Creates a new child process from an executable and runs it to completion,
- * blocking the caller until the child exits. The caller is resumed by
- * process_terminate once the child exits.
+ * blocking the caller until the child exits.
  *
  * Syscall expects the following parameters:
  *
@@ -1103,9 +1102,7 @@ void syscall_exit(isr_cpu_state_t *state) {
     process_t* current_process = process_get_current();
 
     if(current_process) {
-        current_process->exit_code = exit_code;
-        current_process->exception_code = -1;
-        process_terminate(current_process);
+        process_exit(exit_code, -1);
     }
 
     while(1);
@@ -1521,9 +1518,6 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
         return -1;
     }
 
-    // Preserve the parent's context so it can be resumed once the child exits.
-    parent->saved_state = *state;
-
     // The child starts where its parent stands.
     process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, envc, (const char**) kernel_envp, parent->cwd, parent->out, parent->in, parent->err);
 
@@ -1536,12 +1530,27 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
     }
 
     child->parent = parent;
-    parent->state = PROCESS_STATE_WAITING;
 
-    process_run(child);
+    // Runs the child; returns once it has exited and woken us.
+    process_block();
 
-    // process_run does not return; the parent is resumed via process_terminate.
-    return 0;
+    /*
+     * Encode the child's outcome as the return value. It is always
+     * non-negative: a normal exit code (masked to a byte) or, for a process
+     * terminated by a CPU exception, 128 + the exception number. This lets the
+     * caller reserve negative values for "could not execute".
+     */
+    int32_t result;
+
+    if(child->exception_code != -1) {
+        result = 128 + child->exception_code;
+    } else {
+        result = child->exit_code & 0xFF;
+    }
+
+    process_destroy(child);
+
+    return result;
 }
 
 /**

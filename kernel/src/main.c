@@ -65,7 +65,11 @@ void kmain(multiboot_info_t *multiboot_info, uint32_t magic) {
 
     init_console();
 
-    while(1);
+    /*
+     * kmain becomes the idle context: it hands the CPU to init and from then
+     * on only runs while no process is ready.
+     */
+    process_idle();
 }
 
 static void init_platform(multiboot_info_t *multiboot_info) {
@@ -214,9 +218,11 @@ static void init_console() {
     stream_t* in_stream = tty_get_in_stream(tty0);
     stream_t* err_stream = tty_get_err_stream(tty0);
 
-    // Launch the init process (PID 1). It runs in userland, never exits and is
-    // responsible for keeping a shell running. process_run does not return; if
-    // init ever exits, process_terminate raises a kernel panic.
+    /*
+     * Create the init process (PID 1). It runs in userland, never exits and is
+     * responsible for keeping a shell running; it is started by the first
+     * process_schedule. If init ever exits, process_exit raises a kernel panic.
+     */
 
     const char* init_path = "A:/init.elf";
     const char* init_argv[] = { init_path };
@@ -227,6 +233,4 @@ static void init_console() {
     if(!init) {
         KPANIC(KPANIC_INIT_START_FAILED_CODE, KPANIC_INIT_START_FAILED_MESSAGE, NULL);
     }
-
-    process_run(init);
 }

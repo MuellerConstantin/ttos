@@ -124,7 +124,7 @@ static void tty_keyboard_listener(keyboard_event_t* event) {
              * 128 + SIGINT(2), mirroring the conventional shell exit code.
              * Does not return: the parent process is resumed.
              */
-            process_kill_current(130);
+            process_exit(130, -1);
         }
 
         return;
