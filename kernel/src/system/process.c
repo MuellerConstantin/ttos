@@ -418,6 +418,24 @@ void process_exit(int32_t exit_code, int32_t exception_code) {
     process->state = PROCESS_STATE_EXITED;
 
     /*
+     * Orphaned children, running or already exited, are handed to init, which
+     * collects them with wait. init is woken in case it is already waiting.
+     */
+    process_t* init = (process_t*) process_get_by_pid(1);
+
+    linked_list_foreach(process_list, node) {
+        process_t* child = (process_t*) node->data;
+
+        if(child->parent == process) {
+            child->parent = init;
+        }
+    }
+
+    if(init != NULL && init != process->parent) {
+        process_wake(init);
+    }
+
+    /*
      * Release the address space while it is still the active one, as
      * vmm_destroy_address_space tears down the user half of the current
      * address space. This leaves the kernel page directory active. The kernel
@@ -454,6 +472,36 @@ const process_t* process_get_by_pid(pid_t pid) {
     linked_list_node_t* node = linked_list_find(process_list, process_compare_pid, &pid);
 
     return node != NULL ? (process_t*) node->data : NULL;
+}
+
+process_t* process_find_child(const process_t* parent, pid_t pid) {
+    process_t* any_child = NULL;
+
+    linked_list_foreach(process_list, node) {
+        process_t* child = (process_t*) node->data;
+
+        if(child->parent != parent) {
+            continue;
+        }
+
+        if(pid != -1) {
+            if(child->pid == pid) {
+                return child;
+            }
+
+            continue;
+        }
+
+        if(child->state == PROCESS_STATE_EXITED) {
+            return child;
+        }
+
+        if(any_child == NULL) {
+            any_child = child;
+        }
+    }
+
+    return any_child;
 }
 
 /* PID 0 is never handed out; it is free to mean "no process". */

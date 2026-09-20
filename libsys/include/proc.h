@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <ttos/syscall.h>
 
 /**
  * The environment of the current process, a NULL terminated array of strings of the form
@@ -19,18 +20,29 @@ extern char** environ;
 void _exit(int status);
 
 /**
- * Spawns a child process from an executable and waits for it to finish.
- *
- * Blocks until the child exits and returns its exit code. The child receives a
- * copy of the caller's environment.
+ * Spawns a child process from an executable. The child runs alongside the
+ * caller and receives a copy of the caller's environment; its outcome is
+ * collected with wait.
  *
  * @param path The path to the executable
  * @param argv NULL terminated argument vector (argv[0] is conventionally the path)
- * @return A non-negative status if the program ran (its exit code, or
- *         128 + the exception number if it was terminated by a fault), or a
- *         negative value if the executable could not be started.
+ * @return The PID of the child, or a negative value if the executable could
+ *         not be started.
  */
-int spawn(const char* path, char* const argv[]);
+pid_t spawn(const char* path, char* const argv[]);
+
+/**
+ * Collects a child that has exited. Blocks until one does, unless WAIT_NOHANG
+ * is given.
+ *
+ * @param pid The PID of the child to wait for, or -1 for any child
+ * @param status Receives the child's status if not NULL: its exit code, or
+ *               128 + the exception number if it was terminated by a fault
+ * @param options 0, or WAIT_NOHANG to return instead of blocking
+ * @return The PID of the collected child, 0 if WAIT_NOHANG was given and no
+ *         child has exited yet, or -1 if the caller has no such child.
+ */
+pid_t wait(pid_t pid, int* status, int options);
 
 /**
  * Changes the working directory of the current process. Relative paths the

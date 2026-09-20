@@ -48,9 +48,16 @@ extern "C" {
 #define SYSCALL_GET_STORAGEINFO 0x24
 #define SYSCALL_VOLREAD 0x25
 #define SYSCALL_VOLWRITE 0x26
+#define SYSCALL_WAIT 0x27
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256
+
+// Process identifier. PID 1 is init; 0 is never a process.
+typedef int32_t pid_t;
+
+// Option for SYSCALL_WAIT: return 0 instead of blocking when no child has exited yet.
+#define WAIT_NOHANG 0x01
 
 typedef struct osinfo osinfo_t;
 

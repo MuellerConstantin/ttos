@@ -23,13 +23,21 @@ int main(void) {
 
     /*
      * init is PID 1: it must never exit. Keep a shell running and respawn it if
-     * it ever terminates. If init itself were to return, the kernel raises a
-     * panic (see process_terminate).
+     * it ever terminates. Children whose parent has exited are handed to init
+     * by the kernel, so the wait also collects those; only the shell is
+     * restarted. If init itself were to return, the kernel raises a panic (see
+     * process_exit).
      */
-    for(;;) {
-        int code = spawn(shell_path, shell_argv);
+    pid_t shell = spawn(shell_path, shell_argv);
 
-        printf("init: shell exited (%d), restarting\n", code);
+    for(;;) {
+        int status = -1;
+        pid_t pid = wait(-1, &status, 0);
+
+        if(pid == shell || shell < 0) {
+            printf("init: shell exited (%d), restarting\n", status);
+            shell = spawn(shell_path, shell_argv);
+        }
     }
 
     return 0;

@@ -78,6 +78,7 @@ static void shell_help(void) {
     printf("pwd - Show the working directory\n");
     printf("<command> [args...] - Run a program, resolved via the search path\n");
     printf("<path> [args...] - Run a program by its full path\n");
+    printf("<command> [args...] & - Run a program in the background\n");
 }
 
 static int shell_ends_with(const char* string, const char* suffix) {
@@ -346,11 +347,11 @@ static void shell_print_prompt(const char* prompt) {
 }
 
 /*
- * Tries to run `path`, then `path.elf` if it does not already end in .elf.
- * Returns the program's status if it ran, or -1 if neither could be started.
+ * Tries to start `path`, then `path.elf` if it does not already end in .elf.
+ * Returns the PID of the started program, or -1 if neither could be started.
  */
-static int shell_try_spawn(const char* path, char** argv) {
-    int result = spawn(path, argv);
+static pid_t shell_try_spawn(const char* path, char** argv) {
+    pid_t result = spawn(path, argv);
 
     if(result >= 0) {
         return result;
@@ -375,13 +376,13 @@ static int shell_try_spawn(const char* path, char** argv) {
 }
 
 /*
- * Resolves argv[0] to an executable and runs it. A name that contains a drive
- * or a path separator is used as given, relative names being resolved by the
- * kernel against the working directory; a bare name is looked up in the
- * search path. Returns the program's status, or -1 if nothing could be
- * executed.
+ * Resolves argv[0] to an executable and starts it. A name that contains a
+ * drive or a path separator is used as given, relative names being resolved
+ * by the kernel against the working directory; a bare name is looked up in the
+ * search path. Returns the PID of the started program, or -1 if nothing could
+ * be executed.
  */
-static int shell_run(char** argv) {
+static pid_t shell_run(char** argv) {
     if(strpbrk(argv[0], ":/") != NULL) {
         return shell_try_spawn(argv[0], argv);
     }
@@ -399,7 +400,7 @@ static int shell_run(char** argv) {
         strcat(candidate, "/");
         strcat(candidate, argv[0]);
 
-        int result = shell_try_spawn(candidate, argv);
+        pid_t result = shell_try_spawn(candidate, argv);
 
         if(result >= 0) {
             return result;
@@ -407,6 +408,20 @@ static int shell_run(char** argv) {
     }
 
     return -1;
+}
+
+/*
+ * Collects background jobs that have finished and reports them. Foreground
+ * commands are waited for directly, so whatever wait finds here ran in the
+ * background.
+ */
+static void shell_reap(void) {
+    int status;
+    pid_t pid;
+
+    while((pid = wait(-1, &status, WAIT_NOHANG)) > 0) {
+        printf("[%d] exited (%d)\n", pid, status);
+    }
 }
 
 static void shell_history_add(const char* line) {
@@ -611,12 +626,21 @@ int main(void) {
     char* argv[SHELL_MAX_ARGS + 1];
 
     for(;;) {
+        shell_reap();
+
         shell_prompt(prompt);
         shell_read_line(prompt, line, sizeof(line));
 
         size_t argc = shell_tokenize(line, argv, SHELL_MAX_ARGS);
 
         if(argc == 0) {
+            continue;
+        }
+
+        // A trailing & runs the command in the background.
+        int background = strcmp(argv[argc - 1], "&") == 0;
+
+        if(background && --argc == 0) {
             continue;
         }
 
@@ -648,8 +672,17 @@ int main(void) {
             continue;
         }
 
-        if(shell_run(argv) < 0) {
+        pid_t pid = shell_run(argv);
+
+        if(pid < 0) {
             printf("shell: command not found: %s\n", argv[0]);
+            continue;
+        }
+
+        if(background) {
+            printf("[%d]\n", pid);
+        } else {
+            wait(pid, NULL, 0);
         }
     }
 

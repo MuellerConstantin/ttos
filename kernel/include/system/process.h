@@ -26,8 +26,6 @@
 /* Timer ticks a process may run before it is preempted, at the PIT's 100 Hz. */
 #define PROCESS_TIME_SLICE_TICKS 10
 
-typedef int32_t pid_t;
-
 typedef struct process_context process_context_t;
 
 struct process_context {
@@ -82,9 +80,10 @@ struct process {
     uint32_t ticks_left;
 
     /*
-     * The process that spawned this one and blocks until it exits, or NULL for
-     * a process without a userland parent (the init process launched by the
-     * kernel). The parent is woken by process_exit and destroys the child.
+     * The process that spawned this one, or NULL for a process without a
+     * userland parent (the init process launched by the kernel). The parent
+     * collects the exit information with wait and destroys the child; a child
+     * whose parent exits first is handed to init.
      */
     struct process* parent;
 
@@ -178,11 +177,11 @@ void process_wake(process_t* process);
 
 /**
  * Terminate the current process. Records the outcome, releases the address
- * space, wakes the parent and switches away for good; the parent destroys what
- * is left. May be called from a syscall or from an interrupt handler (the
- * interrupted kernel path is abandoned with the process' kernel stack). Does not
- * return. A process without a parent is the init process; its exit is a kernel
- * panic.
+ * space, hands any children over to init, wakes the parent and switches away
+ * for good; the parent destroys what is left. May be called from a syscall or
+ * from an interrupt handler (the interrupted kernel path is abandoned with the
+ * process' kernel stack). Does not return. A process without a parent is the
+ * init process; its exit is a kernel panic.
  *
  * @param exit_code The exit code delivered to the parent.
  * @param exception_code The CPU exception that terminated the process, or -1
@@ -211,5 +210,15 @@ const process_t* process_get_current();
  * @return The process or NULL if no process with that PID exists.
  */
 const process_t* process_get_by_pid(pid_t pid);
+
+/**
+ * Look for a child of a process. With a PID, that child in whatever state it
+ * is; with -1, any child that has exited, or failing that any child at all.
+ *
+ * @param parent The parent.
+ * @param pid The child's PID, or -1 for any child.
+ * @return The child or NULL if the parent has no such child.
+ */
+process_t* process_find_child(const process_t* parent, pid_t pid);
 
 #endif // _KERNEL_SYSTEM_PROCESS_H

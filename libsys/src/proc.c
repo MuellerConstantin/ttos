@@ -7,8 +7,12 @@ void _exit(int status) {
     syscall1(SYSCALL_EXIT, (uint32_t) status);
 }
 
-int spawn(const char* path, char* const argv[]) {
+pid_t spawn(const char* path, char* const argv[]) {
     return syscall3(SYSCALL_SPAWN, (uint32_t) path, (uint32_t) argv, (uint32_t) environ);
+}
+
+pid_t wait(pid_t pid, int* status, int options) {
+    return syscall3(SYSCALL_WAIT, (uint32_t) pid, (uint32_t) status, (uint32_t) options);
 }
 
 int chdir(const char* path) {

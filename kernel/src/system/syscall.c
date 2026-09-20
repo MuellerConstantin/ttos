@@ -387,8 +387,8 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
 /**
  * Spawn syscall handler.
  *
- * Creates a new child process from an executable and runs it to completion,
- * blocking the caller until the child exits.
+ * Creates a new child process from an executable and makes it ready to run.
+ * The caller continues; the child's outcome is collected with wait.
  *
  * Syscall expects the following parameters:
  *
@@ -401,12 +401,36 @@ static int32_t syscall_get_kheapinfo(isr_cpu_state_t *state);
  * - edx: NULL terminated environment vector (user pointer, entries of the form
  *        NAME=VALUE), or NULL for an empty environment
  *
- * On success this syscall returns the child's exit code (delivered when the
- * child exits); it returns -1 if the child could not be created.
+ * Syscall returns the PID of the child or -1 if it could not be created.
  *
  * @param state The CPU state.
  */
 static int32_t syscall_spawn(isr_cpu_state_t *state);
+
+/**
+ * Wait syscall handler.
+ *
+ * Collects the outcome of a child that has exited and destroys it. Blocks
+ * until such a child exists unless told not to.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: PID of the child to wait for, or -1 for any child
+ *
+ * - ecx: Pointer to a user int32_t that receives the status, or NULL. The
+ *        status is the exit code masked to a byte or, for a child terminated
+ *        by a CPU exception, 128 + the exception number.
+ *
+ * - edx: Options; WAIT_NOHANG returns instead of blocking
+ *
+ * Syscall returns the PID of the collected child, 0 if WAIT_NOHANG was given
+ * and no child has exited yet, or -1 if the caller has no such child.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_wait(isr_cpu_state_t *state);
 
 static char** syscall_copy_vector(char** user_vector, int* count);
 static void syscall_free_vector(char** vector, int count);
@@ -818,6 +842,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_VOLWRITE: {
             state->eax = syscall_volwrite(state);
+            break;
+        }
+        case SYSCALL_WAIT: {
+            state->eax = syscall_wait(state);
             break;
         }
         default: {
@@ -1531,26 +1559,56 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
 
     child->parent = parent;
 
-    // Runs the child; returns once it has exited and woken us.
-    process_block();
+    return child->pid;
+}
 
-    /*
-     * Encode the child's outcome as the return value. It is always
-     * non-negative: a normal exit code (masked to a byte) or, for a process
-     * terminated by a CPU exception, 128 + the exception number. This lets the
-     * caller reserve negative values for "could not execute".
-     */
-    int32_t result;
+static int32_t syscall_wait(isr_cpu_state_t *state) {
+    pid_t pid = (pid_t) state->ebx;
+    int32_t* user_status = (int32_t*) state->ecx;
+    uint32_t options = state->edx;
 
-    if(child->exception_code != -1) {
-        result = 128 + child->exception_code;
-    } else {
-        result = child->exit_code & 0xFF;
+    process_t* parent = (process_t*) process_get_current();
+
+    if(!parent || (pid < 1 && pid != -1)) {
+        return -1;
     }
 
-    process_destroy(child);
+    for(;;) {
+        process_t* child = process_find_child(parent, pid);
 
-    return result;
+        if(child == NULL) {
+            return -1;
+        }
+
+        if(child->state == PROCESS_STATE_EXITED) {
+            /*
+             * The status is always non-negative: a normal exit code (masked to
+             * a byte) or, for a process terminated by a CPU exception, 128 +
+             * the exception number. This lets a caller reserve negative values
+             * for "could not execute".
+             */
+            if(user_status != NULL) {
+                if(child->exception_code != -1) {
+                    *user_status = 128 + child->exception_code;
+                } else {
+                    *user_status = child->exit_code & 0xFF;
+                }
+            }
+
+            pid_t child_pid = child->pid;
+
+            process_destroy(child);
+
+            return child_pid;
+        }
+
+        if(options & WAIT_NOHANG) {
+            return 0;
+        }
+
+        // Woken by an exiting child; look again, it may have been another one.
+        process_block();
+    }
 }
 
 /**
