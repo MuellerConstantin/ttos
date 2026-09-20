@@ -446,6 +446,25 @@ static int32_t syscall_set_foreground(isr_cpu_state_t *state);
 static int32_t syscall_getpid(isr_cpu_state_t *state);
 
 /**
+ * Kill syscall handler.
+ *
+ * Terminates a process. Any process may be killed except init; the parent
+ * sees a status of 137 (128 + SIGKILL by the Unix convention).
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: PID of the process to terminate
+ *
+ * Syscall returns 0 on success or -1 if there is no such process, it has
+ * already exited or it is init.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_kill(isr_cpu_state_t *state);
+
+/**
  * List processes syscall handler.
  *
  * Syscall expects the following parameters:
@@ -913,6 +932,10 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_LSPROC: {
             state->eax = syscall_lsproc(state);
+            break;
+        }
+        case SYSCALL_KILL: {
+            state->eax = syscall_kill(state);
             break;
         }
         default: {
@@ -1627,6 +1650,25 @@ static int32_t syscall_getpid(isr_cpu_state_t *state) {
     const process_t* current = process_get_current();
 
     return current != NULL ? current->pid : -1;
+}
+
+static int32_t syscall_kill(isr_cpu_state_t *state) {
+    pid_t pid = (pid_t) state->ebx;
+
+    if(pid <= 1) {
+        return -1;
+    }
+
+    process_t* process = (process_t*) process_get_by_pid(pid);
+
+    if(process == NULL || process->state == PROCESS_STATE_EXITED) {
+        return -1;
+    }
+
+    // Does not return if the caller kills itself.
+    process_kill(process, 137);
+
+    return 0;
 }
 
 static int32_t syscall_lsproc(isr_cpu_state_t *state) {

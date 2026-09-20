@@ -48,6 +48,17 @@ pid_t spawn(const char* path, char* const argv[], int flags);
 pid_t wait(pid_t pid, int* status, int options);
 
 /**
+ * Terminates a process. Any process may be killed except init. The parent of
+ * the killed process sees a status of 137. A process that kills itself does
+ * not return from this call.
+ *
+ * @param pid The PID of the process to terminate
+ * @return 0 on success or -1 if there is no such process, it has already
+ *         exited or it is init
+ */
+int kill(pid_t pid);
+
+/**
  * Returns the PID of the calling process.
  *
  * @return The PID

@@ -43,7 +43,7 @@ SYSTEMRD_SIZE := 4M
 DISK_SIZE := 50
 
 # Userland binaries that must live on the initrd.
-INITRD_BINS := init.elf shell.elf clear.elf lsvol.elf poweroff.elf lsdev.elf lsmnt.elf lsproc.elf mount.elf unmount.elf dmesg.elf uptime.elf memusage.elf memmap.elf kheapusage.elf
+INITRD_BINS := init.elf shell.elf clear.elf lsvol.elf poweroff.elf lsdev.elf lsmnt.elf lsproc.elf kill.elf mount.elf unmount.elf dmesg.elf uptime.elf memusage.elf memmap.elf kheapusage.elf
 
 # Userland binaries that must live on the disk.
 INITRD_EXCLUDE := $(foreach bin,$(INITRD_BINS),! -name $(bin))

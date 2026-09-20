@@ -15,6 +15,10 @@ pid_t wait(pid_t pid, int* status, int options) {
     return syscall3(SYSCALL_WAIT, (uint32_t) pid, (uint32_t) status, (uint32_t) options);
 }
 
+int kill(pid_t pid) {
+    return syscall1(SYSCALL_KILL, (uint32_t) pid);
+}
+
 pid_t getpid(void) {
     return syscall0(SYSCALL_GETPID);
 }
