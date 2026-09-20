@@ -15,6 +15,14 @@ pid_t wait(pid_t pid, int* status, int options) {
     return syscall3(SYSCALL_WAIT, (uint32_t) pid, (uint32_t) status, (uint32_t) options);
 }
 
+pid_t getpid(void) {
+    return syscall0(SYSCALL_GETPID);
+}
+
+int32_t proc_list(uint32_t index, procinfo_t* info) {
+    return syscall2(SYSCALL_LSPROC, (uint32_t) index, (uint32_t) info);
+}
+
 int chdir(const char* path) {
     return syscall1(SYSCALL_CHDIR, (uint32_t) path);
 }

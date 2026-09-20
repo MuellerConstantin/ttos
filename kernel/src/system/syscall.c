@@ -433,6 +433,36 @@ static int32_t syscall_spawn(isr_cpu_state_t *state);
 static int32_t syscall_set_foreground(isr_cpu_state_t *state);
 
 /**
+ * Get PID syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * Syscall returns the PID of the calling process.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_getpid(isr_cpu_state_t *state);
+
+/**
+ * List processes syscall handler.
+ *
+ * Syscall expects the following parameters:
+ *
+ * - eax: Syscall number
+ *
+ * - ebx: Index of the process to query, in process table order
+ *
+ * - ecx: Pointer to a user procinfo struct to fill
+ *
+ * Syscall returns 0 on success or -1 when the index is out of range or on error.
+ *
+ * @param state The CPU state.
+ */
+static int32_t syscall_lsproc(isr_cpu_state_t *state);
+
+/**
  * Wait syscall handler.
  *
  * Collects the outcome of a child that has exited and destroys it. Blocks
@@ -875,6 +905,14 @@ static void syscall_handler(isr_cpu_state_t *state) {
         }
         case SYSCALL_SET_FOREGROUND: {
             state->eax = syscall_set_foreground(state);
+            break;
+        }
+        case SYSCALL_GETPID: {
+            state->eax = syscall_getpid(state);
+            break;
+        }
+        case SYSCALL_LSPROC: {
+            state->eax = syscall_lsproc(state);
             break;
         }
         default: {
@@ -1551,8 +1589,16 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
         return -1;
     }
 
-    // The child starts where its parent stands.
-    process_t* child = process_create("child", kernel_path, argc, (const char**) kernel_argv, envc, (const char**) kernel_envp, parent->cwd, parent->out, parent->in, parent->err);
+    // The child is named after its executable and starts where its parent stands.
+    const char* name = kernel_path;
+
+    for(const char* cursor = kernel_path; *cursor != '\0'; cursor++) {
+        if(*cursor == '/') {
+            name = cursor + 1;
+        }
+    }
+
+    process_t* child = process_create(name, kernel_path, argc, (const char**) kernel_argv, envc, (const char**) kernel_envp, parent->cwd, parent->out, parent->in, parent->err);
 
     // process_create has copied path, arguments and environment onto the child's stack.
     syscall_free_vector(kernel_argv, argc);
@@ -1573,6 +1619,44 @@ static int32_t syscall_spawn(isr_cpu_state_t *state) {
     }
 
     return child->pid;
+}
+
+static int32_t syscall_getpid(isr_cpu_state_t *state) {
+    (void) state;
+
+    const process_t* current = process_get_current();
+
+    return current != NULL ? current->pid : -1;
+}
+
+static int32_t syscall_lsproc(isr_cpu_state_t *state) {
+    uint32_t index = state->ebx;
+    procinfo_t* info = (procinfo_t*) state->ecx;
+
+    if(!info) {
+        return -1;
+    }
+
+    const process_t* process = process_get_by_index(index);
+
+    if(process == NULL) {
+        return -1;
+    }
+
+    info->pid = process->pid;
+    info->parent = process->parent != NULL ? process->parent->pid : 0;
+
+    switch(process->state) {
+        case PROCESS_STATE_READY:   info->state = PROC_STATE_READY;   break;
+        case PROCESS_STATE_RUNNING: info->state = PROC_STATE_RUNNING; break;
+        case PROCESS_STATE_EXITED:  info->state = PROC_STATE_EXITED;  break;
+        case PROCESS_STATE_WAITING: info->state = PROC_STATE_WAITING; break;
+    }
+
+    strncpy(info->name, process->name, sizeof(info->name));
+    info->name[sizeof(info->name) - 1] = '\0';
+
+    return 0;
 }
 
 static int32_t syscall_set_foreground(isr_cpu_state_t *state) {

@@ -527,6 +527,16 @@ const process_t* process_get_by_pid(pid_t pid) {
     return node != NULL ? (process_t*) node->data : NULL;
 }
 
+const process_t* process_get_by_index(uint32_t index) {
+    if(process_list == NULL) {
+        return NULL;
+    }
+
+    linked_list_node_t* node = linked_list_get(process_list, index);
+
+    return node != NULL ? (process_t*) node->data : NULL;
+}
+
 process_t* process_find_child(const process_t* parent, pid_t pid) {
     process_t* any_child = NULL;
 

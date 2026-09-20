@@ -50,6 +50,8 @@ extern "C" {
 #define SYSCALL_VOLWRITE 0x26
 #define SYSCALL_WAIT 0x27
 #define SYSCALL_SET_FOREGROUND 0x28
+#define SYSCALL_GETPID 0x29
+#define SYSCALL_LSPROC 0x2A
 
 // Longest path the kernel accepts or reports, including the terminating NUL.
 #define PATH_MAX 256
@@ -62,6 +64,30 @@ typedef int32_t pid_t;
 
 // Flag for SYSCALL_SPAWN: make the child the terminal's foreground process as it is created.
 #define SPAWN_FOREGROUND 0x01
+
+// Process states, as reported in procinfo.
+#define PROC_STATE_READY   0
+#define PROC_STATE_RUNNING 1
+#define PROC_STATE_EXITED  2
+#define PROC_STATE_WAITING 3
+
+typedef struct procinfo procinfo_t;
+
+/**
+ * Describes a process in the system's process table.
+ */
+struct procinfo {
+    pid_t pid;
+
+    // PID of the parent, or 0 for a process without one (init).
+    pid_t parent;
+
+    // One of the PROC_STATE_* values.
+    uint32_t state;
+
+    // Name of the process: the file name of its executable.
+    char name[32];
+};
 
 typedef struct osinfo osinfo_t;
 

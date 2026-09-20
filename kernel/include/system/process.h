@@ -238,6 +238,14 @@ const process_t* process_get_current();
 const process_t* process_get_by_pid(pid_t pid);
 
 /**
+ * Get a process by its position in the process table, for listing.
+ *
+ * @param index The position, counted from 0 in creation order.
+ * @return The process or NULL if the index is past the end of the table.
+ */
+const process_t* process_get_by_index(uint32_t index);
+
+/**
  * Look for a child of a process. With a PID, that child in whatever state it
  * is; with -1, any child that has exited, or failing that any child at all.
  *

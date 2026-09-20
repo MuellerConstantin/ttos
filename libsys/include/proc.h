@@ -48,6 +48,25 @@ pid_t spawn(const char* path, char* const argv[], int flags);
 pid_t wait(pid_t pid, int* status, int options);
 
 /**
+ * Returns the PID of the calling process.
+ *
+ * @return The PID
+ */
+pid_t getpid(void);
+
+/**
+ * Queries a process by its index in the system's process table.
+ *
+ * Callers enumerate all processes by invoking this with index 0, 1, 2, ...
+ * until it returns -1.
+ *
+ * @param index The index of the process to query.
+ * @param info The process information to fill.
+ * @return 0 on success or -1 when the index is out of range or on error.
+ */
+int32_t proc_list(uint32_t index, procinfo_t* info);
+
+/**
  * Changes the working directory of the current process. Relative paths the
  * process hands to the kernel from then on are resolved against it, and a
  * child spawned afterwards starts there.
